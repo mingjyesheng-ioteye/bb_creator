@@ -12,4 +12,9 @@ export type CourseRenderRequest = {
   width: number;
   height: number;
   totalFrames: number;
+  /**
+   * Remotion concurrency (number of parallel browser tabs rendering frames).
+   * Omitted -> OPENCREATOR_COURSE_RENDER_CONCURRENCY -> CPU-based default.
+   */
+  concurrency?: number;
 };

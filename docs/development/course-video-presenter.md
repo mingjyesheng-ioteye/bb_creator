@@ -56,11 +56,23 @@ pnpm daemon:dev
 
 ## 性能
 
-- 本机 Wav2Lip（ROCm GPU 生成 + **CPU 人脸检测**）约 **0.17 秒/秒音频**（约 6 倍实时）。模块 1 约 294 秒音频，全量生成约 1 分钟。
+### 数字人（presenter）
+
+- 本机 Wav2Lip（ROCm GPU 生成 + **CPU 人脸检测**）约 **0.17 秒/秒音频**（约 6 倍实时）。模块 1 约 294 秒音频，全量生成约 40 秒。
 - 关键：人脸检测必须跑在 CPU。s3fd 检测器在 ROCm GPU 上运行会让**首次** Wav2Lip 卷积从 ~0.3 秒恶化到 ~150 秒（MIOpen kernel DB 未命中，且每次运行都会重演）。`wav2lip_presenter.sh` 默认通过 [`scripts/presenter/wav2lip_infer_cpuface.py`](../../scripts/presenter/wav2lip_infer_cpuface.py) 强制 CPU 人脸检测；如需关闭可设置 `WAV2LIP_INFER=$WAV2LIP_DIR/inference.py`。
-- 实测（gfx1151 / Strix Halo）：10.9 秒音频 ≈ 6.8 秒；65.3 秒音频 ≈ 10.9 秒；生成器单批 128 帧仅 ~0.16 秒（~800 fps），瓶颈已不在 GPU。
-- 若仍需加速：用 `presenterSlides` 限制片段范围，或提高 `WAV2LIP_RESIZE`（如 2）。
+- 片段默认并行生成，并发数由 `OPENCREATOR_PRESENTER_CONCURRENCY` 控制（默认按 CPU 推导、上限 4）。实测 4 路约 2× 于串行，8 路因资源超订反而比串行更慢。
+- `wav2lip_presenter.sh` 每次调用使用独立临时工作目录：Wav2Lip 的 `inference.py` 使用固定的 `temp/result.avi`、`temp/temp.wav` 相对路径，共享目录会让并发片段互相覆盖。
 - 注意：FP16 在本机 ROCm 上反而更慢（MIOpen fp16 卷积），不要开启。
+
+### 渲染（render）
+
+- Remotion 并发渲染帧数由 `OPENCREATOR_COURSE_RENDER_CONCURRENCY` 控制（默认按 CPU 推导、上限 8）。此前固定为 1，几乎所有核心空闲；提升后模块 1 从约 13 分钟降到约 3.5 分钟（gfx1151 / 32 核实测 4 路 3.3×、8 路 3.7×）。
+- 实测单帧成本约 20ms（1080p 合成），与并发无关；数字人 PiP 只占约 12%，瓶颈在合成本身。
+
+### 整体
+
+- 模块 1 全流程（import → plan → narration → presenter → render）约 **4.5 分钟**：渲染约 3.5 分钟、数字人约 40 秒、旁白约 10 秒。
+- 建议：用 `presenterSlides` 限制数字人片段范围；渲染并发可按内存调整（每路标签页约数百 MB）。
 
 ## 验证
 

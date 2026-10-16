@@ -108,6 +108,37 @@ describe('course video presenter executor', () => {
     const manifest = JSON.parse(readFileSync(result.outputs[0]!.path!, 'utf8'));
     expect(manifest.clips).toEqual([]);
   });
+
+  it('runs clips with bounded concurrency and preserves slide order', async () => {
+    const { workdir, lessonPath } = setup();
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const generateClip = vi.fn(async (request: { slideId: string }) => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      // Make the first slide finish last so ordering must be enforced explicitly.
+      await new Promise((resolve) => setTimeout(resolve, request.slideId.endsWith('title') ? 30 : 1));
+      inFlight -= 1;
+    });
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateClip: generateClip as never,
+      concurrency: 2
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({}),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(maxInFlight).toBe(2);
+    const manifest = JSON.parse(readFileSync(result.outputs[0]!.path!, 'utf8'));
+    expect(manifest.clips.map((clip: { slideId: string }) => clip.slideId)).toEqual(['m01:title', 'm01:summary']);
+  });
 });
 
 describe('applyAvatarClips', () => {

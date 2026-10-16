@@ -1,6 +1,7 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { cpus } from 'node:os';
 import { extname, isAbsolute, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { CourseLessonModule } from '@opencreator/protocol';
@@ -65,7 +66,7 @@ async function main(): Promise<void> {
         outputLocation: resolve(request.outputPath),
         inputProps,
         browserExecutable: resolve(request.browserExecutable),
-        concurrency: 1
+        concurrency: resolveRenderConcurrency(request.concurrency)
       });
     } finally {
       await assetServer.close();
@@ -78,6 +79,25 @@ async function main(): Promise<void> {
     }), 'utf8');
     process.exitCode = 1;
   }
+}
+
+const DEFAULT_MAX_CONCURRENCY = 8;
+
+/**
+ * Resolve the Remotion render concurrency. Remotion renders frames one per
+ * browser tab, so a higher value keeps more CPU cores busy. The previous
+ * hardcoded `1` left most cores idle and made long lessons render far slower
+ * than necessary.
+ */
+function resolveRenderConcurrency(requested: number | undefined): number {
+  if (typeof requested === 'number' && Number.isInteger(requested) && requested >= 1) {
+    return requested;
+  }
+  const fromEnv = Number(process.env.OPENCREATOR_COURSE_RENDER_CONCURRENCY);
+  if (Number.isInteger(fromEnv) && fromEnv >= 1) {
+    return fromEnv;
+  }
+  return Math.max(1, Math.min(cpus().length, DEFAULT_MAX_CONCURRENCY));
 }
 
 function collectMedia(lesson: CourseLessonModule, jobRoot: string): SlideMedia[] {

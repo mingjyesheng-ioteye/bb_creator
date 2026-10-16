@@ -46,8 +46,14 @@ if [ ! -f "$WAV2LIP_CKPT" ]; then
   exit 3
 fi
 
-# Wav2Lip resolves ./checkpoints and ./face_detection relative to its repo dir.
-cd "$WAV2LIP_DIR"
+# Wav2Lip's inference.py writes fixed relative scratch paths (temp/result.avi,
+# temp/temp.wav), so concurrent runs would clobber each other. Give every
+# invocation its own working directory; the launcher resolves the Wav2Lip
+# checkout through WAV2LIP_DIR, so cwd only affects scratch files.
+RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/wav2lip-run.XXXXXX")"
+mkdir -p "$RUN_DIR/temp"
+trap 'rm -rf "$RUN_DIR"' EXIT
+cd "$RUN_DIR"
 WAV2LIP_DIR="$WAV2LIP_DIR" "$WAV2LIP_PY" "$WAV2LIP_INFER" \
   --checkpoint_path "$WAV2LIP_CKPT" \
   --face "$PORTRAIT" \

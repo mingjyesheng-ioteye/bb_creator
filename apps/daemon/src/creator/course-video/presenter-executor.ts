@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
+import { cpus } from 'node:os';
 import { join } from 'node:path';
 import type { CourseLessonModule } from '@opencreator/protocol';
 import type { CreatorExecutor } from '../executor.js';
@@ -30,6 +31,8 @@ export type GeneratePresenterClip = (request: {
 export function createCoursePresenterExecutor(input: {
   resolvePortrait(statePortrait: string): Promise<string>;
   generateClip: GeneratePresenterClip;
+  /** Max clips generated in parallel. Defaults to OPENCREATOR_PRESENTER_CONCURRENCY or a CPU-based value. */
+  concurrency?: number;
 }): CreatorExecutor {
   return {
     id: 'course-presenter',
@@ -48,27 +51,39 @@ export function createCoursePresenterExecutor(input: {
       const clips: CourseAvatarClip[] = [];
 
       if (portraitPath) {
+        const targets: Array<{ index: number; slideId: string; audioPath: string }> = [];
         for (let index = 0; index < total; index += 1) {
           const slide = lesson.slides[index]!;
           if (!slide.audioSrc) continue;
           if (only !== undefined && !only.includes(index)) continue;
-          stage.reportProgress({
-            phase: 'generating_presenter',
-            percent: Math.round((index / total) * 100),
-            completed: index,
-            failed: 0,
-            total
-          });
-          const outputPath = join(stage.workdir, `avatar-${String(index).padStart(2, '0')}.mp4`);
+          targets.push({ index, slideId: slide.id, audioPath: slide.audioSrc });
+        }
+        const generated: Array<CourseAvatarClip | undefined> = new Array(targets.length);
+        let done = 0;
+        const report = () => stage.reportProgress({
+          phase: 'generating_presenter',
+          percent: targets.length === 0 ? 100 : Math.round((done / targets.length) * 100),
+          completed: done,
+          failed: 0,
+          total: targets.length
+        });
+        report();
+        await mapWithConcurrency(targets, resolvePresenterConcurrency(input.concurrency), async (target, position) => {
+          const outputPath = join(stage.workdir, `avatar-${String(target.index).padStart(2, '0')}.mp4`);
           await input.generateClip({
             portraitPath,
-            audioPath: slide.audioSrc,
+            audioPath: target.audioPath,
             outputPath,
-            slideId: slide.id,
-            index,
+            slideId: target.slideId,
+            index: target.index,
             signal: stage.signal
           });
-          clips.push({ slideId: slide.id, path: outputPath });
+          generated[position] = { slideId: target.slideId, path: outputPath };
+          done += 1;
+          report();
+        });
+        for (const clip of generated) {
+          if (clip) clips.push(clip);
         }
       }
 
@@ -129,6 +144,45 @@ function runShell(command: string, cwd: string | undefined, signal: AbortSignal)
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
+}
+
+const DEFAULT_PRESENTER_CONCURRENCY_CAP = 4;
+
+/**
+ * Resolve how many talking-head clips to generate in parallel. Each clip is a
+ * separate CPU/GPU-heavy process, so too much parallelism oversubscribes the
+ * machine (measured: 4 is ~2x faster than sequential, 8 is slower than
+ * sequential). Defaults to a CPU-derived value capped at 4.
+ */
+function resolvePresenterConcurrency(requested: number | undefined): number {
+  if (typeof requested === 'number' && Number.isInteger(requested) && requested >= 1) {
+    return requested;
+  }
+  const fromEnv = Number(process.env.OPENCREATOR_PRESENTER_CONCURRENCY);
+  if (Number.isInteger(fromEnv) && fromEnv >= 1) {
+    return fromEnv;
+  }
+  return Math.max(1, Math.min(DEFAULT_PRESENTER_CONCURRENCY_CAP, Math.floor(cpus().length / 4)));
+}
+
+/** Run `fn` over `items` with at most `limit` in flight, preserving result order. */
+async function mapWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<void>
+): Promise<void> {
+  if (items.length === 0) return;
+  let next = 0;
+  const workers = Math.max(1, Math.min(limit, items.length));
+  const run = async () => {
+    while (true) {
+      const current = next;
+      next += 1;
+      if (current >= items.length) return;
+      await fn(items[current]!, current);
+    }
+  };
+  await Promise.all(Array.from({ length: workers }, () => run()));
 }
 
 function readString(value: unknown): string {
