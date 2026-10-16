@@ -146,13 +146,14 @@ function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
-const DEFAULT_PRESENTER_CONCURRENCY_CAP = 4;
+const DEFAULT_PRESENTER_CONCURRENCY_CAP = 8;
 
 /**
  * Resolve how many talking-head clips to generate in parallel. Each clip is a
- * separate CPU/GPU-heavy process, so too much parallelism oversubscribes the
- * machine (measured: 4 is ~2x faster than sequential, 8 is slower than
- * sequential). Defaults to a CPU-derived value capped at 4.
+ * separate CPU/GPU-heavy process. The Wav2Lip wrapper caps each clip's thread
+ * pools (OMP_NUM_THREADS etc.) so parallelism scales with cores instead of
+ * thrashing; without that cap, 8 parallel clips were slower than sequential.
+ * Defaults to a CPU-derived value capped at 8.
  */
 function resolvePresenterConcurrency(requested: number | undefined): number {
   if (typeof requested === 'number' && Number.isInteger(requested) && requested >= 1) {

@@ -28,6 +28,14 @@ WAV2LIP_PY="${WAV2LIP_PY:-python3}"
 WAV2LIP_RESIZE="${WAV2LIP_RESIZE:-1}"
 WAV2LIP_INFER="${WAV2LIP_INFER:-$SCRIPT_DIR/wav2lip_infer_cpuface.py}"
 
+# Wav2Lip's torch/OpenMP runtime spawns one thread per core by default, which
+# thrashes badly when several clips run in parallel. Cap the per-clip thread
+# pools: 4 measured fastest on a 32-core machine and roughly halves the total
+# CPU time of a parallel presenter stage.
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-4}"
+export MKL_NUM_THREADS="${MKL_NUM_THREADS:-4}"
+
 if [ "$#" -lt 3 ]; then
   echo "usage: $0 <portrait> <audio> <out>" >&2
   exit 2
