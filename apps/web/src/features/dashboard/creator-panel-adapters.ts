@@ -949,6 +949,51 @@ export const videoGenerationPanelAdapter: CreatorPanelAdapter = {
   }
 };
 
+export const courseVideoPanelAdapter: CreatorPanelAdapter = {
+  id: 'course-video',
+  composerPlaceholder: l => l(
+    '询问渲染进度，或调整课程、模块、旁白与画幅',
+    'Ask about render progress or adjust the course, module, narration, and format'
+  ),
+  stageLabel(stageId, l) {
+    if (stageId === 'import') return l('导入课程', 'Import course');
+    if (stageId === 'plan') return l('生成课程课件', 'Plan course lesson');
+    if (stageId === 'narration') return l('合成旁白', 'Synthesize narration');
+    if (stageId === 'render') return l('渲染课程视频', 'Render course video');
+    return l('课程视频任务', 'Course video task');
+  },
+  phaseLabel(phase, l) {
+    const labels: Record<string, string> = {
+      importing_course: l('导入课程内容', 'Importing course content'),
+      planning_lesson: l('生成课程课件', 'Planning the course lesson'),
+      synthesizing: l('合成旁白', 'Synthesizing narration'),
+      rendering: l('渲染课程视频', 'Rendering the course video'),
+      completed: l('课程视频已生成', 'Course video generated')
+    };
+    return labels[phase] ?? genericPhaseLabel(phase, l);
+  },
+  activityStageId: readActivityStageId,
+  normalizeActivity(activity, l) {
+    return normalizeCommonActivity(activity, l, courseVideoPanelAdapter, {}, courseVideoFieldLabel);
+  },
+  readStageProgress: readStandardProgress,
+  runningProgressText(_stage, progress, l) {
+    return progress.phase === null ? null : courseVideoPanelAdapter.phaseLabel(progress.phase, l);
+  },
+  failedProgressText(stage, l) {
+    if (stage.errorCode === 'course_source_unconfigured') {
+      return l('请先配置 bb_exam 课程来源地址与访问令牌', 'Configure the bb_exam source URL and token first');
+    }
+    if (stage.errorCode === 'creator_tts_runtime_unavailable') {
+      return l('本地语音合成不可用，请检查 edge-tts 是否安装', 'Local speech synthesis is unavailable. Check that edge-tts is installed.');
+    }
+    return null;
+  },
+  succeededProgressText(_stage, l) {
+    return l('课程视频已生成，可以预览或下载', 'The course video is ready to preview or download');
+  }
+};
+
 export function creatorPanelAdapterFor(templateId: string): CreatorPanelAdapter {
   if (templateId === 'video-translation') return videoTranslationPanelAdapter;
   if (templateId === 'video-download') return videoDownloadPanelAdapter;
@@ -960,6 +1005,7 @@ export function creatorPanelAdapterFor(templateId: string): CreatorPanelAdapter 
   if (templateId === 'cover') return coverPanelAdapter;
   if (templateId === 'video-generation') return videoGenerationPanelAdapter;
   if (templateId === 'stickman-video') return stickmanVideoPanelAdapter;
+  if (templateId === 'course-video') return courseVideoPanelAdapter;
   return genericAdapter;
 }
 
@@ -1202,6 +1248,21 @@ function videoGenerationFieldLabel(
     size: l('画幅与分辨率', 'Format and resolution'),
     duration: l('视频时长', 'Video duration'),
     referenceImageArtifactId: l('参考图', 'Reference image')
+  };
+  return labels[field] ?? null;
+}
+
+function courseVideoFieldLabel(
+  field: string,
+  l: CreatorPanelLocalize
+): string | null {
+  const labels: Record<string, string> = {
+    courseSlug: l('课程标识', 'Course slug'),
+    moduleKey: l('模块', 'Module'),
+    bbExamBaseUrl: l('课程来源地址', 'Course source URL'),
+    ratio: l('输出画幅', 'Output format'),
+    voice: l('旁白音色', 'Narration voice'),
+    rate: l('语速', 'Speaking rate')
   };
   return labels[field] ?? null;
 }

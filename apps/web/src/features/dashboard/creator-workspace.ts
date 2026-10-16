@@ -18,7 +18,8 @@ export type CreatorWorkspace =
   | 'digital-avatar'
   | 'cover-generator'
   | 'image-generation'
-  | 'video-generation';
+  | 'video-generation'
+  | 'course-video';
 
 export const creatorWorkspaces = [
   'video-translation',
@@ -32,7 +33,8 @@ export const creatorWorkspaces = [
   'digital-avatar',
   'cover-generator',
   'image-generation',
-  'video-generation'
+  'video-generation',
+  'course-video'
 ] as const satisfies readonly CreatorWorkspace[];
 
 export const visibleCreatorWorkspaces = [
@@ -46,7 +48,8 @@ export const visibleCreatorWorkspaces = [
   'wechat-article',
   'cover-generator',
   'image-generation',
-  'video-generation'
+  'video-generation',
+  'course-video'
 ] as const satisfies readonly CreatorWorkspace[];
 
 const templateByWorkspace: Record<CreatorRuntimeWorkspace, string> = {
@@ -60,7 +63,8 @@ const templateByWorkspace: Record<CreatorRuntimeWorkspace, string> = {
   'wechat-article': 'wechat-article',
   'cover-generator': 'cover',
   'image-generation': 'image-generation',
-  'video-generation': 'video-generation'
+  'video-generation': 'video-generation',
+  'course-video': 'course-video'
 };
 
 const templateVersionByWorkspace: Record<CreatorRuntimeWorkspace, number> = {
@@ -74,7 +78,8 @@ const templateVersionByWorkspace: Record<CreatorRuntimeWorkspace, number> = {
   'wechat-article': 1,
   'cover-generator': 2,
   'image-generation': 2,
-  'video-generation': 1
+  'video-generation': 1,
+  'course-video': 1
 };
 
 export const creatorRuntimeWorkspaces = [
@@ -83,7 +88,8 @@ export const creatorRuntimeWorkspaces = [
   'auto-clips',
   'xiaohongshu-post',
   'short-video-script',
-  'wechat-article'
+  'wechat-article',
+  'course-video'
 ] as const satisfies readonly CreatorWorkspace[];
 
 export type CreatorRuntimeWorkspace = typeof creatorRuntimeWorkspaces[number];

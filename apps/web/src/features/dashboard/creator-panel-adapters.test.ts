@@ -292,6 +292,41 @@ describe('stickmanVideoPanelAdapter', () => {
   });
 });
 
+describe('course video progress', () => {
+  it('labels the import → plan → narration → render stages and phases', () => {
+    const adapter = creatorPanelAdapterFor('course-video');
+    expect(adapter.stageLabel('import', zh)).toBe('导入课程');
+    expect(adapter.stageLabel('plan', zh)).toBe('生成课程课件');
+    expect(adapter.stageLabel('narration', zh)).toBe('合成旁白');
+    expect(adapter.stageLabel('render', zh)).toBe('渲染课程视频');
+    expect(adapter.phaseLabel('importing_course', en)).toBe('Importing course content');
+    expect(adapter.phaseLabel('synthesizing', en)).toBe('Synthesizing narration');
+    expect(adapter.phaseLabel('rendering', en)).toBe('Rendering the course video');
+  });
+
+  it('reports real progress and localizes known failures', () => {
+    const adapter = creatorPanelAdapterFor('course-video');
+    const running = {
+      ...stage('narration-run', '', 'running', null, 'narration'),
+      progress: { phase: 'synthesizing', percent: 40, completed: 2, failed: 0, total: 5 }
+    };
+    const progress = adapter.readStageProgress(running, zh);
+    expect(progress).toMatchObject({ phase: 'synthesizing', percent: 40, completed: 2, total: 5 });
+    expect(adapter.runningProgressText?.(running, progress, zh)).toBe('合成旁白');
+
+    const failed = { ...running, status: 'failed' as const, errorCode: 'creator_tts_runtime_unavailable' };
+    expect(adapter.failedProgressText?.(failed, en)).toContain('edge-tts');
+  });
+
+  it('does not expose internal fields in normalized activity', () => {
+    const adapter = creatorPanelAdapterFor('course-video');
+    const normalized = adapter.normalizeActivity(activity('run-stage', { stageId: 'render', internal: 'private' }), zh);
+    if (normalized !== null) {
+      expect(JSON.stringify(normalized)).not.toContain('private');
+    }
+  });
+});
+
 function activity(action: string, details: CreatorActivity['details'] = {}): CreatorActivity {
   return {
     id: `activity-${action}`,

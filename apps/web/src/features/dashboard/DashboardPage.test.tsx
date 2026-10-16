@@ -891,7 +891,7 @@ describe('DashboardPage', () => {
     expect(Array.from(container.querySelectorAll('.dashboard-app-card strong')).map(card => card.textContent))
       .toEqual([
         '视频下载', '视频翻译', '视频生成', '图像生成', '文章写作', '火柴人动画',
-        '视频切片', '封面生成', '小红书帖子', '短视频脚本', '智能配音'
+        '课程视频', '视频切片', '封面生成', '小红书帖子', '短视频脚本', '智能配音'
       ]);
     expect(screen.queryByRole('button', { name: /^数字人口播/ })).not.toBeInTheDocument();
 
@@ -1928,7 +1928,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('没有找到相关应用')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '查看全部应用' }));
     expect(screen.getByRole('tab', { name: '全部' })).toHaveAttribute('aria-selected', 'true');
-    expect(directory.querySelectorAll('.dashboard-app-card')).toHaveLength(11);
+    expect(directory.querySelectorAll('.dashboard-app-card')).toHaveLength(12);
     expect(within(directory).getByRole('button', { name: /^封面生成/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: '音频处理' }));

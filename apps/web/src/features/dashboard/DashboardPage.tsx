@@ -9,6 +9,7 @@ import {
   Clapperboard,
   Download,
   FilePenLine,
+  Film,
   Image,
   ImagePlus,
   Languages,
@@ -32,6 +33,7 @@ import SmartDubbingWorkspace from './SmartDubbingWorkspace.js';
 import XiaohongshuPostWorkspace from './XiaohongshuPostWorkspace.js';
 import WechatArticleWorkspace from './WechatArticleWorkspace.js';
 import StickmanVideoWorkspace from './StickmanVideoWorkspace.js';
+import CourseVideoWorkspace from './CourseVideoWorkspace.js';
 import VideoDownloadBatchWorkspace from './VideoDownloadBatchWorkspace.js';
 import VideoTranslationWorkspace from './VideoTranslationWorkspace.js';
 import VideoGenerationWorkspace from './VideoGenerationWorkspace.js';
@@ -150,6 +152,15 @@ const creatorTools: DashboardEntry[] = [
     category: '视频创作',
     icon: Sparkles,
     workspace: 'stickman-video'
+  },
+  {
+    title: '课程视频',
+    description: '把 bb_exam 课程生成为课程视频',
+    prompt: '帮我把 bb_exam 的已发布课程生成为带旁白的课程视频，请先确认课程、模块和画幅。',
+    category: '视频创作',
+    icon: Film,
+    badge: 'NEW',
+    workspace: 'course-video'
   },
   {
     title: '视频切片',
@@ -467,6 +478,15 @@ export default function DashboardPage(props: {
   if (activeWorkspace === 'cover-generator') {
     return renderCreatorWorkspace('cover-generator', (
       <CoverGeneratorWorkspace
+        promptHint={activePromptHint}
+        onBack={closeWorkspace}
+      />
+    ));
+  }
+
+  if (activeWorkspace === 'course-video') {
+    return renderCreatorWorkspace('course-video', (
+      <CourseVideoWorkspace
         promptHint={activePromptHint}
         onBack={closeWorkspace}
       />
