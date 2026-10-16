@@ -6,6 +6,7 @@ import type { CreatorExecutor } from '../executor.js';
 import { CreatorExecutorError } from '../executor.js';
 import { validateMediaFile, type MediaProbe } from '../validators/media.js';
 import { COURSE_VIDEO_FPS, COURSE_VIDEO_TAIL_PAD_SECONDS } from './constants.js';
+import { parseEdgeTtsVtt } from './edge-tts-vtt.js';
 
 export type SlideNarration = {
   path: string;
@@ -99,8 +100,8 @@ export function createCourseNarrationExecutor(input: { synthesizeSlide: Synthesi
 
 /**
  * Default narration synthesizer: the `edge-tts` CLI (no API key, local) plus
- * ffprobe for the exact slide duration. Word-level captions are not produced by
- * this path yet; they arrive when a caption-capable synthesizer is injected.
+ * ffprobe for the exact slide duration. Word-level captions come from the VTT
+ * that edge-tts writes alongside the audio (`--write-subtitles`).
  */
 export function createEdgeTtsSlideSynthesizer(input: {
   ffprobePath: string;
@@ -110,13 +111,15 @@ export function createEdgeTtsSlideSynthesizer(input: {
   const probe = input.probe ?? validateMediaFile;
   return async (request) => {
     const output = join(request.workdir, `slide-${String(request.index).padStart(2, '0')}.mp3`);
+    const subtitles = output.replace(/\.mp3$/i, '.vtt');
     const command = input.command ?? process.env.OPENCREATOR_EDGE_TTS_COMMAND ?? 'edge-tts';
     try {
       await execFileAsync(command, [
         '--voice', request.voiceId,
         `--rate=${request.rate}`,
         '--text', request.text,
-        '--write-media', output
+        '--write-media', output,
+        '--write-subtitles', subtitles
       ], request.signal);
     } catch (error) {
       throw new CreatorExecutorError(
@@ -128,7 +131,18 @@ export function createEdgeTtsSlideSynthesizer(input: {
     if (!media.hasAudio || media.duration <= 0) {
       throw new CreatorExecutorError('course_audio_invalid', 'Edge TTS produced an invalid audio file');
     }
-    return { path: output, durationSeconds: media.duration };
+    let captions: CourseLessonCaptionWord[] | undefined;
+    try {
+      const parsed = parseEdgeTtsVtt(await readFile(subtitles, 'utf8'));
+      if (parsed.length > 0) captions = parsed;
+    } catch {
+      captions = undefined;
+    }
+    return {
+      path: output,
+      durationSeconds: media.duration,
+      ...(captions ? { captions } : {})
+    };
   };
 }
 
