@@ -15,12 +15,18 @@
 #   WAV2LIP_CKPT     checkpoint (default: $WAV2LIP_DIR/checkpoints/wav2lip_gan.pth)
 #   WAV2LIP_PY       python interpreter with the Wav2Lip dependencies
 #   WAV2LIP_RESIZE   face resize_factor, 1 (quality) or 2 (faster)   (default: 1)
+#   WAV2LIP_INFER    entrypoint; defaults to wav2lip_infer_cpuface.py, which runs
+#                    face detection on the CPU. On ROCm, GPU face detection makes
+#                    the first Wav2Lip conv ~150s; CPU face detection is ~0.8s and
+#                    keeps generation fast. Set to $WAV2LIP_DIR/inference.py to opt out.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WAV2LIP_DIR="${WAV2LIP_DIR:-$(pwd)/third_party/Wav2Lip}"
 WAV2LIP_CKPT="${WAV2LIP_CKPT:-$WAV2LIP_DIR/checkpoints/wav2lip_gan.pth}"
 WAV2LIP_PY="${WAV2LIP_PY:-python3}"
 WAV2LIP_RESIZE="${WAV2LIP_RESIZE:-1}"
+WAV2LIP_INFER="${WAV2LIP_INFER:-$SCRIPT_DIR/wav2lip_infer_cpuface.py}"
 
 if [ "$#" -lt 3 ]; then
   echo "usage: $0 <portrait> <audio> <out>" >&2
@@ -42,7 +48,7 @@ fi
 
 # Wav2Lip resolves ./checkpoints and ./face_detection relative to its repo dir.
 cd "$WAV2LIP_DIR"
-"$WAV2LIP_PY" inference.py \
+WAV2LIP_DIR="$WAV2LIP_DIR" "$WAV2LIP_PY" "$WAV2LIP_INFER" \
   --checkpoint_path "$WAV2LIP_CKPT" \
   --face "$PORTRAIT" \
   --audio "$AUDIO" \
