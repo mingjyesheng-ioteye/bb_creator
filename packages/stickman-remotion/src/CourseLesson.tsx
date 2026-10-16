@@ -209,9 +209,11 @@ const AssessmentView: React.FC<{ assessment: CourseLessonAssessment; accent: str
       {assessment.questions.map((question, index) => (
         <li key={question.id} style={{ marginTop: 22, fontSize: 30, lineHeight: 1.35 }}>
           <span style={{ color: accent }}>{index + 1}.</span> {question.prompt}
-          <div style={{ marginTop: 6, fontSize: 26, color: 'rgba(255,255,255,0.75)' }}>
-            {question.options[question.answerIndex] ?? ''}
-          </div>
+          {typeof question.answerIndex === 'number' ? (
+            <div style={{ marginTop: 6, fontSize: 26, color: 'rgba(255,255,255,0.75)' }}>
+              {question.options[question.answerIndex] ?? ''}
+            </div>
+          ) : null}
         </li>
       ))}
     </ol>

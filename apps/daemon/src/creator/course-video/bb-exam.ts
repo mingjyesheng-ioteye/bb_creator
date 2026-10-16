@@ -39,7 +39,7 @@ export const bbExamQuizQuestionSchema = z.object({
   order: z.number().int().positive(),
   prompt: z.string(),
   options: z.array(bbExamQuizOptionSchema).min(1),
-  correctOptionId: z.string(),
+  correctOptionId: z.string().optional(),
   explanation: z.string().default(''),
   objectiveIds: z.array(z.string()).default([]),
   sourceRefs: z.array(bbExamSourceRefSchema).default([])

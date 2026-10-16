@@ -130,10 +130,10 @@ describe('course video normalization', () => {
     expect(dialogue.narration).toBe('What comes before the behavior? The antecedent.');
   });
 
-  it('maps quiz questions, drops invalid ones, and derives the passing percent', () => {
+  it('maps quiz questions, keeps answerless ones, and derives the passing percent', () => {
     const lesson = normalizeBbExamCourse({ course: buildCourse(), sourceHash: 'sha256-abc' })[0]!;
     expect(lesson.assessment?.passingPercent).toBe(80);
-    expect(lesson.assessment?.questions.map((question) => question.id)).toEqual(['q1', 'q2']);
+    expect(lesson.assessment?.questions.map((question) => question.id)).toEqual(['q1', 'q2', 'q3']);
     expect(lesson.assessment?.questions[0]).toEqual({
       id: 'q1',
       prompt: 'The two basic functions of behavior are…',
@@ -141,6 +141,7 @@ describe('course video normalization', () => {
       answerIndex: 0
     });
     expect(lesson.assessment?.questions[1]!.answerIndex).toBe(1);
+    expect(lesson.assessment?.questions[2]).not.toHaveProperty('answerIndex');
   });
 
   it('records provenance back to the bb_exam course version', () => {

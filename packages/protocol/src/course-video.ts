@@ -65,7 +65,11 @@ export type CourseLessonQuizQuestion = {
   id: string;
   prompt: string;
   options: string[];
-  answerIndex: number;
+  /**
+   * Correct option index when the source exposes it. Omitted for public or
+   * otherwise answerless sources, in which case the recap shows prompts only.
+   */
+  answerIndex?: number;
 };
 
 export type CourseLessonAssessment = {

@@ -138,12 +138,11 @@ function buildAssessment(
   const questions: CourseLessonQuizQuestion[] = [];
   for (const question of [...module.quiz].sort((a, b) => a.order - b.order)) {
     const answerIndex = question.options.findIndex((option) => option.id === question.correctOptionId);
-    if (answerIndex < 0) continue;
     questions.push({
       id: question.questionId,
       prompt: question.prompt,
       options: question.options.map((option) => option.text),
-      answerIndex
+      ...(answerIndex >= 0 ? { answerIndex } : {})
     });
   }
   if (questions.length === 0) return undefined;
