@@ -35,7 +35,7 @@ const action = (
   allowedStages: string[]
 ): CreatorTemplateAction => ({ id, inputSchema: schema as never, allowedStages });
 
-export const courseVideoStageIds = ['import', 'plan', 'narration', 'render'] as const;
+export const courseVideoStageIds = ['import', 'plan', 'narration', 'render', 'deliver'] as const;
 
 export function createCourseVideoTemplate(): CreatorTemplateDefinition {
   const allStages = [...courseVideoStageIds];
@@ -69,9 +69,19 @@ export function createCourseVideoTemplate(): CreatorTemplateDefinition {
         id: 'render',
         executor: 'course-video-remotion',
         dependsOn: ['narration'],
-        final: true,
         inputArtifacts: [{ kind: 'course-narrated-lesson', selector: 'latest-completed' }],
         outputArtifacts: [{ kind: 'course-video', status: 'completed' }]
+      }),
+      stage({
+        id: 'deliver',
+        executor: 'course-delivery',
+        dependsOn: ['render'],
+        final: true,
+        inputArtifacts: [
+          { kind: 'course-video', selector: 'latest-completed' },
+          { kind: 'course-narrated-lesson', selector: 'latest-completed' }
+        ],
+        outputArtifacts: [{ kind: 'course-delivery', status: 'completed' }]
       })
     ],
     actions: [
@@ -80,7 +90,10 @@ export function createCourseVideoTemplate(): CreatorTemplateDefinition {
       action('retry-stage', z.object({ stageId: z.string().min(1), scopeKey: z.string().min(1).optional() }).strict(), allStages),
       action('undo-action', z.object({ patch: jsonRecord }).strict(), allStages)
     ],
-    outputs: [{ kind: 'course-video', required: true }],
+    outputs: [
+      { kind: 'course-video', required: true },
+      { kind: 'course-delivery', required: true }
+    ],
     agentGuidance: [
       '先确定要导入的 bb_exam 已发布课程（courseSlug）与目标模块（moduleKey）。',
       '按 import、plan、narration、render 的阶段边界推进：导入课程内容、生成课程课件、合成旁白、渲染成片。',

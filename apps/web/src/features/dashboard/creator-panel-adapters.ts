@@ -960,6 +960,7 @@ export const courseVideoPanelAdapter: CreatorPanelAdapter = {
     if (stageId === 'plan') return l('生成课程课件', 'Plan course lesson');
     if (stageId === 'narration') return l('合成旁白', 'Synthesize narration');
     if (stageId === 'render') return l('渲染课程视频', 'Render course video');
+    if (stageId === 'deliver') return l('写回课程版本', 'Publish to course version');
     return l('课程视频任务', 'Course video task');
   },
   phaseLabel(phase, l) {
@@ -968,6 +969,7 @@ export const courseVideoPanelAdapter: CreatorPanelAdapter = {
       planning_lesson: l('生成课程课件', 'Planning the course lesson'),
       synthesizing: l('合成旁白', 'Synthesizing narration'),
       rendering: l('渲染课程视频', 'Rendering the course video'),
+      delivering: l('写回课程版本', 'Publishing to the course version'),
       completed: l('课程视频已生成', 'Course video generated')
     };
     return labels[phase] ?? genericPhaseLabel(phase, l);

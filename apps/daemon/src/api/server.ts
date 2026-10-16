@@ -74,6 +74,7 @@ import {
   createEdgeTtsSlideSynthesizer
 } from '../creator/course-video/narration-executor.js';
 import { createCourseRenderExecutor } from '../creator/course-video/render-executor.js';
+import { createCourseDeliveryExecutor } from '../creator/course-video/deliver-executor.js';
 import { createSmartDubbingExecutor } from '../creator/smart-dubbing/executor.js';
 import { createXiaohongshuPostExecutor } from '../creator/xiaohongshu/executor.js';
 import { createShortVideoScriptExecutor } from '../creator/short-video-script/executor.js';
@@ -989,6 +990,10 @@ export async function buildServer(input: BuildServerInput) {
           ffprobePath: creatorFfprobePath,
           runtimeRoot: stickmanRuntimeRoot,
           ensureRuntime: stage => remotionComponent.ensure(stage)
+        }),
+        createCourseDeliveryExecutor({
+          resolveBaseUrl: async () => process.env.OPENCREATOR_BB_EXAM_BASE_URL?.trim() ?? '',
+          resolveToken: async () => process.env.OPENCREATOR_BB_EXAM_TOKEN?.trim() ?? ''
         })
       );
     }
