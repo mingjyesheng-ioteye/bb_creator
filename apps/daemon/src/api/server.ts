@@ -67,6 +67,8 @@ import {
 } from '../creator/image/executor.js';
 import { createVideoExecutor } from '../creator/video/executor.js';
 import { createClipExecutor } from '../creator/clip/executor.js';
+import { createCourseImportExecutor } from '../creator/course-video/import-executor.js';
+import { createCoursePlanExecutor } from '../creator/course-video/plan-executor.js';
 import { createSmartDubbingExecutor } from '../creator/smart-dubbing/executor.js';
 import { createXiaohongshuPostExecutor } from '../creator/xiaohongshu/executor.js';
 import { createShortVideoScriptExecutor } from '../creator/short-video-script/executor.js';
@@ -837,6 +839,15 @@ export async function buildServer(input: BuildServerInput) {
         ...(creatorTesseractPath === undefined ? {} : { tesseractPath: creatorTesseractPath })
       }),
       createStickmanTimelineExecutor()
+    );
+  }
+  if (input.creatorExecutors === undefined) {
+    creatorExecutors.push(
+      createCourseImportExecutor({
+        resolveBaseUrl: async () => process.env.OPENCREATOR_BB_EXAM_BASE_URL?.trim() ?? '',
+        resolveToken: async () => process.env.OPENCREATOR_BB_EXAM_TOKEN?.trim() ?? ''
+      }),
+      createCoursePlanExecutor()
     );
   }
   let creatorFfmpegPath: string | undefined;
