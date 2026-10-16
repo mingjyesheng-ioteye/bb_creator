@@ -8,25 +8,8 @@ import {
   useCurrentFrame
 } from 'remotion';
 import { assertTimeline, buildNarrationTrack, motionTransform, type StickmanTimelineProps } from './timeline.js';
-import notoSansBold from '../assets/fonts/NotoSans-Bold.woff2';
-import notoSansScBold from '../assets/fonts/NotoSansSC-Bold.woff2';
-
-const localFontFaces = `
-@font-face {
-  font-family: "OpenCreator Noto Sans";
-  src: url("${notoSansBold}") format("woff2");
-  font-style: normal;
-  font-weight: 700;
-  font-display: block;
-}
-@font-face {
-  font-family: "OpenCreator Noto Sans SC";
-  src: url("${notoSansScBold}") format("woff2");
-  font-style: normal;
-  font-weight: 700;
-  font-display: block;
-}
-`;
+import { localFontFaces, localFontFamily } from './fonts.js';
+import { fileUrl } from './media.js';
 
 export const StickmanLandscape: React.FC<StickmanTimelineProps> = props => (
   <StickmanVideo {...props} />
@@ -42,7 +25,7 @@ const StickmanVideo: React.FC<StickmanTimelineProps> = props => {
   return (
     <AbsoluteFill style={{
       backgroundColor: '#f7f7f5',
-      fontFamily: '"OpenCreator Noto Sans SC", "OpenCreator Noto Sans", sans-serif'
+      fontFamily: localFontFamily
     }}>
       <style>{localFontFaces}</style>
       {narrationTrack.map(clip => (
@@ -119,9 +102,3 @@ const Caption: React.FC<{ ratio: StickmanTimelineProps['ratio']; text: string }>
     {text}
   </div>
 );
-
-function fileUrl(path: string): string {
-  if (/^(?:https?:|data:|blob:)/i.test(path)) return path;
-  const normalized = path.replaceAll('\\', '/');
-  return normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`;
-}
