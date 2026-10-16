@@ -1,13 +1,18 @@
 import {
+  courseLessonAssessmentFrames,
   courseLessonCanvasForRatio,
-  type CourseLessonAssessment,
+  courseLessonSlidesFrames,
+  courseLessonTotalFrames,
   type CourseLessonModule,
   type CourseLessonRatio,
   type CourseLessonSlide
 } from '@opencreator/protocol';
 
-export const COURSE_LESSON_ASSESSMENT_LEAD_SECONDS = 3;
-export const COURSE_LESSON_ASSESSMENT_SECONDS_PER_QUESTION = 5;
+export {
+  courseLessonAssessmentFrames,
+  courseLessonSlidesFrames,
+  courseLessonTotalFrames
+} from '@opencreator/protocol';
 
 /** Input props for the `CourseLesson` Remotion composition. */
 export type CourseLessonProps = {
@@ -26,25 +31,6 @@ export type CourseLessonTimelineEntry = {
 
 export function courseLessonSlideFrames(slide: CourseLessonSlide): number {
   return slide.durationInFrames ?? 0;
-}
-
-export function courseLessonSlidesFrames(lesson: CourseLessonModule): number {
-  return lesson.slides.reduce((total, slide) => total + courseLessonSlideFrames(slide), 0);
-}
-
-export function courseLessonAssessmentFrames(
-  assessment: CourseLessonAssessment | undefined,
-  fps: number
-): number {
-  if (!assessment || assessment.questions.length === 0) return 0;
-  const seconds =
-    COURSE_LESSON_ASSESSMENT_LEAD_SECONDS +
-    assessment.questions.length * COURSE_LESSON_ASSESSMENT_SECONDS_PER_QUESTION;
-  return Math.round(seconds * fps);
-}
-
-export function courseLessonTotalFrames(lesson: CourseLessonModule, fps: number): number {
-  return courseLessonSlidesFrames(lesson) + courseLessonAssessmentFrames(lesson.assessment, fps);
 }
 
 /** Contiguous per-slide placement starting at frame 0. */

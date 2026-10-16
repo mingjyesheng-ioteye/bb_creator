@@ -83,6 +83,29 @@ export type CourseLessonPresenter = {
   accentColor: string;
 };
 
+/** Assessment recap timing used by both the daemon and the Remotion composition. */
+export const courseLessonAssessmentLeadSeconds = 3;
+export const courseLessonAssessmentSecondsPerQuestion = 5;
+
+export function courseLessonSlidesFrames(lesson: CourseLessonModule): number {
+  return lesson.slides.reduce((total, slide) => total + (slide.durationInFrames ?? 0), 0);
+}
+
+export function courseLessonAssessmentFrames(
+  assessment: CourseLessonAssessment | undefined,
+  fps: number
+): number {
+  if (!assessment || assessment.questions.length === 0) return 0;
+  const seconds =
+    courseLessonAssessmentLeadSeconds +
+    assessment.questions.length * courseLessonAssessmentSecondsPerQuestion;
+  return Math.round(seconds * fps);
+}
+
+export function courseLessonTotalFrames(lesson: CourseLessonModule, fps: number): number {
+  return courseLessonSlidesFrames(lesson) + courseLessonAssessmentFrames(lesson.assessment, fps);
+}
+
 /** Provenance linking a lesson back to its `bb_exam` course version. */
 export type CourseLessonSource = {
   courseId: string;

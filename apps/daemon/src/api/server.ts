@@ -69,6 +69,11 @@ import { createVideoExecutor } from '../creator/video/executor.js';
 import { createClipExecutor } from '../creator/clip/executor.js';
 import { createCourseImportExecutor } from '../creator/course-video/import-executor.js';
 import { createCoursePlanExecutor } from '../creator/course-video/plan-executor.js';
+import {
+  createCourseNarrationExecutor,
+  createEdgeTtsSlideSynthesizer
+} from '../creator/course-video/narration-executor.js';
+import { createCourseRenderExecutor } from '../creator/course-video/render-executor.js';
 import { createSmartDubbingExecutor } from '../creator/smart-dubbing/executor.js';
 import { createXiaohongshuPostExecutor } from '../creator/xiaohongshu/executor.js';
 import { createShortVideoScriptExecutor } from '../creator/short-video-script/executor.js';
@@ -976,6 +981,16 @@ export async function buildServer(input: BuildServerInput) {
         ffprobePath: creatorFfprobePath,
         ffmpegPath: creatorFfmpegPath
       }));
+      creatorExecutors.push(
+        createCourseNarrationExecutor({
+          synthesizeSlide: createEdgeTtsSlideSynthesizer({ ffprobePath: creatorFfprobePath })
+        }),
+        createCourseRenderExecutor({
+          ffprobePath: creatorFfprobePath,
+          runtimeRoot: stickmanRuntimeRoot,
+          ensureRuntime: stage => remotionComponent.ensure(stage)
+        })
+      );
     }
   } catch (error) {
     console.warn(`Creator optional runtime executors are unavailable: ${formatError(error)}`);
