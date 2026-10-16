@@ -8,11 +8,12 @@ describe('course video template', () => {
   it('declares the import → plan → narration → render → deliver stage graph', () => {
     const template = createCourseVideoTemplate();
     expect(template).toMatchObject({ id: 'course-video', version: 1, renderer: 'course-video' });
-    expect(template.stages.map((stage) => stage.id)).toEqual(['import', 'plan', 'narration', 'render', 'deliver']);
+    expect(template.stages.map((stage) => stage.id)).toEqual(['import', 'plan', 'narration', 'presenter', 'render', 'deliver']);
     expect(template.stages.map((stage) => stage.executor)).toEqual([
       'course-import',
       'course-plan',
       'course-narration',
+      'course-presenter',
       'course-video-remotion',
       'course-delivery'
     ]);

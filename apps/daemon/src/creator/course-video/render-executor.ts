@@ -15,6 +15,27 @@ import { readStickmanRemotionRuntime, type StickmanRemotionRuntime } from '../st
 import { validateMediaFile } from '../validators/media.js';
 import { COURSE_VIDEO_FPS } from './constants.js';
 import type { CourseRenderRequest } from './render-contract.js';
+import type { CourseAvatarManifest } from './presenter-executor.js';
+
+/**
+ * Merge talking-head clips into a narrated lesson so each slide with a clip
+ * renders the lip-synced presenter. Slides without a clip keep their existing
+ * avatar (or fall back to the static presenter portrait in the composition).
+ */
+export function applyAvatarClips(
+  lesson: CourseLessonModule,
+  avatar: CourseAvatarManifest | undefined
+): CourseLessonModule {
+  if (!avatar || avatar.clips.length === 0) return lesson;
+  const bySlide = new Map(avatar.clips.map((clip) => [clip.slideId, clip.path]));
+  return {
+    ...lesson,
+    slides: lesson.slides.map((slide) => {
+      const path = bySlide.get(slide.id);
+      return path ? { ...slide, avatarSrc: path } : slide;
+    })
+  };
+}
 
 type ValidateVideo = (path: string, ffprobePath: string) => Promise<{
   duration: number;
@@ -48,11 +69,23 @@ export function createCourseRenderExecutor(input: {
       if (artifact?.path === null || artifact?.path === undefined) {
         throw new CreatorExecutorError('creator_stage_input_missing', 'The narrated course lesson is required');
       }
-      const lesson = JSON.parse(await readFile(artifact.path, 'utf8')) as CourseLessonModule;
+      const lessonRaw = JSON.parse(await readFile(artifact.path, 'utf8')) as CourseLessonModule;
+      const avatarArtifact = stage.inputArtifacts.find((candidate) => (
+        candidate.kind === 'course-avatar' && candidate.status === 'completed'
+      ));
+      const avatar = avatarArtifact?.path
+        ? JSON.parse(await readFile(avatarArtifact.path, 'utf8')) as CourseAvatarManifest
+        : undefined;
+      const lesson = applyAvatarClips(lessonRaw, avatar);
       const ratio = readCourseLessonRatio(stage.job.state.ratio);
       const canvas = courseLessonCanvasForRatio(ratio);
       const fps = COURSE_VIDEO_FPS;
       const totalFrames = courseLessonTotalFrames(lesson, fps);
+
+      // Persist the merged lesson (with any talking-head clips) for the worker;
+      // the original narrated lesson does not carry the avatar clips.
+      const lessonPath = join(stage.workdir, 'course-render-lesson.json');
+      await writeFile(lessonPath, `${JSON.stringify(lesson, null, 2)}\n`, 'utf8');
 
       const runtime = input.runtime ?? (input.ensureRuntime
         ? await input.ensureRuntime(stage)
@@ -61,7 +94,7 @@ export function createCourseRenderExecutor(input: {
       const requestPath = join(stage.workdir, 'course-render-request.json');
       const resultPath = join(stage.workdir, 'course-render-result.json');
       const request: CourseRenderRequest = {
-        lessonPath: artifact.path,
+        lessonPath,
         outputPath,
         bundlePath: runtime.bundlePath,
         browserExecutable: runtime.browserExecutable,

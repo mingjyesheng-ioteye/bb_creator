@@ -10,7 +10,7 @@ import {
   useOptionalCreatorSession
 } from './creator-session-store.js';
 
-const COURSE_VIDEO_STAGES = ['import', 'plan', 'narration', 'render', 'deliver'] as const;
+const COURSE_VIDEO_STAGES = ['import', 'plan', 'narration', 'presenter', 'render', 'deliver'] as const;
 type CourseVideoStage = typeof COURSE_VIDEO_STAGES[number];
 
 const ratios: Array<{ value: '16:9' | '9:16'; zh: string; en: string }> = [

@@ -73,6 +73,10 @@ import {
   createCourseNarrationExecutor,
   createEdgeTtsSlideSynthesizer
 } from '../creator/course-video/narration-executor.js';
+import {
+  createCoursePresenterExecutor,
+  createCommandPresenterClipRunner
+} from '../creator/course-video/presenter-executor.js';
 import { createCourseRenderExecutor } from '../creator/course-video/render-executor.js';
 import { createCourseDeliveryExecutor } from '../creator/course-video/deliver-executor.js';
 import { createSmartDubbingExecutor } from '../creator/smart-dubbing/executor.js';
@@ -985,6 +989,17 @@ export async function buildServer(input: BuildServerInput) {
       creatorExecutors.push(
         createCourseNarrationExecutor({
           synthesizeSlide: createEdgeTtsSlideSynthesizer({ ffprobePath: creatorFfprobePath })
+        }),
+        createCoursePresenterExecutor({
+          resolvePortrait: async (statePortrait) => {
+            const command = process.env.OPENCREATOR_PRESENTER_CMD?.trim() ?? '';
+            if (!command) return '';
+            return statePortrait || (process.env.OPENCREATOR_PRESENTER_PORTRAIT?.trim() ?? '');
+          },
+          generateClip: createCommandPresenterClipRunner({
+            command: process.env.OPENCREATOR_PRESENTER_CMD ?? '',
+            ...(process.env.OPENCREATOR_PRESENTER_CWD === undefined ? {} : { cwd: process.env.OPENCREATOR_PRESENTER_CWD })
+          })
         }),
         createCourseRenderExecutor({
           ffprobePath: creatorFfprobePath,

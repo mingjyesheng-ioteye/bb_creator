@@ -106,6 +106,17 @@ describe('course video normalization', () => {
     expect(lesson.presenter.mode).toBe('video');
   });
 
+  it('carries the presenter portrait from the course branding', () => {
+    const base = buildCourse();
+    const course = bbExamPublishedCourseSchema.parse({
+      ...base,
+      branding: { organization: 'Arc Mercer', presenterUrl: 'https://example.test/presenter.svg' }
+    });
+    const lesson = normalizeBbExamCourse({ course, sourceHash: 'h' })[0]!;
+    expect(lesson.presenter.portraitSrc).toBe('https://example.test/presenter.svg');
+    expect(lesson.presenter.mode).toBe('video');
+  });
+
   it('builds slides in a deterministic order with dialogue and on-shift markers', () => {
     const lesson = normalizeBbExamCourse({ course: buildCourse(), sourceHash: 'sha256-abc' })[0]!;
     expect(lesson.slides.map((slide) => slide.kind)).toEqual([

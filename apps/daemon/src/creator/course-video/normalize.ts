@@ -53,6 +53,7 @@ export function normalizeBbExamModule(input: {
 }): CourseLessonModule {
   const { course, module, moduleTotal, sourceHash } = input;
   const assessment = buildAssessment(module, course.passingThreshold);
+  const portraitSrc = course.branding?.presenterUrl?.trim() || course.branding?.instructorAvatarUrl?.trim();
   return {
     schemaVersion: courseLessonSchemaVersion,
     id: module.moduleKey,
@@ -62,7 +63,7 @@ export function normalizeBbExamModule(input: {
     level: module.level,
     moduleIndex: module.order,
     moduleTotal,
-    presenter: { ...COURSE_VIDEO_DEFAULT_PRESENTER },
+    presenter: { ...COURSE_VIDEO_DEFAULT_PRESENTER, ...(portraitSrc ? { portraitSrc } : {}) },
     slides: buildSlides(module),
     ...(assessment ? { assessment } : {}),
     source: {

@@ -2,6 +2,7 @@ import React from 'react';
 import {
   AbsoluteFill,
   Audio,
+  Img,
   OffthreadVideo,
   Sequence,
   interpolate,
@@ -122,7 +123,7 @@ const LessonSlideView: React.FC<{
         </div>
       </AbsoluteFill>
 
-      {presenter.mode === 'video' && slide.avatarSrc ? (
+      {presenter.mode !== 'none' ? (
         <div
           style={{
             position: 'absolute',
@@ -137,7 +138,27 @@ const LessonSlideView: React.FC<{
             backgroundColor: '#0b1220'
           }}
         >
-          <OffthreadVideo src={fileUrl(slide.avatarSrc)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {slide.avatarSrc ? (
+            <OffthreadVideo src={fileUrl(slide.avatarSrc)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : presenter.portraitSrc ? (
+            <Img src={fileUrl(presenter.portraitSrc)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: `linear-gradient(135deg, ${accent}44, #0b1220)`
+              }}
+            >
+              <div style={{ fontSize: portrait ? 72 : 60, fontWeight: 700, color: accent }}>{presenterInitials(presenter.name)}</div>
+              <div style={{ marginTop: 8, fontSize: portrait ? 22 : 20, fontWeight: 700, color: '#ffffff', textAlign: 'center', padding: '0 12px' }}>{presenter.name}</div>
+              <div style={{ marginTop: 2, fontSize: portrait ? 16 : 15, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '0 12px' }}>{presenter.role}</div>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -219,3 +240,10 @@ const AssessmentView: React.FC<{ assessment: CourseLessonAssessment; accent: str
     </ol>
   </AbsoluteFill>
 );
+
+function presenterInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ''}${parts[parts.length - 1]![0] ?? ''}`.toUpperCase();
+}

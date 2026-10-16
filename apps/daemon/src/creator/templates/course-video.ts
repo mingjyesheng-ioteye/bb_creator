@@ -35,7 +35,7 @@ const action = (
   allowedStages: string[]
 ): CreatorTemplateAction => ({ id, inputSchema: schema as never, allowedStages });
 
-export const courseVideoStageIds = ['import', 'plan', 'narration', 'render', 'deliver'] as const;
+export const courseVideoStageIds = ['import', 'plan', 'narration', 'presenter', 'render', 'deliver'] as const;
 
 export function createCourseVideoTemplate(): CreatorTemplateDefinition {
   const allStages = [...courseVideoStageIds];
@@ -66,10 +66,20 @@ export function createCourseVideoTemplate(): CreatorTemplateDefinition {
         outputArtifacts: [{ kind: 'course-narrated-lesson', status: 'completed' }]
       }),
       stage({
-        id: 'render',
-        executor: 'course-video-remotion',
+        id: 'presenter',
+        executor: 'course-presenter',
         dependsOn: ['narration'],
         inputArtifacts: [{ kind: 'course-narrated-lesson', selector: 'latest-completed' }],
+        outputArtifacts: [{ kind: 'course-avatar', status: 'completed' }]
+      }),
+      stage({
+        id: 'render',
+        executor: 'course-video-remotion',
+        dependsOn: ['presenter'],
+        inputArtifacts: [
+          { kind: 'course-narrated-lesson', selector: 'latest-completed' },
+          { kind: 'course-avatar', selector: 'latest-completed', optional: true }
+        ],
         outputArtifacts: [{ kind: 'course-video', status: 'completed' }]
       }),
       stage({

@@ -85,6 +85,8 @@ export type CourseLessonPresenter = {
   name: string;
   role: string;
   accentColor: string;
+  /** Static presenter portrait (used in the PiP when no talking-head clip is present). */
+  portraitSrc?: string;
 };
 
 /** Assessment recap timing used by both the daemon and the Remotion composition. */

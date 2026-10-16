@@ -959,6 +959,7 @@ export const courseVideoPanelAdapter: CreatorPanelAdapter = {
     if (stageId === 'import') return l('导入课程', 'Import course');
     if (stageId === 'plan') return l('生成课程课件', 'Plan course lesson');
     if (stageId === 'narration') return l('合成旁白', 'Synthesize narration');
+    if (stageId === 'presenter') return l('生成数字人', 'Generate presenter');
     if (stageId === 'render') return l('渲染课程视频', 'Render course video');
     if (stageId === 'deliver') return l('写回课程版本', 'Publish to course version');
     return l('课程视频任务', 'Course video task');
@@ -968,6 +969,7 @@ export const courseVideoPanelAdapter: CreatorPanelAdapter = {
       importing_course: l('导入课程内容', 'Importing course content'),
       planning_lesson: l('生成课程课件', 'Planning the course lesson'),
       synthesizing: l('合成旁白', 'Synthesizing narration'),
+      generating_presenter: l('生成数字人', 'Generating presenter'),
       rendering: l('渲染课程视频', 'Rendering the course video'),
       delivering: l('写回课程版本', 'Publishing to the course version'),
       completed: l('课程视频已生成', 'Course video generated')
