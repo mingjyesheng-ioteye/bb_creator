@@ -8,6 +8,7 @@
     "dev": "vite --host 127.0.0.1",
     "prebuild": "pnpm --filter @opencreator/protocol build && pnpm --filter @opencreator/skill-market build && pnpm --filter @opencreator/writing-templates build",
     "build": "tsc -p tsconfig.json && vite build",
+    "serve": "node server.mjs",
     "pretypecheck": "pnpm --filter @opencreator/protocol build && pnpm --filter @opencreator/skill-market build && pnpm --filter @opencreator/writing-templates build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "pretest": "pnpm --filter @opencreator/protocol build && pnpm --filter @opencreator/skill-market build && pnpm --filter @opencreator/writing-templates build",

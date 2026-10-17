@@ -60,12 +60,12 @@ export default defineConfig({
   },
   server: {
     host: '127.0.0.1',
-    port: 19861,
+    port: Number(process.env.OPENCREATOR_WEB_PORT ?? 19861),
     strictPort: true
   },
   preview: {
     host: '127.0.0.1',
-    port: 4173
+    port: Number(process.env.OPENCREATOR_WEB_PREVIEW_PORT ?? 4173)
   }
 });
 
