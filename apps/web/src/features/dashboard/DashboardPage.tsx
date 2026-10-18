@@ -220,7 +220,8 @@ const recommendedTabWorkspaces = new Set<CreatorWorkspace>([
   'video-download',
   'video-translation',
   'video-generation',
-  'image-generation'
+  'image-generation',
+  'course-video'
 ]);
 
 const CREATOR_JOB_CREATE_ATTEMPT_TIMEOUT_MS = 4_000;
@@ -1071,5 +1072,7 @@ const englishDashboardLabels: Record<string, string> = {
   封面生成: 'Thumbnail Generator',
   生成视频与内容封面: 'Create thumbnails for videos and content',
   视频下载: 'Video Downloader',
-  '下载公开视频，或提取 MP3 音频': 'Download public videos or extract MP3 audio'
+  '下载公开视频，或提取 MP3 音频': 'Download public videos or extract MP3 audio',
+  课程视频: 'Course Video',
+  '把 bb_exam 课程生成为课程视频': 'Generate course videos from bb_exam courses'
 };
