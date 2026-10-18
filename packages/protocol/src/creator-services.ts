@@ -297,7 +297,7 @@ export function createDefaultCreatorServicesConfig(): CreatorServicesConfig {
       }
     },
     tts: {
-      provider: 'openai',
+      provider: 'edge-tts',
       openai: {
         baseUrl: '',
         apiKey: '',
