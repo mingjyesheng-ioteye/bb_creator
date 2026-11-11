@@ -56,6 +56,7 @@ export function createCreatorPreflight(input: {
   jobsRoot: string;
   ffmpegPath?: string;
   ffprobePath?: string;
+  edgeTtsCommand?: string;
   stickmanRuntimeRoot?: string;
   remotionComponent?: Pick<RemotionComponentManager, 'status'>;
   getYtDlpRuntime?(): YtDlpRuntime | undefined;
@@ -237,6 +238,15 @@ export function createCreatorPreflight(input: {
       }
       if (stage.executor === 'stickman-delivery' && input.ffmpegPath === undefined) {
         add('warning', { id: 'ffmpeg', title: 'FFmpeg unavailable', message: 'Delivery checks will skip video frame sampling.', executionMode: 'local' });
+      }
+      if (stage.executor === 'course-narration') {
+        if (input.edgeTtsCommand === undefined) add('blocked', {
+          id: 'edge-tts',
+          title: 'Edge TTS unavailable',
+          message: 'The Runtime could not find the edge-tts command. Install edge-tts or set OPENCREATOR_EDGE_TTS_COMMAND.',
+          executionMode: 'local'
+        }, { label: 'Open local component settings', deepLink: '#/settings?tab=local-components' });
+        else add('ready', { id: 'edge-tts', title: 'Edge TTS', message: 'Edge TTS is ready.', executionMode: 'local' });
       }
       if (stage.executor === 'stickman-remotion') {
         try {

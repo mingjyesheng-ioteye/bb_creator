@@ -41,7 +41,7 @@ import { publishCreatorArtifacts } from '../creator/artifact-publisher.js';
 import { createCreatorStageScheduler } from '../creator/stage-scheduler.js';
 import { createCreatorCommandDispatcher } from '../creator/command-dispatcher.js';
 import type { CreatorExecutor } from '../creator/executor.js';
-import { resolveCreatorMediaTool } from '../creator/media-tools.js';
+import { resolveCreatorExecutable } from '../creator/media-tools.js';
 import { createKrillinExecutor } from '../creator/krillin/adapter.js';
 import { createKrillinDependencyLoader } from '../creator/krillin/dependency-loader.js';
 import { readKrillinRuntimeManifest, resolveInside } from '../creator/krillin/manifest.js';
@@ -863,13 +863,18 @@ export async function buildServer(input: BuildServerInput) {
   }
   const creatorFfmpegOverride = process.env.OPENCREATOR_FFMPEG_PATH?.trim() || undefined;
   const creatorFfprobeOverride = process.env.OPENCREATOR_FFPROBE_PATH?.trim() || undefined;
-  let creatorFfmpegPath = resolveCreatorMediaTool({
+  const creatorEdgeTtsOverride = process.env.OPENCREATOR_EDGE_TTS_COMMAND?.trim() || undefined;
+  let creatorFfmpegPath = resolveCreatorExecutable({
     name: 'ffmpeg',
     ...(creatorFfmpegOverride === undefined ? {} : { overridePath: creatorFfmpegOverride })
   });
-  let creatorFfprobePath = resolveCreatorMediaTool({
+  let creatorFfprobePath = resolveCreatorExecutable({
     name: 'ffprobe',
     ...(creatorFfprobeOverride === undefined ? {} : { overridePath: creatorFfprobeOverride })
+  });
+  const creatorEdgeTtsCommand = resolveCreatorExecutable({
+    name: 'edge-tts',
+    ...(creatorEdgeTtsOverride === undefined ? {} : { overridePath: creatorEdgeTtsOverride })
   });
   let creatorYtDlpUpdateManager = input.creatorYtDlpUpdateManager;
   let getYtDlpRuntime: ((sourceUrl?: string) => ReturnType<typeof resolveYtDlpRuntime>) | undefined;
@@ -1006,7 +1011,10 @@ export async function buildServer(input: BuildServerInput) {
   if (input.creatorExecutors === undefined && creatorFfprobePath) {
     creatorExecutors.push(
       createCourseNarrationExecutor({
-        synthesizeSlide: createEdgeTtsSlideSynthesizer({ ffprobePath: creatorFfprobePath })
+        synthesizeSlide: createEdgeTtsSlideSynthesizer({
+          ffprobePath: creatorFfprobePath,
+          ...(creatorEdgeTtsCommand === undefined ? {} : { command: creatorEdgeTtsCommand })
+        })
       }),
       createCoursePresenterExecutor({
         resolvePortrait: async (statePortrait) => {
@@ -1082,6 +1090,7 @@ export async function buildServer(input: BuildServerInput) {
     jobsRoot: creatorJobsRoot,
     ffmpegPath: creatorFfmpegPath,
     ffprobePath: creatorFfprobePath,
+    ...(creatorEdgeTtsCommand === undefined ? {} : { edgeTtsCommand: creatorEdgeTtsCommand }),
     stickmanRuntimeRoot,
     remotionComponent,
     ...(getYtDlpRuntime === undefined ? {} : { getYtDlpRuntime }),

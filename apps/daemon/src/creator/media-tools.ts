@@ -1,14 +1,14 @@
 import { existsSync } from 'node:fs';
 import { posix, win32 } from 'node:path';
 
-export type CreatorMediaToolName = 'ffmpeg' | 'ffprobe';
+export type CreatorExecutableName = 'ffmpeg' | 'ffprobe' | 'edge-tts';
 
-export type ResolveCreatorMediaToolInput = {
-  name: CreatorMediaToolName;
+export type ResolveCreatorExecutableInput = {
+  name: CreatorExecutableName;
   /**
    * Explicit path from configuration. When set, it is authoritative: a missing
-   * file reports the tool as unavailable instead of silently falling back to
-   * whatever happens to be on PATH.
+   * file reports the executable as unavailable instead of silently falling back
+   * to whatever happens to be on PATH.
    */
   overridePath?: string;
   /** Search path used when no override is configured. Defaults to process.env.PATH. */
@@ -18,12 +18,13 @@ export type ResolveCreatorMediaToolInput = {
 };
 
 /**
- * Resolve ffmpeg/ffprobe from an explicit configuration path or the process
- * PATH. The bundled KrillinAI manifest is preferred by the caller when it
- * declares an executable; this helper covers runtimes installed system-wide
- * (for example the Linux packages used by the local daemon).
+ * Resolve an external creator executable (ffmpeg, ffprobe, edge-tts) from an
+ * explicit configuration path or the process PATH. The bundled KrillinAI
+ * manifest is preferred by the caller when it declares an executable; this
+ * helper covers runtimes installed system-wide, such as the Linux packages
+ * used by the local daemon.
  */
-export function resolveCreatorMediaTool(input: ResolveCreatorMediaToolInput): string | undefined {
+export function resolveCreatorExecutable(input: ResolveCreatorExecutableInput): string | undefined {
   const exists = input.exists ?? existsSync;
   const override = input.overridePath?.trim();
   if (override !== undefined && override.length > 0) {
