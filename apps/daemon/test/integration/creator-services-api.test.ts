@@ -1,5 +1,8 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createDefaultCreatorServicesConfig,
@@ -184,6 +187,101 @@ describe('creator services API', () => {
       expect(authorization).toBeUndefined();
     } finally {
       endpoint.close();
+    }
+  });
+
+  it('discovers models from a local OpenAI-compatible endpoint without a key', async () => {
+    let authorization: string | undefined;
+    const endpoint = createServer((request, response) => {
+      authorization = request.headers.authorization;
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ data: [{ id: 'qwen3:8b' }, { id: 'gemma3:4b' }] }));
+    });
+    await new Promise<void>(resolve => endpoint.listen(0, '127.0.0.1', resolve));
+    try {
+      const address = endpoint.address();
+      if (address === null || typeof address === 'string') throw new Error('Missing endpoint address');
+      const baseUrl = `http://127.0.0.1:${address.port}/v1`;
+      const config = createDefaultCreatorServicesConfig();
+      config.llm.baseUrl = baseUrl;
+      vi.mocked(store.read).mockResolvedValue(config);
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/creator-services/model/discover',
+        payload: { baseUrl, apiKey: '' }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        connected: true,
+        baseUrl,
+        models: ['qwen3:8b', 'gemma3:4b']
+      });
+      expect(authorization).toBeUndefined();
+      expect(store.write).not.toHaveBeenCalled();
+    } finally {
+      endpoint.close();
+    }
+  });
+
+  it('rejects a non-HTTP model discovery address', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/creator-services/model/discover',
+      payload: { baseUrl: 'file:///etc/passwd' }
+    });
+    expect(response.statusCode).toBe(400);
+    expect(store.write).not.toHaveBeenCalled();
+  });
+
+  it('detects the loaded LocModel model and lists downloaded models', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'locmodel-detect-'));
+    try {
+      const modelDir = join(root, 'image', 'qwen-image-2.1');
+      await mkdir(modelDir, { recursive: true });
+      await writeFile(join(modelDir, 'qwen_image_2.1-Q8_0.gguf'), 'model');
+      const settings = join(root, 'settings.json');
+      await writeFile(settings, JSON.stringify({ models_dir: root }));
+      process.env.LOCMODEL_SETTINGS_FILE = settings;
+
+      const endpoint = createServer((_request, response) => {
+        response.setHeader('Content-Type', 'application/json');
+        response.end(JSON.stringify({
+          model: {
+            name: 'Qwen-Image 2.1 Q8_0',
+            stem: 'qwen_image_2.1-Q8_0',
+            path: 'D:\\AI-Models\\image\\qwen-image-2.1\\qwen_image_2.1-Q8_0.gguf'
+          },
+          current_mode: 'img_gen',
+          supported_modes: ['img_gen']
+        }));
+      });
+      await new Promise<void>(resolve => endpoint.listen(0, '127.0.0.1', resolve));
+      try {
+        const address = endpoint.address();
+        if (address === null || typeof address === 'string') throw new Error('Missing endpoint address');
+        const response = await server.inject({
+          method: 'POST',
+          url: '/creator-services/local-engine/detect',
+          payload: { baseUrl: `http://127.0.0.1:${address.port}` }
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toMatchObject({
+          connected: true,
+          engine: 'sd-server',
+          currentMode: 'img_gen',
+          loadedModel: { name: 'Qwen-Image 2.1 Q8_0' },
+          downloadedModels: [
+            expect.objectContaining({ name: 'Qwen-Image 2.1 Q8_0', kind: 'image' })
+          ]
+        });
+      } finally {
+        endpoint.close();
+      }
+    } finally {
+      delete process.env.LOCMODEL_SETTINGS_FILE;
+      await rm(root, { recursive: true, force: true });
     }
   });
 

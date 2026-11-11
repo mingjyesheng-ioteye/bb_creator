@@ -1,11 +1,14 @@
 import type {
   CodexImageStatus,
   CodexProviderConfig,
+  CreatorLocalEngineDetectionResponse,
+  CreatorModelDiscoveryResponse,
   CreatorServicesCapabilitiesResponse,
   CreatorServicesConfig,
   CreatorTtsPreviewRequest,
   CreatorTtsProvider
 } from '@opencreator/protocol';
+import { creatorTextModelHeaders } from '@opencreator/protocol';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { ZodError } from 'zod';
 import {
@@ -16,6 +19,7 @@ import {
   type CreatorServicesConfigStore
 } from '../creator-services/config-store.js';
 import { createKrillinCreatorServicesCapabilities } from '../creator/krillin/capabilities.js';
+import { readLocModelDownloadedModels } from '../creator-services/local-engine-catalog.js';
 import {
   KrillinTtsServiceError,
   type KrillinTtsService
@@ -159,8 +163,146 @@ export async function registerCreatorServicesRoutes(
     } catch (error) { return reply.code(502).send(apiError('SMART_DUBBING_UPSTREAM_ERROR', error instanceof Error && error.name === 'AbortError' ? 'FunASR connection timed out' : 'FunASR connection failed')); }
   });
 
-  server.delete('/creator-services/config', async (_request, reply) => {
+  server.post<{ Body: unknown }>('/creator-services/model/discover', async (request, reply) => {
+    const body = request.body as { baseUrl?: unknown; apiKey?: unknown } | null;
+    const baseUrl = typeof body?.baseUrl === 'string'
+      ? body.baseUrl.trim().replace(/\/+$/, '')
+      : '';
+    let endpoint: URL | undefined;
     try {
+      endpoint = new URL(baseUrl);
+    } catch {
+      endpoint = undefined;
+    }
+    if (
+      endpoint === undefined
+      || !['http:', 'https:'].includes(endpoint.protocol)
+      || endpoint.username.length > 0
+      || endpoint.password.length > 0
+    ) {
+      return reply.code(400).send(apiError(
+        'VALIDATION_FAILED',
+        'Base URL must be a valid HTTP or HTTPS URL'
+      ));
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const saved = await store.read();
+      const apiKey = typeof body?.apiKey === 'string' && body.apiKey.length > 0
+        ? body.apiKey
+        : saved.llm.baseUrl.trim().replace(/\/+$/, '') === baseUrl
+          ? saved.llm.apiKey
+          : '';
+      const startedAt = Date.now();
+      const response = await fetch(`${baseUrl}/models`, {
+        headers: { Accept: 'application/json', ...creatorTextModelHeaders(apiKey) },
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        return reply.code(502).send(apiError(
+          'creator_llm_discovery_failed',
+          `Model service rejected the request (HTTP ${response.status})`
+        ));
+      }
+      const payload = await response.json().catch(() => undefined) as {
+        data?: Array<{ id?: unknown }>;
+      } | undefined;
+      const models = Array.isArray(payload?.data)
+        ? [...new Set(payload.data
+            .map(item => item?.id)
+            .filter((id): id is string => typeof id === 'string' && id.trim().length > 0))]
+        : [];
+      const result: CreatorModelDiscoveryResponse = {
+        connected: true,
+        baseUrl,
+        models,
+        latencyMs: Date.now() - startedAt
+      };
+      return result;
+    } catch (error) {
+      if (error instanceof CreatorServicesConfigStoreError) return sendStoreError(reply, error);
+      return reply.code(502).send(apiError(
+        'creator_llm_discovery_failed',
+        error instanceof Error && error.name === 'AbortError'
+          ? 'The model service did not respond in time'
+          : 'Could not reach the model service'
+      ));
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
+  server.post<{ Body: unknown }>('/creator-services/local-engine/detect', async (request, reply) => {
+    const body = request.body as { baseUrl?: unknown; apiKey?: unknown } | null;
+    const rawBaseUrl = typeof body?.baseUrl === 'string' ? body.baseUrl.trim().replace(/\/+$/, '') : '';
+    let baseUrl: string;
+    try {
+      baseUrl = new URL(rawBaseUrl).toString().replace(/\/+$/, '').replace(/\/v1$/i, '');
+    } catch {
+      return reply.code(400).send(apiError('VALIDATION_FAILED', 'Base URL must be a valid HTTP or HTTPS URL'));
+    }
+    const apiKey = typeof body?.apiKey === 'string' ? body.apiKey : '';
+    const downloadedModels = await readLocModelDownloadedModels();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5_000);
+    try {
+      const response = await fetch(`${baseUrl}/sdcpp/v1/capabilities`, {
+        headers: { Accept: 'application/json', ...creatorTextModelHeaders(apiKey) },
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        const result: CreatorLocalEngineDetectionResponse = {
+          connected: false,
+          baseUrl,
+          engine: 'sd-server',
+          downloadedModels,
+          error: `Local SD engine returned HTTP ${response.status}`
+        };
+        return result;
+      }
+      const payload = await response.json().catch(() => undefined) as {
+        model?: { name?: unknown; stem?: unknown; path?: unknown };
+        current_mode?: unknown;
+        supported_modes?: unknown;
+      } | undefined;
+      const model = payload?.model;
+      const loadedModel = model === undefined
+        ? undefined
+        : {
+            name: typeof model.name === 'string' ? model.name : typeof model.stem === 'string' ? model.stem : '',
+            ...(typeof model.stem === 'string' ? { stem: model.stem } : {}),
+            ...(typeof model.path === 'string' ? { path: model.path } : {})
+          };
+      const result: CreatorLocalEngineDetectionResponse = {
+        connected: true,
+        baseUrl,
+        engine: 'sd-server',
+        ...(typeof payload?.current_mode === 'string' ? { currentMode: payload.current_mode } : {}),
+        ...(Array.isArray(payload?.supported_modes)
+          ? { supportedModes: payload.supported_modes.filter((value): value is string => typeof value === 'string') }
+          : {}),
+        ...(loadedModel === undefined || loadedModel.name.length === 0 ? {} : { loadedModel }),
+        downloadedModels
+      };
+      return result;
+    } catch (error) {
+      const result: CreatorLocalEngineDetectionResponse = {
+        connected: false,
+        baseUrl,
+        engine: 'sd-server',
+        downloadedModels,
+        error: error instanceof Error && error.name === 'AbortError'
+          ? 'The local SD engine did not respond in time'
+          : 'Could not reach the local SD engine'
+      };
+      return result;
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
+  server.delete('/creator-services/config', async (_request, reply) => {    try {
       const proxy = networkStore !== store ? (await networkStore.read()).proxy : undefined;
       const reset = await store.reset();
       return presentCreatorServicesConfig(proxy === undefined ? reset : await store.write({ ...reset, proxy }));
