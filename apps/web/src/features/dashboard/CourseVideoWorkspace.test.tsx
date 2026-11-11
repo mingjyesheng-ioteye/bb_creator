@@ -134,6 +134,9 @@ describe('CourseVideoWorkspace', () => {
     fireEvent.change(screen.getByRole('combobox', { name: '模块' }), {
       target: { value: 'm01' }
     });
+    fireEvent.change(screen.getByRole('combobox', { name: '数字人' }), {
+      target: { value: 'off' }
+    });
     fireEvent.click(screen.getByRole('button', { name: '生成课程视频' }));
 
     await waitFor(() => {
@@ -144,7 +147,8 @@ describe('CourseVideoWorkspace', () => {
     });
     expect(current.state).toMatchObject({
       courseSlug: 'understanding-behavior',
-      moduleKey: 'm01'
+      moduleKey: 'm01',
+      presenterEnabled: false
     });
   });
 });

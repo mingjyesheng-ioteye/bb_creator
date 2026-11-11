@@ -1266,7 +1266,9 @@ function courseVideoFieldLabel(
     bbExamBaseUrl: l('课程来源地址', 'Course source URL'),
     ratio: l('输出画幅', 'Output format'),
     voice: l('旁白音色', 'Narration voice'),
-    rate: l('语速', 'Speaking rate')
+    rate: l('语速', 'Speaking rate'),
+    presenterEnabled: l('数字人', 'Presenter'),
+    portraitPath: l('数字人肖像', 'Presenter portrait')
   };
   return labels[field] ?? null;
 }

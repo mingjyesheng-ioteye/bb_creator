@@ -24,6 +24,19 @@ const ratios: Array<{ value: '16:9' | '9:16'; zh: string; en: string }> = [
   { value: '9:16', zh: '竖屏 9:16', en: 'Portrait 9:16' }
 ];
 
+const courseVideoVoices = [
+  'en-US-AvaNeural',
+  'en-US-AndrewNeural',
+  'en-US-JennyNeural',
+  'en-US-GuyNeural',
+  'en-GB-SoniaNeural',
+  'zh-CN-XiaoxiaoNeural',
+  'zh-CN-YunxiNeural',
+  'zh-TW-HsiaoChenNeural',
+  'ja-JP-NanamiNeural',
+  'ko-KR-SunHiNeural'
+];
+
 export default function CourseVideoWorkspace(props: {
   onBack(): void;
   promptHint?: string;
@@ -35,6 +48,8 @@ export default function CourseVideoWorkspace(props: {
   const [ratio, setRatio] = useState<'16:9' | '9:16'>(() => readRatio(session?.state.ratio));
   const [voice, setVoice] = useState(() => readString(session?.state.voice) || 'en-US-AvaNeural');
   const [rate, setRate] = useState(() => readString(session?.state.rate) || '-4%');
+  const [presenterEnabled, setPresenterEnabled] = useState(() => session?.state.presenterEnabled !== false);
+  const [portraitPath, setPortraitPath] = useState(() => readString(session?.state.portraitPath));
   const [courses, setCourses] = useState<CourseVideoCourseSummary[]>([]);
   const [courseDetail, setCourseDetail] = useState<CourseVideoCourseDetail>();
   const [coursesLoading, setCoursesLoading] = useState(false);
@@ -64,12 +79,16 @@ export default function CourseVideoWorkspace(props: {
     setRatio(readRatio(session?.state.ratio));
     setVoice(readString(session?.state.voice) || 'en-US-AvaNeural');
     setRate(readString(session?.state.rate) || '-4%');
+    setPresenterEnabled(session?.state.presenterEnabled !== false);
+    setPortraitPath(readString(session?.state.portraitPath));
   }, [
     session?.state.courseSlug,
     session?.state.moduleKey,
     session?.state.ratio,
     session?.state.voice,
-    session?.state.rate
+    session?.state.rate,
+    session?.state.presenterEnabled,
+    session?.state.portraitPath
   ]);
 
   const listCourses = session?.listCourseVideoCourses;
@@ -167,7 +186,9 @@ export default function CourseVideoWorkspace(props: {
       moduleKey: moduleKey.trim(),
       ratio,
       voice: voice.trim(),
-      rate: rate.trim()
+      rate: rate.trim(),
+      presenterEnabled,
+      portraitPath: portraitPath.trim()
     }, { semantic: true });
     dispatchedRef.current = null;
     try {
@@ -310,10 +331,14 @@ export default function CourseVideoWorkspace(props: {
                 <input
                   value={voice}
                   maxLength={120}
+                  list="course-video-voices"
                   onChange={event => setVoice(event.target.value)}
                   placeholder="en-US-AvaNeural"
                 />
               </label>
+              <datalist id="course-video-voices">
+                {courseVideoVoices.map(value => <option key={value} value={value} />)}
+              </datalist>
               <label className="creator-tool-field">
                 <span>{l('语速', 'Speaking rate')}</span>
                 <input
@@ -323,7 +348,34 @@ export default function CourseVideoWorkspace(props: {
                   placeholder="-4%"
                 />
               </label>
+              <label className="creator-tool-field">
+                <span>{l('数字人', 'Presenter')}</span>
+                <NativeSelect
+                  aria-label={l('数字人', 'Presenter')}
+                  value={presenterEnabled ? 'on' : 'off'}
+                  onChange={event => setPresenterEnabled(event.target.value === 'on')}
+                >
+                  <option value="on">{l('生成数字人', 'Generate presenter')}</option>
+                  <option value="off">{l('不生成数字人', 'No presenter')}</option>
+                </NativeSelect>
+              </label>
+              {presenterEnabled ? (
+                <label className="creator-tool-field">
+                  <span>{l('数字人肖像路径（可选）', 'Presenter portrait path (optional)')}</span>
+                  <input
+                    value={portraitPath}
+                    maxLength={1024}
+                    onChange={event => setPortraitPath(event.target.value)}
+                    placeholder="/path/to/portrait.png"
+                  />
+                </label>
+              ) : null}
             </div>
+            {!presenterEnabled ? (
+              <p className="creator-tool-notice" role="status">
+                {l('已关闭数字人，视频只保留课件与旁白。', 'Presenter is off; the video keeps the lesson and narration only.')}
+              </p>
+            ) : null}
           </div>
           <div className="creator-tool-actions">
             <button
