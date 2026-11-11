@@ -45,7 +45,9 @@ export function createCoursePresenterExecutor(input: {
       }
       const lesson = JSON.parse(await readFile(artifact.path, 'utf8')) as CourseLessonModule;
 
-      const portraitPath = readString(stage.job.state.portraitPath) || await input.resolvePortrait(readString(stage.job.state.portraitPath));
+      const portraitPath = stage.job.state.presenterEnabled === false
+        ? ''
+        : readString(stage.job.state.portraitPath) || await input.resolvePortrait(readString(stage.job.state.portraitPath));
       const only = readIndexList(stage.job.state.presenterSlides);
       const total = lesson.slides.length;
       const clips: CourseAvatarClip[] = [];

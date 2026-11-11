@@ -223,4 +223,24 @@ describe('course video plan executor', () => {
 
     await expect(executor.run({ ...base, job: job({ moduleKey: 'nope' }) })).rejects.toMatchObject({ code: 'course_module_missing' });
   });
+
+  it('marks the presenter as disabled when requested', async () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'course-video-plan-'));
+    const workdir = join(tempDir, 'work');
+    mkdirSync(workdir);
+    const specPath = join(tempDir, 'course-spec.json');
+    writeFileSync(specPath, JSON.stringify(coursePayload().course));
+
+    const result = await createCoursePlanExecutor().run({
+      stageRun: stageRun('course-plan'),
+      job: job({ presenterEnabled: false }),
+      inputArtifacts: [artifact('course-spec', specPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    const lesson = JSON.parse(readFileSync(result.outputs[0]!.path!, 'utf8'));
+    expect(lesson.presenter.mode).toBe('none');
+  });
 });

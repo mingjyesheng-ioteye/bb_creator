@@ -35,7 +35,9 @@ describe('course video template', () => {
       courseSlug: '',
       moduleKey: '',
       ratio: '16:9',
-      voice: 'en-US-AvaNeural'
+      voice: 'en-US-AvaNeural',
+      presenterEnabled: true,
+      portraitPath: ''
     });
   });
 

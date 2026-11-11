@@ -39,6 +39,9 @@ export function createCoursePlanExecutor(): CreatorExecutor {
         moduleTotal: ordered.length,
         sourceHash: spec.sha256 ?? ''
       });
+      if (stage.job.state.presenterEnabled === false) {
+        lesson.presenter = { ...lesson.presenter, mode: 'none' };
+      }
 
       const path = join(stage.workdir, 'course-lesson.json');
       await writeFile(path, `${JSON.stringify(lesson, null, 2)}\n`);

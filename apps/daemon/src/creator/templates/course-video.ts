@@ -14,6 +14,8 @@ const courseVideoInputSchema = z.object({
   ratio: z.enum(courseLessonRatios).default('16:9'),
   voice: z.string().trim().default('en-US-AvaNeural'),
   rate: z.string().trim().default('-4%'),
+  presenterEnabled: z.boolean().default(true),
+  portraitPath: z.string().trim().default(''),
   currentStage: z.string().nullable().default(null)
 }).passthrough();
 
