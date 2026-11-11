@@ -41,6 +41,7 @@ import { publishCreatorArtifacts } from '../creator/artifact-publisher.js';
 import { createCreatorStageScheduler } from '../creator/stage-scheduler.js';
 import { createCreatorCommandDispatcher } from '../creator/command-dispatcher.js';
 import type { CreatorExecutor } from '../creator/executor.js';
+import { resolveCreatorMediaTool } from '../creator/media-tools.js';
 import { createKrillinExecutor } from '../creator/krillin/adapter.js';
 import { createKrillinDependencyLoader } from '../creator/krillin/dependency-loader.js';
 import { readKrillinRuntimeManifest, resolveInside } from '../creator/krillin/manifest.js';
@@ -860,8 +861,16 @@ export async function buildServer(input: BuildServerInput) {
       createCoursePlanExecutor()
     );
   }
-  let creatorFfmpegPath: string | undefined;
-  let creatorFfprobePath: string | undefined;
+  const creatorFfmpegOverride = process.env.OPENCREATOR_FFMPEG_PATH?.trim() || undefined;
+  const creatorFfprobeOverride = process.env.OPENCREATOR_FFPROBE_PATH?.trim() || undefined;
+  let creatorFfmpegPath = resolveCreatorMediaTool({
+    name: 'ffmpeg',
+    ...(creatorFfmpegOverride === undefined ? {} : { overridePath: creatorFfmpegOverride })
+  });
+  let creatorFfprobePath = resolveCreatorMediaTool({
+    name: 'ffprobe',
+    ...(creatorFfprobeOverride === undefined ? {} : { overridePath: creatorFfprobeOverride })
+  });
   let creatorYtDlpUpdateManager = input.creatorYtDlpUpdateManager;
   let getYtDlpRuntime: ((sourceUrl?: string) => ReturnType<typeof resolveYtDlpRuntime>) | undefined;
   try {
@@ -892,8 +901,10 @@ export async function buildServer(input: BuildServerInput) {
       ));
       return resource === undefined ? undefined : resolveInside(creatorRuntimeRoot, resource.path);
     };
-    creatorFfmpegPath = executable(/(?:^|\/)ffmpeg(?:\.exe)?$/i);
-    creatorFfprobePath = executable(/(?:^|\/)ffprobe(?:\.exe)?$/i);
+    const manifestFfmpegPath = executable(/(?:^|\/)ffmpeg(?:\.exe)?$/i);
+    const manifestFfprobePath = executable(/(?:^|\/)ffprobe(?:\.exe)?$/i);
+    if (creatorFfmpegOverride === undefined && manifestFfmpegPath !== undefined) creatorFfmpegPath = manifestFfmpegPath;
+    if (creatorFfprobeOverride === undefined && manifestFfprobePath !== undefined) creatorFfprobePath = manifestFfprobePath;
     const ytDlp = resolveYtDlpRuntime({
       resourceRoot: creatorRuntimeRoot,
       manifest: runtimeManifest,
@@ -986,34 +997,38 @@ export async function buildServer(input: BuildServerInput) {
         ffprobePath: creatorFfprobePath,
         ffmpegPath: creatorFfmpegPath
       }));
-      creatorExecutors.push(
-        createCourseNarrationExecutor({
-          synthesizeSlide: createEdgeTtsSlideSynthesizer({ ffprobePath: creatorFfprobePath })
-        }),
-        createCoursePresenterExecutor({
-          resolvePortrait: async (statePortrait) => {
-            const command = process.env.OPENCREATOR_PRESENTER_CMD?.trim() ?? '';
-            if (!command) return '';
-            return statePortrait || (process.env.OPENCREATOR_PRESENTER_PORTRAIT?.trim() ?? '');
-          },
-          generateClip: createCommandPresenterClipRunner({
-            command: process.env.OPENCREATOR_PRESENTER_CMD ?? '',
-            ...(process.env.OPENCREATOR_PRESENTER_CWD === undefined ? {} : { cwd: process.env.OPENCREATOR_PRESENTER_CWD })
-          })
-        }),
-        createCourseRenderExecutor({
-          ffprobePath: creatorFfprobePath,
-          runtimeRoot: stickmanRuntimeRoot,
-          ensureRuntime: stage => remotionComponent.ensure(stage)
-        }),
-        createCourseDeliveryExecutor({
-          resolveBaseUrl: async () => process.env.OPENCREATOR_BB_EXAM_BASE_URL?.trim() ?? '',
-          resolveToken: async () => process.env.OPENCREATOR_BB_EXAM_TOKEN?.trim() ?? ''
-        })
-      );
     }
   } catch (error) {
     console.warn(`Creator optional runtime executors are unavailable: ${formatError(error)}`);
+  }
+  // Course Video only needs ffprobe, so it stays available even when the
+  // optional KrillinAI runtime manifest is missing or fails verification.
+  if (input.creatorExecutors === undefined && creatorFfprobePath) {
+    creatorExecutors.push(
+      createCourseNarrationExecutor({
+        synthesizeSlide: createEdgeTtsSlideSynthesizer({ ffprobePath: creatorFfprobePath })
+      }),
+      createCoursePresenterExecutor({
+        resolvePortrait: async (statePortrait) => {
+          const command = process.env.OPENCREATOR_PRESENTER_CMD?.trim() ?? '';
+          if (!command) return '';
+          return statePortrait || (process.env.OPENCREATOR_PRESENTER_PORTRAIT?.trim() ?? '');
+        },
+        generateClip: createCommandPresenterClipRunner({
+          command: process.env.OPENCREATOR_PRESENTER_CMD ?? '',
+          ...(process.env.OPENCREATOR_PRESENTER_CWD === undefined ? {} : { cwd: process.env.OPENCREATOR_PRESENTER_CWD })
+        })
+      }),
+      createCourseRenderExecutor({
+        ffprobePath: creatorFfprobePath,
+        runtimeRoot: stickmanRuntimeRoot,
+        ensureRuntime: stage => remotionComponent.ensure(stage)
+      }),
+      createCourseDeliveryExecutor({
+        resolveBaseUrl: async () => process.env.OPENCREATOR_BB_EXAM_BASE_URL?.trim() ?? '',
+        resolveToken: async () => process.env.OPENCREATOR_BB_EXAM_TOKEN?.trim() ?? ''
+      })
+    );
   }
   if (input.creatorExecutors === undefined) {
     creatorExecutors.push(createXiaohongshuPostExecutor({

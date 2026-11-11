@@ -214,7 +214,17 @@ export function createCreatorPreflight(input: {
     if (input.validateRuntimeAssets !== false) {
       const requiredTools = new Map<string, string | undefined>();
       if (['download', 'clip', 'krillinai', 'stickman-media-validation'].includes(stage.executor)) requiredTools.set('ffmpeg', input.ffmpegPath);
-      if (['download', 'clip', 'krillinai', 'stickman-audio', 'stickman-remotion', 'stickman-media-validation', 'stickman-delivery'].includes(stage.executor)) requiredTools.set('ffprobe', input.ffprobePath);
+      if ([
+        'download',
+        'clip',
+        'krillinai',
+        'stickman-audio',
+        'stickman-remotion',
+        'stickman-media-validation',
+        'stickman-delivery',
+        'course-narration',
+        'course-video-remotion'
+      ].includes(stage.executor)) requiredTools.set('ffprobe', input.ffprobePath);
       for (const [id, path] of requiredTools) {
         const label = id === 'ffmpeg' ? 'FFmpeg' : 'ffprobe';
         if (path === undefined) add('blocked', {
