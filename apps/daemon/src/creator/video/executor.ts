@@ -180,7 +180,7 @@ export function createVideoExecutor(input: {
           width: media.width ?? null,
           height: media.height ?? null,
           hasAudio: media.hasAudio,
-          mimeType: 'video/mp4',
+          mimeType: result.mime ?? 'video/mp4',
           bytes: info.size,
           size: info.size,
           fileName,

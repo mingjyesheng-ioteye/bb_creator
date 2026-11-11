@@ -19,7 +19,7 @@ import {
 
 const MAX_PROMPT_LENGTH = 4_000;
 const SAFE_RESULT_ID = /^[A-Za-z0-9_-]{12,64}$/;
-const imageProviders = ['openai', 'jimeng', 'kling', 'gemini', 'codex-native'] as const;
+const imageProviders = ['openai', 'jimeng', 'kling', 'gemini', 'codex-native', 'local-sd'] as const;
 
 export type ImageGenerationService = {
   generate(request: CreateImageGenerationRequest): Promise<ImageGenerationResult>;

@@ -240,6 +240,9 @@ function hasVideoCredentials(
   if (provider === 'seedance' || provider === 'veo') {
     return services.video[provider].apiKey.trim() !== '';
   }
+  if (provider === 'local-sd') {
+    return services.video.localSd.baseUrl.trim() !== '';
+  }
   return false;
 }
 

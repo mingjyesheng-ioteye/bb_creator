@@ -145,6 +145,91 @@ describe('video generation API', () => {
     expect(content.rawPayload).toEqual(video);
   });
 
+  it('creates, refreshes, stores, and serves a local stable-diffusion.cpp video job', async () => {
+    const config = createDefaultCreatorServicesConfig();
+    config.video.provider = 'local-sd';
+    config.video.localSd.baseUrl = 'http://127.0.0.1:8686';
+    const video = Buffer.from('local-sd-webm-video');
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      const value = String(url);
+      if (value === 'http://127.0.0.1:8686/sdcpp/v1/vid_gen' && init?.method === 'POST') {
+        return new Response(JSON.stringify({
+          id: 'job_local_video_1',
+          kind: 'vid_gen',
+          status: 'queued',
+          created: 1794408209000,
+          poll_url: '/sdcpp/v1/jobs/job_local_video_1'
+        }), { status: 202, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (value === 'http://127.0.0.1:8686/sdcpp/v1/jobs/job_local_video_1') {
+        return new Response(JSON.stringify({
+          id: 'job_local_video_1',
+          kind: 'vid_gen',
+          status: 'completed',
+          progress: { stage: 'encoding', completed: 1, total: 1, unit: 'video' },
+          result: {
+            output_format: 'webm',
+            mime_type: 'video/webm',
+            fps: 16,
+            frame_count: 33,
+            b64_json: video.toString('base64')
+          }
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('not found', { status: 404 });
+    });
+    await registerVideoGenerationRoutes(server, createVideoGenerationService({
+      dataDir,
+      configStore: createConfigStore(config),
+      fetchImpl: fetchImpl as typeof fetch,
+      createId: () => 'local_video_result_1'
+    }));
+
+    const created = await server.inject({
+      method: 'POST',
+      url: '/video-generation/results',
+      payload: { prompt: 'A local cinematic city reveal', provider: 'local-sd', size: '1280x720', duration: 5 }
+    });
+    expect(created.statusCode).toBe(202);
+    expect(created.json().result).toMatchObject({
+      provider: 'local-sd',
+      model: 'sd-cpp-local',
+      status: 'queued',
+      videoSize: '1280x720',
+      duration: 5
+    });
+    expect((fetchImpl.mock.calls[0]?.[1]?.headers as Record<string, string>).Authorization)
+      .toBeUndefined();
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
+      prompt: 'A local cinematic city reveal',
+      width: 1280,
+      height: 720,
+      video_frames: 80,
+      fps: 16,
+      output_format: 'webm'
+    });
+
+    const refreshed = await server.inject({
+      method: 'GET',
+      url: '/video-generation/results/local_video_result_1'
+    });
+    expect(refreshed.statusCode).toBe(200);
+    expect(refreshed.json().result).toMatchObject({
+      status: 'completed',
+      progress: 100,
+      mime: 'video/webm',
+      size: video.length
+    });
+
+    const content = await server.inject({
+      method: 'GET',
+      url: '/video-generation/results/local_video_result_1/content'
+    });
+    expect(content.statusCode).toBe(200);
+    expect(content.headers['content-type']).toContain('video/webm');
+    expect(content.rawPayload).toEqual(video);
+  });
+
   it('creates and refreshes a Kling text-to-video task with JWT authentication', async () => {
     const config = createDefaultCreatorServicesConfig();
     config.video.kling.accessKey = 'kling-access';

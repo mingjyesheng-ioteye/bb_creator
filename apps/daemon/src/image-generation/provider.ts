@@ -4,7 +4,7 @@ import type {
   ImageGenerationAsset
 } from '@opencreator/protocol';
 import type { PublicErrorFacts } from '@opencreator/protocol';
-import { publicErrorKindForCode, sanitizePublicErrorFacts } from '@opencreator/protocol';
+import { creatorTextModelHeaders, publicErrorKindForCode, sanitizePublicErrorFacts } from '@opencreator/protocol';
 import {
   LocalCodexProviderError,
   type LocalCodexProvider
@@ -166,6 +166,14 @@ export async function generateImageContents(
         options.fetchImpl
       );
     }
+    if (request.provider === 'local-sd') {
+      return await generateLocalSdImages(
+        request,
+        config,
+        controller.signal,
+        options.fetchImpl
+      );
+    }
     if (request.provider === 'kling') {
       return await generateKlingImages(request, config, controller.signal, options.fetchImpl);
     }
@@ -293,6 +301,58 @@ async function generateOpenAiImages(
   }
   if (!response.ok) {
     const failure = await creatorServiceErrorInfo(response, 'Image generation', request.provider);
+    throw new ImageGenerationProviderError(
+      'upstream_error',
+      failure.message,
+      failure.publicFacts
+    );
+  }
+  const contents = await readGeneratedImages(await response.json() as unknown, {
+    apiKey: provider.apiKey,
+    authOrigin: endpoint.origin,
+    proxy: config.proxy.trim(),
+    signal,
+    fetchImpl
+  });
+  return { model, contents };
+}
+
+async function generateLocalSdImages(
+  request: CreateImageGenerationRequest,
+  config: CreatorServicesConfig,
+  signal: AbortSignal,
+  fetchImpl?: typeof fetch
+) {
+  const provider = config.image.localSd;
+  if (!provider.baseUrl.trim()) {
+    throw new ImageGenerationProviderError(
+      'config_missing',
+      'Configure the local SD image service Base URL before generating images'
+    );
+  }
+  const model = provider.model.trim() || 'sd-cpp-local';
+  const endpoint = openAiImageEndpoint(provider.baseUrl, 'generations');
+  const response = await fetchCreatorService({
+    endpoint,
+    method: 'POST',
+    headers: {
+      ...creatorTextModelHeaders(provider.apiKey),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model,
+      prompt: request.prompt.trim(),
+      size: request.size,
+      n: request.count,
+      output_format: 'png'
+    }),
+    proxy: config.proxy.trim(),
+    signal,
+    maxResponseBytes: MAX_RESPONSE_BYTES,
+    fetchImpl
+  });
+  if (!response.ok) {
+    const failure = await creatorServiceErrorInfo(response, 'Local SD image', request.provider);
     throw new ImageGenerationProviderError(
       'upstream_error',
       failure.message,

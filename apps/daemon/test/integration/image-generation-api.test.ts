@@ -126,6 +126,49 @@ describe('image generation API', () => {
       .toEqual(['0.png', 'result.json']);
   });
 
+  it('generates images through a keyless local stable-diffusion.cpp endpoint', async () => {
+    const config = createDefaultCreatorServicesConfig();
+    config.image.provider = 'local-sd';
+    config.image.localSd.baseUrl = 'http://127.0.0.1:8686';
+    const image = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from('local-sd-image')
+    ]);
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      data: [{ b64_json: image.toString('base64') }]
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await registerImageGenerationRoutes(server, createImageGenerationService({
+      dataDir,
+      configStore: createConfigStore(config),
+      fetchImpl: fetchImpl as typeof fetch,
+      createId: () => 'local_sd_image_1'
+    }));
+
+    const generated = await server.inject({
+      method: 'POST',
+      url: '/image-generation/results',
+      payload: { prompt: 'A local studio portrait', provider: 'local-sd', size: '1024x1024', quality: 'medium', count: 1 }
+    });
+
+    expect(generated.statusCode).toBe(201);
+    expect(generated.json().result).toMatchObject({
+      provider: 'local-sd',
+      model: 'sd-cpp-local',
+      images: [{ mime: 'image/png', size: image.length }]
+    });
+    expect(String(fetchImpl.mock.calls[0]?.[0]))
+      .toBe('http://127.0.0.1:8686/v1/images/generations');
+    expect((fetchImpl.mock.calls[0]?.[1]?.headers as Record<string, string>).Authorization)
+      .toBeUndefined();
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
+      model: 'sd-cpp-local',
+      prompt: 'A local studio portrait',
+      size: '1024x1024',
+      n: 1,
+      output_format: 'png'
+    });
+  });
+
   it('generates and stores an image through the local Codex provider', async () => {
     const config = createDefaultCreatorServicesConfig();
     config.image.provider = 'codex-native';

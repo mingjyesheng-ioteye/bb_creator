@@ -64,13 +64,13 @@ function presetModelName(
     const provider = readImageProvider(defaults.provider, config.image.provider);
     return provider === 'codex-native'
       ? codexImageModel || localize(locale, 'Codex 原生生图', 'Codex native image generation')
-      : config.image[provider].model.trim() || undefined;
+      : (provider === 'local-sd' ? config.image.localSd.model : config.image[provider].model).trim() || undefined;
   }
   if (module === 'video-generation') {
-    const provider = defaults.provider === 'seedance' || defaults.provider === 'kling' || defaults.provider === 'veo'
+    const provider = defaults.provider === 'seedance' || defaults.provider === 'kling' || defaults.provider === 'veo' || defaults.provider === 'local-sd'
       ? defaults.provider
       : config.video.provider;
-    return model ?? (config.video[provider].model.trim() || defaultVideoGenerationModels[provider]);
+    return model ?? ((provider === 'local-sd' ? config.video.localSd.model : config.video[provider].model).trim() || defaultVideoGenerationModels[provider]);
   }
   if (module === 'smart-dubbing') {
     const provider = isCreatorTtsProvider(defaults.ttsProvider) ? defaults.ttsProvider : config.tts.provider;

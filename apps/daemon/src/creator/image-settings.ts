@@ -30,11 +30,15 @@ export function resolveCreatorImageSettings(input: {
     : Math.min(input.maxCandidateCount, Math.max(1, requestedCount));
   return {
     provider,
-    model: provider === 'codex-native' ? 'codex-native' : input.config.image[provider].model,
+    model: provider === 'codex-native'
+      ? 'codex-native'
+      : provider === 'local-sd'
+        ? input.config.image.localSd.model
+        : input.config.image[provider].model,
     candidateCount,
     supportsReferenceImage: capabilities.supportsReferenceImage,
     maxReferenceImages: capabilities.maxReferenceImages,
-    executionMode: provider === 'codex-native' ? 'local' : 'remote'
+    executionMode: provider === 'codex-native' || provider === 'local-sd' ? 'local' : 'remote'
   };
 }
 
@@ -50,8 +54,9 @@ export function imageProviderConfigured(
       && settings.accessKey.trim().length > 0
       && settings.secretKey.trim().length > 0;
   }
-  const settings = config.image[provider];
+  const settings = provider === 'local-sd' ? config.image.localSd : config.image[provider];
   if (!settings.baseUrl.trim() || !settings.model.trim()) return false;
+  if (provider === 'local-sd') return true;
   return settings.apiKey.trim().length > 0;
 }
 
@@ -64,6 +69,7 @@ export function readImageProvider(
     || value === 'kling'
     || value === 'gemini'
     || value === 'codex-native'
+    || value === 'local-sd'
     ? value
     : fallback;
 }

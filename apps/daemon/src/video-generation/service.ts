@@ -14,6 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { CreatorServicesConfig } from '@opencreator/protocol';
+import { creatorTextModelHeaders } from '@opencreator/protocol';
 import type { CreatorServicesConfigStore } from '../creator-services/config-store.js';
 import { createKlingAuthorization } from '../creator-services/kling-auth.js';
 import {
@@ -34,7 +35,7 @@ const MAX_VIDEO_BYTES = 1024 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 180_000;
 const DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
 const SAFE_RESULT_ID = /^[A-Za-z0-9_-]{12,64}$/;
-const videoProviders = ['seedance', 'kling', 'veo'] as const;
+const videoProviders = ['seedance', 'kling', 'veo', 'local-sd'] as const;
 
 type StoredVideoGeneration = {
   result: VideoGenerationResult;
@@ -165,6 +166,9 @@ export function createVideoGenerationService(input: {
     config: CreatorServicesConfig,
     options: VideoGenerationOperationOptions = {}
   ): Promise<StoredVideoGeneration> {
+    if (stored.result.provider === 'local-sd') {
+      return completeLocalSdVideo(stored, payload);
+    }
     const download = resolveVideoDownload(stored, payload, config);
     options.onDownloadStart?.();
     const operation = operationSignal(options.signal, DOWNLOAD_TIMEOUT_MS);
@@ -334,7 +338,7 @@ export function createVideoGenerationService(input: {
         throw new VideoGenerationError('VIDEO_GENERATION_NOT_READY', 'Generated video is not ready', 409);
       }
       try {
-        return { result: stored.result, content: await readFile(videoPath(id)) };
+        return { result: stored.result, content: await readFile(videoPath(id, videoExtension(stored.result))) };
       } catch (error) {
         if (isNotFoundError(error)) {
           throw new VideoGenerationError('VIDEO_GENERATION_RESULT_NOT_FOUND', 'Generated video file was not found', 404);
@@ -348,7 +352,7 @@ export function createVideoGenerationService(input: {
         throw new VideoGenerationError('VIDEO_GENERATION_NOT_READY', 'Generated video is not ready', 409);
       }
       try {
-        await copyFile(videoPath(id), destination);
+        await copyFile(videoPath(id, videoExtension(stored.result)), destination);
         return stored.result;
       } catch (error) {
         if (isNotFoundError(error)) {
@@ -367,8 +371,56 @@ export function createVideoGenerationService(input: {
     return resolve(resultDir(id), 'result.json');
   }
 
-  function videoPath(id: string) {
-    return resolve(resultDir(id), 'video.mp4');
+  function videoPath(id: string, extension = 'mp4') {
+    return resolve(resultDir(id), `video.${extension}`);
+  }
+
+  function videoExtension(result: VideoGenerationResult): string {
+    if (result.mime === 'video/webm') return 'webm';
+    if (result.mime === 'video/x-msvideo') return 'avi';
+    return 'mp4';
+  }
+
+  async function completeLocalSdVideo(
+    stored: StoredVideoGeneration,
+    payload: Record<string, unknown>
+  ): Promise<StoredVideoGeneration> {
+    const result = isRecord(payload.result) ? payload.result : undefined;
+    const encoded = result && typeof result.b64_json === 'string' ? result.b64_json : undefined;
+    if (!encoded) {
+      throw new VideoGenerationError('VIDEO_GENERATION_UPSTREAM_ERROR', 'The local SD video result is empty', 502);
+    }
+    const content = Buffer.from(encoded, 'base64');
+    if (content.length === 0 || content.length > MAX_VIDEO_BYTES) {
+      throw new VideoGenerationError('VIDEO_GENERATION_UPSTREAM_ERROR', 'The local SD video result is invalid', 502);
+    }
+    const mime = result?.mime_type === 'video/webm'
+      ? 'video/webm'
+      : result?.mime_type === 'video/x-msvideo'
+        ? 'video/x-msvideo'
+        : 'video/mp4';
+    const extension = mime === 'video/webm' ? 'webm' : mime === 'video/x-msvideo' ? 'avi' : 'mp4';
+    const completed: VideoGenerationResult = {
+      ...stored.result,
+      status: 'completed',
+      progress: 100,
+      fileName: `OpenCreator-video-${stored.result.id}.${extension}`,
+      mime,
+      size: content.length,
+      progressKnown: true,
+      error: undefined,
+      publicFacts: undefined,
+      updatedAt: now().toISOString()
+    };
+    try {
+      await writeFile(videoPath(completed.id, extension), content, { mode: 0o600, flag: 'wx' });
+      await writeStored({ ...stored, result: completed });
+    } catch (error) {
+      await rm(videoPath(completed.id, extension), { force: true }).catch(() => undefined);
+      if (error instanceof VideoGenerationError) throw error;
+      throw new VideoGenerationError('VIDEO_GENERATION_STORAGE_FAILED', 'The generated video could not be stored', 500);
+    }
+    return { ...stored, result: completed };
   }
 }
 
@@ -391,6 +443,7 @@ async function createRemoteVideoJob(
 ): Promise<RemoteVideoJob> {
   if (request.provider === 'kling') return await createKlingVideoJob(request, config, signal, fetchImpl);
   if (request.provider === 'veo') return await createVeoVideoJob(request, config, signal, fetchImpl);
+  if (request.provider === 'local-sd') return await createLocalSdVideoJob(request, config, signal, fetchImpl);
   return await createSeedanceVideoJob(request, config, signal, fetchImpl);
 }
 
@@ -420,6 +473,11 @@ async function refreshRemoteVideoJob(
       stored.upstreamId
     );
     headers = { 'x-goog-api-key': settings.apiKey };
+  } else if (provider === 'local-sd') {
+    const settings = config.video.localSd;
+    if (!settings.baseUrl.trim()) missingVideoConfig('local-sd');
+    endpoint = localSdJobEndpoint(settings.baseUrl, stored.upstreamId);
+    headers = creatorTextModelHeaders(settings.apiKey);
   } else {
     const settings = config.video.seedance;
     requireApiKey(settings.apiKey, 'seedance');
@@ -428,6 +486,60 @@ async function refreshRemoteVideoJob(
   }
   const payload = await requestVideoJson({ endpoint, method: 'GET', headers, config, signal, fetchImpl, provider });
   return normalizeRemoteVideoJob(provider, stored.upstreamId, stored.result.model, payload);
+}
+
+async function createLocalSdVideoJob(
+  request: CreateVideoGenerationRequest,
+  config: CreatorServicesConfig,
+  signal: AbortSignal,
+  fetchImpl?: typeof fetch
+): Promise<RemoteVideoJob> {
+  const settings = config.video.localSd;
+  if (!settings.baseUrl.trim()) missingVideoConfig('local-sd');
+  const model = requestedModel(
+    request.model,
+    settings.model,
+    defaultVideoGenerationModels['local-sd']
+  );
+  const { width, height } = localSdVideoDimensions(request.size);
+  const fps = 16;
+  const videoFrames = Math.max(1, Math.round(request.duration * fps));
+  const payload = await requestVideoJson({
+    provider: 'local-sd',
+    endpoint: localSdVideoEndpoint(settings.baseUrl),
+    method: 'POST',
+    headers: {
+      ...creatorTextModelHeaders(settings.apiKey),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      prompt: request.prompt.trim(),
+      negative_prompt: '',
+      width,
+      height,
+      seed: -1,
+      video_frames: videoFrames,
+      fps,
+      ...(request.referenceImage
+        ? { init_image: referenceImageDataUrl(request.referenceImage) }
+        : {}),
+      sample_params: { sample_steps: 20 },
+      output_format: 'webm'
+    }),
+    config,
+    signal,
+    fetchImpl
+  });
+  const upstreamId = readString(payload, ['id']);
+  if (!upstreamId || !/^[A-Za-z0-9_-]{6,128}$/.test(upstreamId)) invalidRemoteJob('Local SD');
+  return {
+    upstreamId,
+    model,
+    payload,
+    status: 'queued',
+    progress: 0,
+    progressKnown: false
+  };
 }
 
 async function createSeedanceVideoJob(
@@ -611,6 +723,15 @@ function normalizeRemoteVideoJob(
   } else if (provider === 'veo') {
     rawStatus = isRecord(payload.error) ? 'failed' : payload.done === true ? 'completed' : 'in_progress';
     progress = payload.done === true ? 100 : undefined;
+  } else if (provider === 'local-sd') {
+    rawStatus = payload.status;
+    const jobProgress = isRecord(payload.progress) ? payload.progress : undefined;
+    progress = jobProgress
+      && typeof jobProgress.completed === 'number'
+      && typeof jobProgress.total === 'number'
+      && jobProgress.total > 0
+      ? Math.round((jobProgress.completed / jobProgress.total) * 90)
+      : undefined;
   } else {
     rawStatus = payload.status;
     progress = payload.progress;
@@ -670,6 +791,26 @@ function seedanceVideoEndpoint(baseUrl: string) {
     'https://ark.cn-beijing.volces.com/api/v3',
     'contents/generations/tasks'
   );
+}
+
+function localSdBaseUrl(baseUrl: string) {
+  return baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/i, '');
+}
+
+function localSdVideoEndpoint(baseUrl: string) {
+  return new URL(`${localSdBaseUrl(baseUrl)}/sdcpp/v1/vid_gen`);
+}
+
+function localSdJobEndpoint(baseUrl: string, id: string) {
+  return new URL(`${localSdBaseUrl(baseUrl)}/sdcpp/v1/jobs/${encodeURIComponent(id)}`);
+}
+
+function localSdVideoDimensions(size: CreateVideoGenerationRequest['size']) {
+  const match = /^(\d{2,5})x(\d{2,5})$/.exec(size);
+  const width = match ? Number(match[1]) : 832;
+  const height = match ? Number(match[2]) : 480;
+  const align = (value: number) => Math.max(64, Math.min(4096, Math.round(value / 8) * 8));
+  return { width: align(width), height: align(height) };
 }
 
 function klingVideoEndpoint(baseUrl: string, imageToVideo = false) {
@@ -800,7 +941,11 @@ function validateRequest(request: CreateVideoGenerationRequest, validateProvider
   if (validateProvider && !(videoGenerationDurations as readonly unknown[]).includes(request.duration)) {
     throw new VideoGenerationError('VALIDATION_FAILED', 'video duration is invalid', 400);
   }
-  const validDurations = request.provider === 'veo' ? [4, 6, 8] : [5, 10];
+  const validDurations = request.provider === 'veo'
+    ? [4, 6, 8]
+    : request.provider === 'local-sd'
+      ? [...videoGenerationDurations]
+      : [5, 10];
   if (validateProvider && !validDurations.includes(request.duration)) {
     throw new VideoGenerationError('VALIDATION_FAILED', `video duration is not supported by ${request.provider}`, 400);
   }
