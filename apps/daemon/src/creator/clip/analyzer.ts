@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { creatorTextModelHeaders } from '@opencreator/protocol';
 
 const candidateSchema = z.object({
   id: z.string().min(1),
@@ -48,7 +49,7 @@ export async function analyzeClips(input: {
 }): Promise<ClipCandidate[]> {
   const response = await (input.fetchImpl ?? fetch)(`${input.baseUrl.replace(/\/$/, '') || 'https://api.openai.com/v1'}/chat/completions`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${input.apiKey}`, 'content-type': 'application/json' },
+    headers: { ...creatorTextModelHeaders(input.apiKey), 'content-type': 'application/json' },
     body: JSON.stringify({
       model: input.model,
       response_format: { type: 'json_object' },

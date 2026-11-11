@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { creatorTextModelConfigured } from '@opencreator/protocol';
 import type { CreatorServicesConfigStore } from '../../creator-services/config-store.js';
 import {
   fetchCreatorService
@@ -41,7 +42,7 @@ export function createCoverAnalysisExecutor(input: {
         );
       }
       const config = await input.configStore.read();
-      if (!config.llm.apiKey.trim()) {
+      if (!creatorTextModelConfigured(config.llm)) {
         throw new CreatorExecutorError(
           'creator_llm_config_missing',
           'LLM configuration is incomplete'

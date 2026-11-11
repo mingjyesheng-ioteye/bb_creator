@@ -378,6 +378,55 @@ describe('creator preflight', () => {
     ]));
   });
 
+  it('accepts a loopback local text model without an API key', async () => {
+    root = await mkdtemp(join(tmpdir(), 'creator-preflight-'));
+    const config = createDefaultCreatorServicesConfig();
+    config.llm.source = 'custom';
+    config.llm.baseUrl = 'http://127.0.0.1:8686/v1';
+    config.llm.apiKey = '';
+    config.llm.model = 'qwen3:8b';
+    const stage = createVideoTranslationTemplate().stages.find(candidate => candidate.id === 'subtitle')!;
+    const result = await createCreatorPreflight({
+      configStore: { read: async () => config },
+      readCapabilities: () => createKrillinCreatorServicesCapabilities('darwin', 'arm64'),
+      resourceRoot: join(root, 'runtime'),
+      jobsRoot: join(root, 'jobs'),
+      executorIds: ['krillinai'],
+      validateRuntimeAssets: false
+    }).check(fakeJob('video-translation', {
+      sourceType: 'url',
+      sourceUrl: 'https://youtu.be/example'
+    }), stage);
+
+    expect(result.blocked.map(item => item.id)).not.toContain('llm');
+    expect(result.ready).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'llm', executionMode: 'local' })
+    ]));
+  });
+
+  it('still blocks a remote text model without an API key', async () => {
+    root = await mkdtemp(join(tmpdir(), 'creator-preflight-'));
+    const config = createDefaultCreatorServicesConfig();
+    config.llm.source = 'custom';
+    config.llm.baseUrl = 'https://api.deepseek.com';
+    config.llm.apiKey = '';
+    config.llm.model = 'deepseek-v4-pro';
+    const stage = createVideoTranslationTemplate().stages.find(candidate => candidate.id === 'subtitle')!;
+    const result = await createCreatorPreflight({
+      configStore: { read: async () => config },
+      readCapabilities: () => createKrillinCreatorServicesCapabilities('darwin', 'arm64'),
+      resourceRoot: join(root, 'runtime'),
+      jobsRoot: join(root, 'jobs'),
+      executorIds: ['krillinai'],
+      validateRuntimeAssets: false
+    }).check(fakeJob('video-translation', {
+      sourceType: 'url',
+      sourceUrl: 'https://youtu.be/example'
+    }), stage);
+
+    expect(result.blocked.map(item => item.id)).toContain('llm');
+  });
+
   it('resolves historical stale inputs the same way as StageRunner', async () => {
     root = await mkdtemp(join(tmpdir(), 'creator-preflight-'));
     const referencePath = join(root, 'reference.png');

@@ -3,6 +3,7 @@ import { extname, join } from 'node:path';
 import { z } from 'zod';
 import type { CreatorServicesConfigStore } from '../../creator-services/config-store.js';
 import type { CreatorArtifact, CreatorJson } from '@opencreator/protocol';
+import { creatorTextModelConfigured, creatorTextModelHeaders } from '@opencreator/protocol';
 import type { CreatorExecutor, CreatorExecutorInput, CreatorExecutorOutput } from '../executor.js';
 import { CreatorExecutorError } from '../executor.js';
 import {
@@ -1089,7 +1090,7 @@ export function createStickmanConfiguredCompletion(input: {
         model: config.llm.model
       });
     }
-    if (!config.llm.apiKey.trim()) {
+    if (!creatorTextModelConfigured(config.llm)) {
       throw new CreatorExecutorError('creator_llm_config_missing', 'LLM configuration is incomplete');
     }
     const response = await fetch(
@@ -1098,7 +1099,7 @@ export function createStickmanConfiguredCompletion(input: {
         method: 'POST',
         signal: request.signal,
         headers: {
-          authorization: `Bearer ${config.llm.apiKey}`,
+          ...creatorTextModelHeaders(config.llm.apiKey),
           'content-type': 'application/json'
         },
         body: JSON.stringify({

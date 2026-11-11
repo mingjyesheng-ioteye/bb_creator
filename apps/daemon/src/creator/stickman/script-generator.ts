@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { creatorTextModelHeaders } from '@opencreator/protocol';
 
 const scriptSegmentSchema = z.object({
   id: z.string().min(1),
@@ -38,7 +39,7 @@ export async function generateStickmanScript(input: {
     {
       method: 'POST',
       headers: {
-        authorization: `Bearer ${input.apiKey}`,
+        ...creatorTextModelHeaders(input.apiKey),
         'content-type': 'application/json'
       },
       body: JSON.stringify({

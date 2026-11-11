@@ -9,7 +9,7 @@ import type {
   CreatorServicesConfig,
   PublicErrorFacts
 } from '@opencreator/protocol';
-import { creatorPreflightFailure, imagePromptRequiresReference } from '@opencreator/protocol';
+import { creatorPreflightFailure, creatorTextModelConfigured, imagePromptRequiresReference, isLoopbackBaseUrl } from '@opencreator/protocol';
 import { access, mkdir, readFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { join } from 'node:path';
@@ -346,7 +346,7 @@ async function checkProviderConfig(
         executionMode: 'local'
       });
     } else {
-      checkOpenAi(config.llm, 'llm', 'Text model', '#/settings?tab=ai-services&section=text', add);
+      checkTextModel(config.llm, add);
     }
   }
   if (needs.has('tts')) {
@@ -416,12 +416,13 @@ async function checkProviderConfig(
       if (job.artifacts.some(artifact => artifact.kind === 'reference_image' && artifact.status === 'completed') && !gateway.capabilities?.video?.includes('image_to_video')) add('blocked', { id:'reference-image-capability',title:'Reference image capability mismatch',message:'The official video model does not support reference images.',executionMode:'remote' });
     } else {
       const provider = readVideoProvider(job, config);
-      const settings = config.video[provider];
-      const hasKey = providerCredentials(settings, provider);
+      const settings = provider === 'local-sd' ? config.video.localSd : config.video[provider];
+      const hasKey = provider === 'local-sd' ? true : providerCredentials(settings, provider);
+      const mode = provider === 'local-sd' ? 'local' as const : 'remote' as const;
       if (!hasKey || !settings.model.trim() || !settings.baseUrl.trim()) add('blocked', {
-        id: 'video-provider', title: 'Video service configuration incomplete', message: `Configure the Base URL, model, and credentials for ${provider}.`, executionMode: 'remote'
+        id: 'video-provider', title: 'Video service configuration incomplete', message: `Configure the Base URL, model, and credentials for ${provider}.`, executionMode: mode
       }, { label: 'Open AI service settings', deepLink: '#/settings?tab=ai-services&section=video' });
-      else add('ready', { id: 'video-provider', title: 'Video service', message: `${provider} / ${settings.model} is configured.`, executionMode: 'remote' });
+      else add('ready', { id: 'video-provider', title: 'Video service', message: `${provider} / ${settings.model} is configured.`, executionMode: mode });
     }
   }
   if (stage.executor === 'krillinai' && stage.id === 'subtitle' && (job.state.sourceType === 'file' || job.state.preferPlatformCaptions === false)) {
@@ -437,6 +438,30 @@ async function checkProviderConfig(
       add('blocked', { id: 'transcription-config', title: 'Speech recognition credentials missing', message: 'Complete the Volcengine App ID and access token.', executionMode: 'remote' }, { label: 'Open AI service settings', deepLink: '#/settings?tab=ai-services&section=transcription' });
     } else add('ready', { id: 'transcription-config', title: 'Speech recognition', message: `${config.transcription.provider} is configured.`, executionMode: provider.kind === 'local' ? 'local' : 'remote' });
   }
+}
+
+function checkTextModel(
+  value: { baseUrl: string; apiKey: string; model: string },
+  add: Parameters<typeof checkProviderConfig>[5]
+) {
+  const deepLink = '#/settings?tab=ai-services&section=text';
+  if (!creatorTextModelConfigured(value)) {
+    add('blocked', {
+      id: 'llm',
+      title: 'Text model configuration incomplete',
+      message: isLoopbackBaseUrl(value.baseUrl)
+        ? 'Enter the model name served by the local text model service.'
+        : 'Complete the Base URL, model, and API key for the text model.',
+      executionMode: isLoopbackBaseUrl(value.baseUrl) ? 'local' : 'remote'
+    }, { label: 'Open AI service settings', deepLink });
+    return;
+  }
+  add('ready', {
+    id: 'llm',
+    title: 'Text model',
+    message: `${value.model} is configured.`,
+    executionMode: isLoopbackBaseUrl(value.baseUrl) ? 'local' : 'remote'
+  });
 }
 
 function checkOpenAi(
@@ -489,7 +514,7 @@ function readTtsProvider(job: CreatorJob, config: CreatorServicesConfig): Creato
 }
 function readVideoProvider(job: CreatorJob, config: CreatorServicesConfig): CreatorServicesConfig['video']['provider'] {
   const value = job.state.provider;
-  return value === 'seedance' || value === 'kling' || value === 'veo' ? value : config.video.provider;
+  return value === 'seedance' || value === 'kling' || value === 'veo' || value === 'local-sd' ? value : config.video.provider;
 }
 function executionMode(stage: CreatorTemplateStage, job: CreatorJob): CreatorPreflightExecutionMode {
   if (stage.executor === 'image' || stage.executor === 'video' || stage.executor === 'smart-dubbing' || stage.executor === 'stickman-image') return 'remote';
@@ -505,8 +530,9 @@ function executionMode(stage: CreatorTemplateStage, job: CreatorJob): CreatorPre
 
 function providerCredentials(
   settings: { model: string; apiKey?: string; accessKey?: string; secretKey?: string },
-  provider: 'openai' | 'jimeng' | 'kling' | 'gemini' | 'seedance' | 'veo'
+  provider: 'openai' | 'jimeng' | 'kling' | 'gemini' | 'seedance' | 'veo' | 'local-sd'
 ): boolean {
+  if (provider === 'local-sd') return true;
   if (provider === 'kling') {
     return (settings.accessKey?.trim().length ?? 0) > 0
       && (settings.secretKey?.trim().length ?? 0) > 0;

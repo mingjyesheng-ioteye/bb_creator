@@ -1,4 +1,5 @@
 import {
+  creatorTextModelConfigured,
   parseBilibiliVideoSource,
   supportedVideoSourcePlatform,
   type CreatorJob,
@@ -27,11 +28,7 @@ export function createVideoTranslationWorkflow(input: {
       const config = await input.configStore.read();
       if (
         config.llm.source === 'custom'
-        && (
-          !config.llm.baseUrl.trim()
-          || !config.llm.model.trim()
-          || !config.llm.apiKey.trim()
-        )
+        && !creatorTextModelConfigured(config.llm)
       ) {
         setConfigurationNeeded(input.creator, job.id, {
           code: 'creator_llm_config_missing',

@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { creatorTextModelConfigured } from '@opencreator/protocol';
 import type { CreatorServicesConfigStore } from '../../creator-services/config-store.js';
 import type { CreatorExecutor } from '../executor.js';
 import { CreatorExecutorError } from '../executor.js';
@@ -23,7 +24,7 @@ export function createClipExecutor(input: {
           message: 'Checking the source video and analysis settings'
         });
         const config = await input.configStore.read();
-        if (!config.llm.apiKey) throw new CreatorExecutorError('creator_llm_config_missing', 'LLM configuration is incomplete');
+        if (!creatorTextModelConfigured(config.llm)) throw new CreatorExecutorError('creator_llm_config_missing', 'LLM configuration is incomplete');
         const subtitle = stage.inputArtifacts.find(artifact => artifact.kind.includes('subtitle'))?.path;
         const source = stage.inputArtifacts.find(artifact => artifact.kind === 'source_video')?.path;
         if (!subtitle || !source) throw new CreatorExecutorError('creator_stage_input_missing', 'Video and subtitle are required');

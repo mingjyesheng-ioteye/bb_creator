@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { creatorTextModelHeaders } from '@opencreator/protocol';
 import type { StickmanScriptSegment } from './script-generator.js';
 
 const shotSchema = z.object({
@@ -41,7 +42,7 @@ export async function generateStickmanStoryboard(input: {
     {
       method: 'POST',
       headers: {
-        authorization: `Bearer ${input.apiKey}`,
+        ...creatorTextModelHeaders(input.apiKey),
         'content-type': 'application/json'
       },
       body: JSON.stringify({

@@ -76,11 +76,12 @@ const llmConfigSchema = openAiCompatibleSchema.extend({
   source: value.source ?? inferLegacyTextModelSource(value)
 }));
 const imageConfigSchema = z.object({
-  provider: z.enum(['openai', 'jimeng', 'kling', 'gemini', 'codex-native']),
+  provider: z.enum(['openai', 'jimeng', 'kling', 'gemini', 'codex-native', 'local-sd']),
   openai: openAiCompatibleSchema,
   jimeng: openAiCompatibleSchema,
   kling: klingAiSchema,
   gemini: openAiCompatibleSchema,
+  localSd: openAiCompatibleSchema.default(imageConfigDefault.localSd),
   codexNative: z.object({}).strict().default({})
 }).strict();
 const legacyImageConfigSchema = z.object({
@@ -92,10 +93,11 @@ const legacyImageConfigSchema = z.object({
   openai: value.openai
 }));
 const videoConfigSchema = z.object({
-  provider: z.enum(['seedance', 'kling', 'veo']),
+  provider: z.enum(['seedance', 'kling', 'veo', 'local-sd']),
   seedance: openAiCompatibleSchema,
   kling: klingAiSchema,
-  veo: openAiCompatibleSchema
+  veo: openAiCompatibleSchema,
+  localSd: openAiCompatibleSchema.default(videoConfigDefault.localSd)
 }).strict();
 const legacyVideoConfigSchema = z.object({
   provider: z.literal('openai-compatible'),
@@ -331,10 +333,12 @@ const creatorCredentialPaths = [
   'image.kling.accessKey',
   'image.kling.secretKey',
   'image.gemini.apiKey',
+  'image.localSd.apiKey',
   'video.seedance.apiKey',
   'video.kling.accessKey',
   'video.kling.secretKey',
-  'video.veo.apiKey'
+  'video.veo.apiKey',
+  'video.localSd.apiKey'
 ] as const;
 
 function splitCreatorServiceCredentials(config: CreatorServicesConfig): {
@@ -432,10 +436,12 @@ export function presentCreatorServicesConfig(
   redact('image.kling.accessKey', redacted.image.kling.accessKey, () => { redacted.image.kling.accessKey = ''; });
   redact('image.kling.secretKey', redacted.image.kling.secretKey, () => { redacted.image.kling.secretKey = ''; });
   redact('image.gemini.apiKey', redacted.image.gemini.apiKey, () => { redacted.image.gemini.apiKey = ''; });
+  redact('image.localSd.apiKey', redacted.image.localSd.apiKey, () => { redacted.image.localSd.apiKey = ''; });
   redact('video.seedance.apiKey', redacted.video.seedance.apiKey, () => { redacted.video.seedance.apiKey = ''; });
   redact('video.kling.accessKey', redacted.video.kling.accessKey, () => { redacted.video.kling.accessKey = ''; });
   redact('video.kling.secretKey', redacted.video.kling.secretKey, () => { redacted.video.kling.secretKey = ''; });
   redact('video.veo.apiKey', redacted.video.veo.apiKey, () => { redacted.video.veo.apiKey = ''; });
+  redact('video.localSd.apiKey', redacted.video.localSd.apiKey, () => { redacted.video.localSd.apiKey = ''; });
 
   return { config: redacted, configuredCredentials };
 }
@@ -445,7 +451,9 @@ export function retainCreatorServicesCredentials(
   current: CreatorServicesConfig
 ): CreatorServicesConfig {
   const merged = structuredClone(next);
-  retainBlank(() => merged.llm.apiKey, value => { merged.llm.apiKey = value; }, current.llm.apiKey);
+  if (normalizeEndpoint(merged.llm.baseUrl) === normalizeEndpoint(current.llm.baseUrl)) {
+    retainBlank(() => merged.llm.apiKey, value => { merged.llm.apiKey = value; }, current.llm.apiKey);
+  }
   retainBlank(
     () => merged.transcription.openai.apiKey,
     value => { merged.transcription.openai.apiKey = value; },
@@ -479,10 +487,12 @@ export function retainCreatorServicesCredentials(
   retainBlank(() => merged.image.kling.accessKey, value => { merged.image.kling.accessKey = value; }, current.image.kling.accessKey);
   retainBlank(() => merged.image.kling.secretKey, value => { merged.image.kling.secretKey = value; }, current.image.kling.secretKey);
   retainBlank(() => merged.image.gemini.apiKey, value => { merged.image.gemini.apiKey = value; }, current.image.gemini.apiKey);
+  retainBlank(() => merged.image.localSd.apiKey, value => { merged.image.localSd.apiKey = value; }, current.image.localSd.apiKey);
   retainBlank(() => merged.video.seedance.apiKey, value => { merged.video.seedance.apiKey = value; }, current.video.seedance.apiKey);
   retainBlank(() => merged.video.kling.accessKey, value => { merged.video.kling.accessKey = value; }, current.video.kling.accessKey);
   retainBlank(() => merged.video.kling.secretKey, value => { merged.video.kling.secretKey = value; }, current.video.kling.secretKey);
   retainBlank(() => merged.video.veo.apiKey, value => { merged.video.veo.apiKey = value; }, current.video.veo.apiKey);
+  retainBlank(() => merged.video.localSd.apiKey, value => { merged.video.localSd.apiKey = value; }, current.video.localSd.apiKey);
   return merged;
 }
 
@@ -563,4 +573,8 @@ function retainAliyunCredentials(next: AliyunCredentials, current: AliyunCredent
 
 function retainBlank(read: () => string, write: (value: string) => void, current: string): void {
   if (read().length === 0) write(current);
+}
+
+function normalizeEndpoint(value: string): string {
+  return value.trim().replace(/\/+$/, '');
 }

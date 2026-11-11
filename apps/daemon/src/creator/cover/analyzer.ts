@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { CoverTextLanguage } from '@opencreator/protocol';
+import { creatorTextModelHeaders } from '@opencreator/protocol';
 import {
   creatorServiceErrorInfo,
   fetchCreatorService,
@@ -55,7 +56,7 @@ export async function generateCoverBrief(input: {
     endpoint,
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${input.apiKey}`,
+      ...creatorTextModelHeaders(input.apiKey),
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({

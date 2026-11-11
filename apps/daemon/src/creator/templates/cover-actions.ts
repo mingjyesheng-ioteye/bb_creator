@@ -3,6 +3,7 @@ import type {
   CreatorStageRun,
   ImageGenerationProvider
 } from '@opencreator/protocol';
+import { creatorTextModelConfigured } from '@opencreator/protocol';
 import type { CreatorServicesConfigStore } from '../../creator-services/config-store.js';
 import type { CreatorCommandDispatcher } from '../command-dispatcher.js';
 import type { CreatorService } from '../service.js';
@@ -25,7 +26,7 @@ export function createCoverWorkflow(input: {
     if (stageId === 'analyze-source') {
       validateYoutubeSource(job);
       const config = await input.configStore.read();
-      if (!config.llm.apiKey.trim()) {
+      if (!creatorTextModelConfigured(config.llm)) {
         setConfigurationNeeded(input.creator, job.id, {
           code: 'creator_llm_config_missing',
           message: 'Configure a text model before analyzing video content',

@@ -218,6 +218,23 @@ describe('CreatorServicesConfigStore', () => {
     expect(retained.video).toEqual(current.video);
   });
 
+  it('does not carry a text model API key to a different endpoint', () => {
+    const current = createDefaultCreatorServicesConfig();
+    current.llm.baseUrl = 'https://api.openai.com/v1';
+    current.llm.apiKey = 'sk-cloud';
+    current.llm.model = 'gpt-5.6-sol';
+
+    const local = structuredClone(current);
+    local.llm.baseUrl = 'http://127.0.0.1:8686/v1';
+    local.llm.apiKey = '';
+    local.llm.model = 'qwen3:8b';
+    expect(retainCreatorServicesCredentials(local, current).llm.apiKey).toBe('');
+
+    const sameEndpoint = structuredClone(current);
+    sameEndpoint.llm.apiKey = '';
+    expect(retainCreatorServicesCredentials(sameEndpoint, current).llm.apiKey).toBe('sk-cloud');
+  });
+
   it('redacts and retains the simplified TTS provider credentials', () => {
     const current = createDefaultCreatorServicesConfig();
     current.tts.openai.apiKey = 'tts-openai';

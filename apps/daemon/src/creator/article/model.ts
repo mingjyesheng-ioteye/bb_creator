@@ -1,4 +1,5 @@
 import type { WechatArticleImagePlanItem, WechatArticleTopic } from '@opencreator/protocol';
+import { creatorTextModelConfigured, creatorTextModelHeaders } from '@opencreator/protocol';
 import { z } from 'zod';
 import type { CreatorServicesConfigStore } from '../../creator-services/config-store.js';
 import {
@@ -35,14 +36,14 @@ export function createWechatArticleModel(input: {
     json?: boolean;
   }): Promise<string> {
     const config = await input.configStore.read();
-    if (!config.llm.apiKey.trim() || !config.llm.model.trim()) {
+    if (!creatorTextModelConfigured(config.llm)) {
       throw new CreatorExecutorError('creator_llm_config_missing', 'LLM configuration is incomplete');
     }
     const response = await fetchCreatorService({
       endpoint: openAiCompatibleEndpoint(config.llm.baseUrl, 'chat/completions'),
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${config.llm.apiKey}`,
+        ...creatorTextModelHeaders(config.llm.apiKey),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
