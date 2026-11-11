@@ -896,7 +896,12 @@ describe('creator api', () => {
       code: 'creator_client_preview_failed',
       source: 'client',
       operation: 'creator.preview-artifact',
-      fallbackMessage: 'Authorization: Bearer secret C:\\Users\\Mayn\\private.mp4'
+      fallbackMessage: 'Authorization: Bearer secret C:\\Users\\Mayn\\private.mp4',
+      publicFacts: {
+        kind: 'configuration',
+        upstreamMessage: 'The Runtime has not loaded the course-narration executor.'
+      },
+      technicalDetail: 'The Runtime has not loaded the course-narration executor.'
     };
     const first = await request('POST', `/creator/jobs/${job.id}/issues/report`, reportBody);
     const repeated = await request('POST', `/creator/jobs/${job.id}/issues/report`, reportBody);
@@ -907,7 +912,12 @@ describe('creator api', () => {
       id: first.json().issue.id,
       occurrenceCount: 2,
       source: 'client',
-      status: 'open'
+      status: 'open',
+      publicFacts: {
+        kind: 'configuration',
+        upstreamMessage: 'The Runtime has not loaded the course-narration executor.'
+      },
+      technicalDetail: 'The Runtime has not loaded the course-narration executor.'
     });
     expect(JSON.stringify(repeated.json())).not.toContain('secret');
     expect(JSON.stringify(repeated.json())).not.toContain('Mayn');

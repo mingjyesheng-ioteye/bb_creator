@@ -389,7 +389,9 @@ export function CreatorSessionProvider(props: {
       ...(issue.operation === undefined ? {} : { operation: issue.operation }),
       ...(issue.stageId === undefined ? {} : { stageId: issue.stageId }),
       ...(issue.scopeKey === undefined ? {} : { scopeKey: issue.scopeKey }),
-      fallbackMessage: issue.fallbackMessage
+      fallbackMessage: issue.fallbackMessage,
+      ...(issue.publicFacts === undefined ? {} : { publicFacts: issue.publicFacts }),
+      ...(issue.technicalDetail === undefined ? {} : { technicalDetail: issue.technicalDetail })
     }).then(response => {
       setLocalIssues(current => current.filter(candidate => candidate.id !== response.clientIssueId));
       setFocusedIssueId(current => current === response.clientIssueId ? response.issue.id : current);

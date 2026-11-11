@@ -173,6 +173,8 @@ export type CreatorClientIssueReportRequest = {
   stageId?: string;
   scopeKey?: string;
   fallbackMessage: string;
+  publicFacts?: PublicErrorFacts;
+  technicalDetail?: string;
 };
 
 export type CreatorIssueStatsResponse = {

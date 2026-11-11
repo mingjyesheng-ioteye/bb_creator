@@ -15,9 +15,15 @@ import type {
   CreatorServicesConfig,
   IssueSource,
   OpenCreatorIssue,
+  PublicErrorFacts,
   RuntimeErrorCode
 } from '@opencreator/protocol';
-import { isCreateCreatorJobRequest, isOpenCreatorIssue } from '@opencreator/protocol';
+import {
+  isCreateCreatorJobRequest,
+  isOpenCreatorIssue,
+  isPublicErrorFacts,
+  sanitizePublicErrorFacts
+} from '@opencreator/protocol';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { rm, stat } from 'node:fs/promises';
@@ -677,6 +683,8 @@ export async function registerCreatorRoutes(
         stageId: report.stageId,
         scopeKey: report.scopeKey,
         fallbackMessage: report.fallbackMessage,
+        ...(report.publicFacts === undefined ? {} : { publicFacts: report.publicFacts }),
+        ...(report.technicalDetail === undefined ? {} : { technicalDetail: report.technicalDetail }),
         repairActions: [{ kind: 'focus-agent' }]
       });
       return reply.code(201).send({ clientIssueId: report.clientIssueId, issue });
@@ -1680,7 +1688,8 @@ function readString(value: unknown, field: string): string {
 function readClientIssueReport(value: unknown): CreatorClientIssueReportRequest {
   const record = readObject(value);
   const allowed = new Set([
-    'clientIssueId', 'code', 'source', 'operation', 'stageId', 'scopeKey', 'fallbackMessage'
+    'clientIssueId', 'code', 'source', 'operation', 'stageId', 'scopeKey', 'fallbackMessage',
+    'publicFacts', 'technicalDetail'
   ]);
   if (Object.keys(record).some(key => !allowed.has(key))) {
     throw new TypeError('client issue report contains unsupported fields');
@@ -1702,6 +1711,9 @@ function readClientIssueReport(value: unknown): CreatorClientIssueReportRequest 
   if (clientIssueId.length > 160 || code.length > 160 || fallbackMessage.length > 500) {
     throw new TypeError('client issue report field is too long');
   }
+  const publicFacts = record.publicFacts === undefined
+    ? undefined
+    : readReportedPublicFacts(record.publicFacts);
   return {
     clientIssueId,
     code,
@@ -1709,8 +1721,21 @@ function readClientIssueReport(value: unknown): CreatorClientIssueReportRequest 
     fallbackMessage,
     ...(optional('operation', 160) === undefined ? {} : { operation: optional('operation', 160)! }),
     ...(optional('stageId', 160) === undefined ? {} : { stageId: optional('stageId', 160)! }),
-    ...(optional('scopeKey', 200) === undefined ? {} : { scopeKey: optional('scopeKey', 200)! })
+    ...(optional('scopeKey', 200) === undefined ? {} : { scopeKey: optional('scopeKey', 200)! }),
+    ...(publicFacts === undefined ? {} : { publicFacts }),
+    ...(optional('technicalDetail', 2_000) === undefined
+      ? {}
+      : { technicalDetail: optional('technicalDetail', 2_000)! })
   };
+}
+
+function readReportedPublicFacts(value: unknown): PublicErrorFacts {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError('publicFacts must be an object');
+  }
+  const sanitized = sanitizePublicErrorFacts(value as PublicErrorFacts);
+  if (!isPublicErrorFacts(sanitized)) throw new TypeError('publicFacts is invalid');
+  return sanitized;
 }
 
 function readIssueStatTime(value: unknown, fallback: Date): string {
