@@ -16,7 +16,9 @@ import {
   CreatorJob,
   CreatorJson,
   CreatorPreflightResponse,
-  CreatorStageRun
+  CreatorStageRun,
+  CourseVideoCourseDetail,
+  CourseVideoCourseListResponse
 } from '@opencreator/protocol';
 import {
   useCallback,
@@ -73,6 +75,8 @@ export type CreatorSessionContextValue = {
   openArtifact(artifactId: string): Promise<Response>;
   openDownloadThumbnail(probeArtifactId: string): Promise<Response>;
   openSubtitlePreview?: CreatorWebService['openSubtitlePreview'];
+  listCourseVideoCourses?(): Promise<CourseVideoCourseListResponse>;
+  getCourseVideoCourse?(slug: string): Promise<CourseVideoCourseDetail>;
   openArtifactJson<T = unknown>(artifactId: string): Promise<T>;
   agentSession: CreatorAgentSession | null;
   turns: CreatorAgentTurn[];
@@ -170,6 +174,8 @@ export function CreatorSessionProvider(props: {
     | 'openArtifact'
     | 'openDownloadThumbnail'
     | 'openSubtitlePreview'
+    | 'listCourseVideoCourses'
+    | 'getCourseVideoCourse'
     | 'uploadReferenceImage'
     | 'uploadArticleImage'
     | 'uploadSourceVideo'
@@ -966,6 +972,18 @@ export function CreatorSessionProvider(props: {
     turn.role === 'assistant'
     && ['queued', 'running', 'waiting_approval'].includes(turn.status)
   ));
+  const listCourseVideoCourses = useCallback(async () => {
+    if (props.service.listCourseVideoCourses === undefined) {
+      throw new Error('Course catalog is unavailable');
+    }
+    return props.service.listCourseVideoCourses();
+  }, [props.service]);
+  const getCourseVideoCourse = useCallback(async (slug: string) => {
+    if (props.service.getCourseVideoCourse === undefined) {
+      throw new Error('Course catalog is unavailable');
+    }
+    return props.service.getCourseVideoCourse(slug);
+  }, [props.service]);
   const issues = useMemo(() => mergeVisibleIssues(
     confirmedJob.issues ?? [],
     [...localIssues, ...(props.externalIssues ?? [])]
@@ -1003,6 +1021,8 @@ export function CreatorSessionProvider(props: {
     openArtifact,
     openDownloadThumbnail,
     openSubtitlePreview: props.service.openSubtitlePreview,
+    listCourseVideoCourses,
+    getCourseVideoCourse,
     openArtifactJson,
     agentSession,
     turns,
@@ -1013,7 +1033,7 @@ export function CreatorSessionProvider(props: {
     steerAgentTurn,
     interruptAgentTurn,
     respondAgentApproval
-  }), [connection, reconnect, agentBusy, agentSession, askPendingIssue, applyAction, applyRemoteSnapshot, approvals, cancelJob, captureCreatorFailure, clearError, confirmedJob, conflictedFields, draft, error, flush, focusIssue, focusedIssue, interruptAgentTurn, issues, items, openArtifact, openDownloadThumbnail, openArtifactJson, preflight, props.service.openSubtitlePreview, repairIssue, respondAgentApproval, resumeJob, runAgentTurn, runPreflight, steerAgentTurn, turns, updateDraft, uploadArticleImage, uploadReferenceImage, uploadSourceDocument, uploadSourceVideo]);
+  }), [connection, reconnect, agentBusy, agentSession, askPendingIssue, applyAction, applyRemoteSnapshot, approvals, cancelJob, captureCreatorFailure, clearError, confirmedJob, conflictedFields, draft, error, flush, focusIssue, focusedIssue, interruptAgentTurn, issues, items, listCourseVideoCourses, getCourseVideoCourse, openArtifact, openDownloadThumbnail, openArtifactJson, preflight, props.service.openSubtitlePreview, repairIssue, respondAgentApproval, resumeJob, runAgentTurn, runPreflight, steerAgentTurn, turns, updateDraft, uploadArticleImage, uploadReferenceImage, uploadSourceDocument, uploadSourceVideo]);
 
   return (
     <CreatorSessionContext.Provider value={value}>

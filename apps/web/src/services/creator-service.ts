@@ -16,6 +16,8 @@ import type {
   CreatorJobListResponse,
   CreatorClientIssueReportRequest,
   CreatorIssueListResponse,
+  CourseVideoCourseDetail,
+  CourseVideoCourseListResponse,
   OpenCreatorIssue,
   CreatorPresetListResponse,
   CreatorPreflightResponse,
@@ -62,6 +64,14 @@ export function createCreatorService(client: ClientLike) {
     },
     listTemplates(): Promise<CreatorTemplateListResponse> {
       return client.get('/creator/templates') as Promise<CreatorTemplateListResponse>;
+    },
+    listCourseVideoCourses(): Promise<CourseVideoCourseListResponse> {
+      return client.get('/creator/course-video/courses') as Promise<CourseVideoCourseListResponse>;
+    },
+    getCourseVideoCourse(slug: string): Promise<CourseVideoCourseDetail> {
+      return client.get(
+        `/creator/course-video/courses/${encodeURIComponent(slug)}`
+      ) as Promise<CourseVideoCourseDetail>;
     },
     listPresets(locale: string): Promise<CreatorPresetListResponse> {
       const presetLocale = locale === 'zh-CN' ? 'zh-CN' : 'en-US';

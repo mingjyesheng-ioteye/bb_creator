@@ -71,6 +71,82 @@ describe('CourseVideoWorkspace', () => {
     });
     expect(current.state).toMatchObject({ courseSlug: 'understanding-behavior', ratio: '16:9' });
   });
+
+  it('loads published bb_exam courses and modules for configuration', async () => {
+    let current = initialJob();
+    const applyAction = vi.fn(async (_jobId: string, request: CreatorActionRequest) => {
+      if (request.action === 'update-settings') {
+        current = {
+          ...current,
+          revision: current.revision + 1,
+          state: { ...current.state, ...(request.input.patch as CreatorJob['state']) }
+        };
+      }
+      return {
+        job: current,
+        receipt: {
+          actor: request.actor ?? 'user' as const,
+          action: request.action,
+          summary: request.action,
+          affectedArtifacts: [],
+          newRevision: current.revision,
+          createdAt: current.updatedAt
+        }
+      };
+    });
+    const listCourseVideoCourses = vi.fn(async () => ({
+      courses: [{
+        id: 'course_1',
+        slug: 'understanding-behavior',
+        title: 'Understanding Behavior',
+        moduleCount: 2
+      }]
+    }));
+    const getCourseVideoCourse = vi.fn(async () => ({
+      courseId: 'course_1',
+      versionId: 'version_1',
+      slug: 'understanding-behavior',
+      title: 'Understanding Behavior',
+      modules: [
+        { moduleKey: 'm01', title: 'Functions and Causes', order: 1 },
+        { moduleKey: 'm02', title: 'Reinforcement', order: 2 }
+      ]
+    }));
+
+    render(
+      <LanguageProvider initialPreference="zh-CN">
+        <CreatorSessionProvider
+          initialJob={current}
+          service={{ applyAction, runAgentTurn: vi.fn(), listCourseVideoCourses, getCourseVideoCourse }}
+        >
+          <CourseVideoWorkspace onBack={vi.fn()} />
+        </CreatorSessionProvider>
+      </LanguageProvider>
+    );
+
+    expect(await screen.findByRole('option', { name: /Understanding Behavior/ }))
+      .toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: '课程' }), {
+      target: { value: 'understanding-behavior' }
+    });
+    expect(await screen.findByRole('option', { name: 'Functions and Causes' }))
+      .toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: '模块' }), {
+      target: { value: 'm01' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: '生成课程视频' }));
+
+    await waitFor(() => {
+      expect(applyAction).toHaveBeenCalledWith(
+        'course_video_job',
+        expect.objectContaining({ action: 'run-stage', input: { stageId: 'import' } })
+      );
+    });
+    expect(current.state).toMatchObject({
+      courseSlug: 'understanding-behavior',
+      moduleKey: 'm01'
+    });
+  });
 });
 
 function initialJob(): CreatorJob {

@@ -1,4 +1,10 @@
-import type { CreatorArtifact, CreatorJson, CreatorStageRun } from '@opencreator/protocol';
+import type {
+  CourseVideoCourseDetail,
+  CourseVideoCourseSummary,
+  CreatorArtifact,
+  CreatorJson,
+  CreatorStageRun
+} from '@opencreator/protocol';
 import { Download, Film, LoaderCircle, RotateCcw, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalizedCopy } from '../../i18n/useLocalizedCopy.js';
@@ -28,6 +34,13 @@ export default function CourseVideoWorkspace(props: {
   const [moduleKey, setModuleKey] = useState(() => readString(session?.state.moduleKey));
   const [ratio, setRatio] = useState<'16:9' | '9:16'>(() => readRatio(session?.state.ratio));
   const [voice, setVoice] = useState(() => readString(session?.state.voice) || 'en-US-AvaNeural');
+  const [rate, setRate] = useState(() => readString(session?.state.rate) || '-4%');
+  const [courses, setCourses] = useState<CourseVideoCourseSummary[]>([]);
+  const [courseDetail, setCourseDetail] = useState<CourseVideoCourseDetail>();
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [courseLoading, setCourseLoading] = useState(false);
+  const [courseCatalogError, setCourseCatalogError] = useState('');
+  const [courseReload, setCourseReload] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [pipelineActive, setPipelineActive] = useState(false);
@@ -50,17 +63,52 @@ export default function CourseVideoWorkspace(props: {
     setModuleKey(readString(session?.state.moduleKey));
     setRatio(readRatio(session?.state.ratio));
     setVoice(readString(session?.state.voice) || 'en-US-AvaNeural');
+    setRate(readString(session?.state.rate) || '-4%');
   }, [
     session?.state.courseSlug,
     session?.state.moduleKey,
     session?.state.ratio,
-    session?.state.voice
+    session?.state.voice,
+    session?.state.rate
   ]);
+
+  const listCourses = session?.listCourseVideoCourses;
+  const getCourse = session?.getCourseVideoCourse;
+
+  useEffect(() => {
+    if (listCourses === undefined) return;
+    let active = true;
+    setCoursesLoading(true);
+    setCourseCatalogError('');
+    void listCourses()
+      .then(result => { if (active) setCourses(result.courses); })
+      .catch(cause => {
+        if (!active) return;
+        setCourseCatalogError(cause instanceof Error && cause.message.trim().length > 0
+          ? cause.message
+          : l('无法读取课程列表', 'Could not load courses'));
+      })
+      .finally(() => { if (active) setCoursesLoading(false); });
+    return () => { active = false; };
+  }, [listCourses, courseReload, l]);
+
+  useEffect(() => {
+    if (getCourse === undefined || courseSlug.trim().length === 0) {
+      setCourseDetail(current => current === undefined ? current : undefined);
+      return;
+    }
+    let active = true;
+    setCourseLoading(true);
+    void getCourse(courseSlug.trim())
+      .then(detail => { if (active) setCourseDetail(detail); })
+      .catch(() => { if (active) setCourseDetail(undefined); })
+      .finally(() => { if (active) setCourseLoading(false); });
+    return () => { active = false; };
+  }, [getCourse, courseSlug]);
 
   // The daemon does not auto-dispatch `dependsOn`, so drive the linear graph here:
   // run the first stage that has no completed run, one at a time.
-  useEffect(() => {
-    if (!pipelineActive || session === null) return;
+  useEffect(() => {    if (!pipelineActive || session === null) return;
     const stages = session.job.stages;
     const next = COURSE_VIDEO_STAGES.find(stageId => latestStage(stages, stageId)?.status !== 'succeeded');
     if (next === undefined) {
@@ -88,6 +136,19 @@ export default function CourseVideoWorkspace(props: {
     });
   }, [pipelineActive, session, session?.job.stages, session?.job.revision, l]);
 
+  function selectCourse(value: string) {
+    if (value === '__manual__') {
+      setCourseSlug('');
+      setModuleKey('');
+      setCourseDetail(undefined);
+      setError('');
+      return;
+    }
+    setCourseSlug(value);
+    setModuleKey('');
+    setError('');
+  }
+
   async function generate() {
     if (rendering || session === null) {
       if (session === null) {
@@ -105,7 +166,8 @@ export default function CourseVideoWorkspace(props: {
       courseSlug: courseSlug.trim(),
       moduleKey: moduleKey.trim(),
       ratio,
-      voice: voice.trim()
+      voice: voice.trim(),
+      rate: rate.trim()
     }, { semantic: true });
     dispatchedRef.current = null;
     try {
@@ -132,6 +194,9 @@ export default function CourseVideoWorkspace(props: {
   }
 
   const selectedRatio = ratios.find(item => item.value === ratio) ?? ratios[0]!;
+  const courseSelectValue = courses.some(course => course.slug === courseSlug)
+    ? courseSlug
+    : '__manual__';
   return (
     <CreatorToolShell
       title={l('课程视频', 'Course Video')}
@@ -158,32 +223,80 @@ export default function CourseVideoWorkspace(props: {
           <div className="creator-tool-panel-heading">
             <div>
               <h2 id="course-video-settings-title">{l('课程设置', 'Course settings')}</h2>
-              <p>{l('填写 bb_exam 已发布课程标识与目标模块', 'Enter the published bb_exam course slug and target module')}</p>
+              <p>{l('选择 bb_exam 已发布课程与目标模块', 'Choose a published bb_exam course and target module')}</p>
             </div>
           </div>
           <div className="course-video-fields">
             <label className="creator-tool-field">
-              <span>{l('课程标识（slug）', 'Course slug')}</span>
-              <input
-                value={courseSlug}
-                maxLength={120}
-                onChange={event => { setCourseSlug(event.target.value); setError(''); }}
-                placeholder="understanding-behavior"
-              />
+              <span>{l('课程', 'Course')}</span>
+              <NativeSelect
+                aria-label={l('课程', 'Course')}
+                value={courseSelectValue}
+                onChange={event => selectCourse(event.target.value)}
+                disabled={coursesLoading}
+              >
+                {coursesLoading ? <option value="__manual__">{l('正在读取课程…', 'Loading courses…')}</option> : null}
+                {!coursesLoading && courses.length === 0 ? (
+                  <option value="__manual__">{l('手动输入课程标识', 'Enter course slug manually')}</option>
+                ) : null}
+                {courses.map(course => (
+                  <option key={course.slug} value={course.slug}>
+                    {course.title}{course.moduleCount === undefined ? '' : ` · ${course.moduleCount} ${l('个模块', 'modules')}`}
+                  </option>
+                ))}
+                <option value="__manual__">{l('手动输入课程标识', 'Enter course slug manually')}</option>
+              </NativeSelect>
             </label>
-            <label className="creator-tool-field">
-              <span>{l('模块', 'Module')} <small>{l('留空取首个模块', 'Blank uses the first module')}</small></span>
-              <input
-                value={moduleKey}
-                maxLength={120}
-                onChange={event => { setModuleKey(event.target.value); setError(''); }}
-                placeholder="m01"
-              />
-            </label>
+            {courseSelectValue === '__manual__' ? (
+              <label className="creator-tool-field">
+                <span>{l('课程标识（slug）', 'Course slug')}</span>
+                <input
+                  value={courseSlug}
+                  maxLength={120}
+                  onChange={event => { setCourseSlug(event.target.value); setError(''); }}
+                  placeholder="understanding-behavior"
+                />
+              </label>
+            ) : null}
+            {courseDetail !== undefined ? (
+              <label className="creator-tool-field">
+                <span>{l('模块', 'Module')} <small>{courseDetail.modules.length} {l('个模块', 'modules')}</small></span>
+                <NativeSelect
+                  aria-label={l('模块', 'Module')}
+                  value={moduleKey}
+                  onChange={event => { setModuleKey(event.target.value); setError(''); }}
+                  disabled={courseLoading}
+                >
+                  <option value="">{l('首个模块', 'First module')}</option>
+                  {courseDetail.modules.map(module => (
+                    <option key={module.moduleKey} value={module.moduleKey}>{module.title}</option>
+                  ))}
+                </NativeSelect>
+              </label>
+            ) : (
+              <label className="creator-tool-field">
+                <span>{l('模块', 'Module')} <small>{l('留空取首个模块', 'Blank uses the first module')}</small></span>
+                <input
+                  value={moduleKey}
+                  maxLength={120}
+                  onChange={event => { setModuleKey(event.target.value); setError(''); }}
+                  placeholder="m01"
+                />
+              </label>
+            )}
+            {courseCatalogError ? (
+              <p className="creator-tool-notice" role="status">{courseCatalogError}</p>
+            ) : null}
+            {courseDetail ? (
+              <p className="creator-tool-notice" role="status">
+                {l(`课程：${courseDetail.title}`, `Course: ${courseDetail.title}`)}
+              </p>
+            ) : null}
             <div className="course-video-options">
               <label className="creator-tool-field">
                 <span>{l('输出画幅', 'Output format')}</span>
                 <NativeSelect
+                  aria-label={l('输出画幅', 'Output format')}
                   value={ratio}
                   onChange={event => setRatio(readRatio(event.target.value))}
                 >
@@ -201,9 +314,27 @@ export default function CourseVideoWorkspace(props: {
                   placeholder="en-US-AvaNeural"
                 />
               </label>
+              <label className="creator-tool-field">
+                <span>{l('语速', 'Speaking rate')}</span>
+                <input
+                  value={rate}
+                  maxLength={20}
+                  onChange={event => setRate(event.target.value)}
+                  placeholder="-4%"
+                />
+              </label>
             </div>
           </div>
           <div className="creator-tool-actions">
+            <button
+              className="creator-tool-secondary"
+              type="button"
+              onClick={() => setCourseReload(value => value + 1)}
+              disabled={coursesLoading || rendering}
+            >
+              <RotateCcw size={15} strokeWidth={1.8} aria-hidden="true" />
+              {l('刷新课程', 'Refresh courses')}
+            </button>
             <button type="button" onClick={() => void generate()} disabled={rendering}>
               {rendering
                 ? <LoaderCircle className="course-video-spinner" size={16} strokeWidth={1.8} aria-hidden="true" />
