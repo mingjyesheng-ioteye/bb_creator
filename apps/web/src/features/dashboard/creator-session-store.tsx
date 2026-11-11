@@ -629,10 +629,20 @@ export function CreatorSessionProvider(props: {
         if (typeof stageId === 'string') await runPreflight(stageId,
           typeof request.input.inputResultVersion === 'number' ? { inputResultVersion: request.input.inputResultVersion } : undefined);
       }
-      const response = await props.service.applyAction(confirmedRef.current.id, {
-        ...request,
-        expectedRevision: requestRevision
-      });
+      const response = await applyCreatorActionWithRetry(
+        () => props.service.applyAction(confirmedRef.current.id, {
+          ...request,
+          expectedRevision: requestRevision
+        }),
+        async () => {
+          if (props.service.getJob === undefined) return false;
+          const response = await props.service.getJob(confirmedRef.current.id).catch(() => undefined);
+          if (response === undefined) return false;
+          applyRemoteSnapshot(response.job);
+          requestRevision = confirmedRef.current.revision;
+          return true;
+        }
+      );
       applyRemoteSnapshot(response.job);
       setError(null);
       return confirmedRef.current;
@@ -1170,4 +1180,21 @@ function isSupersededRevisionConflict(
   const candidate = cause as { code?: unknown };
   return candidate?.code === 'creator_revision_conflict'
     && confirmedRevision > requestRevision;
+}
+
+function isRevisionConflict(cause: unknown): boolean {
+  return (cause as { code?: unknown })?.code === 'creator_revision_conflict';
+}
+
+async function applyCreatorActionWithRetry<T>(
+  run: () => Promise<T>,
+  refresh: () => Promise<boolean>
+): Promise<T> {
+  try {
+    return await run();
+  } catch (cause) {
+    if (!isRevisionConflict(cause)) throw cause;
+    if (!await refresh()) throw cause;
+    return await run();
+  }
 }

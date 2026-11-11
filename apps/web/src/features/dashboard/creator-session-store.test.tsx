@@ -87,7 +87,46 @@ function PendingHarness() {
   );
 }
 
+function ActionHarness() {
+  const session = useCreatorSession();
+  return (
+    <div>
+      <output aria-label="action-error">{session.error?.code ?? ''}</output>
+      <button
+        type="button"
+        onClick={() => void session.applyAction({ action: 'run-stage', input: { stageId: 'import' } })}
+      >
+        run-stage
+      </button>
+    </div>
+  );
+}
+
 describe('CreatorSessionStore', () => {
+  it('retries a rejected action after refreshing a stale revision', async () => {
+    const applyAction = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('revision conflict'), {
+        code: 'creator_revision_conflict'
+      }))
+      .mockResolvedValueOnce({ job: job(3, {}) });
+    const getJob = vi.fn(async () => ({ job: job(2, {}) }));
+    render(
+      <CreatorSessionProvider
+        initialJob={job(1, {})}
+        service={{ applyAction, runAgentTurn: vi.fn(), getJob } as never}
+      >
+        <ActionHarness />
+      </CreatorSessionProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'run-stage' }));
+
+    await waitFor(() => expect(applyAction).toHaveBeenCalledTimes(2));
+    expect(applyAction.mock.calls[0]?.[1]).toMatchObject({ expectedRevision: 1 });
+    expect(applyAction.mock.calls[1]?.[1]).toMatchObject({ expectedRevision: 2 });
+    expect(screen.getByLabelText('action-error')).toHaveTextContent('');
+  });
+
   it('does not overwrite a failed job with a delayed successful action response', async () => {
     let resolveAction!: (value: { job: CreatorJob }) => void;
     const applyAction = vi.fn(() => new Promise<{ job: CreatorJob }>(resolve => { resolveAction = resolve; }));
