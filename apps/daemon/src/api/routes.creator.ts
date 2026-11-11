@@ -56,6 +56,11 @@ import {
 } from '../creator/templates/video-translation-actions.js';
 import type { StickmanVideoWorkflow } from '../creator/templates/stickman-video-actions.js';
 import {
+  CourseCatalogError,
+  createBbExamCourseCatalog,
+  type BbExamCourseCatalog
+} from '../creator/course-video/catalog.js';
+import {
   StickmanVisualAssetError,
   type StickmanVisualAssetRegistry
 } from '../creator/stickman/visual-assets.js';
@@ -118,9 +123,11 @@ export async function registerCreatorRoutes(
     codexImageRuntime?: CodexNativeImageRuntime;
     issueService?: CreatorIssueService;
     subtitlePreviewService?: SubtitlePreviewService;
+    courseCatalog?: BbExamCourseCatalog;
   }
 ): Promise<void> {
   await registerCreatorThumbnailRoutes(server, service, options.readServicesConfig);
+  const courseCatalog = options.courseCatalog ?? createBbExamCourseCatalog();
   server.get('/creator/subtitle-preview', async (request, reply) => {
     try {
       const query = readObject(request.query);
@@ -513,6 +520,25 @@ export async function registerCreatorRoutes(
       outputs: template.outputs
     }))
   }));
+
+  server.get('/creator/course-video/courses', async (_request, reply) => {
+    try {
+      return await courseCatalog.listCourses();
+    } catch (error) {
+      return sendCourseCatalogError(reply, error);
+    }
+  });
+
+  server.get<{ Params: { slug: string } }>(
+    '/creator/course-video/courses/:slug',
+    async (request, reply) => {
+      try {
+        return await courseCatalog.getCourse(request.params.slug);
+      } catch (error) {
+        return sendCourseCatalogError(reply, error);
+      }
+    }
+  );
 
   server.get<{ Params: { id: string }; Querystring: { stageId?: string; inputResultVersion?: string } }>(
     '/creator/jobs/:id/preflight',
@@ -1402,6 +1428,13 @@ type CreatorErrorContext = {
   issueService?: CreatorIssueService;
   existingIssue?: OpenCreatorIssue;
 };
+
+function sendCourseCatalogError(reply: FastifyReply, error: unknown) {
+  if (error instanceof CourseCatalogError) {
+    return reply.code(error.statusCode).send(apiError(error.code, error.message));
+  }
+  throw error;
+}
 
 function sendCreatorError(reply: FastifyReply, error: unknown, context?: CreatorErrorContext) {
   const issue = context?.existingIssue ?? captureIssueForError(error, context);

@@ -121,6 +121,31 @@ export type CourseLessonSource = {
   sourceHash: string;
 };
 
+export type CourseVideoCourseSummary = {
+  id: string;
+  slug: string;
+  title: string;
+  moduleCount?: number;
+};
+
+export type CourseVideoCourseListResponse = {
+  courses: CourseVideoCourseSummary[];
+};
+
+export type CourseVideoModuleSummary = {
+  moduleKey: string;
+  title: string;
+  order: number;
+};
+
+export type CourseVideoCourseDetail = {
+  courseId: string;
+  versionId: string;
+  slug: string;
+  title: string;
+  modules: CourseVideoModuleSummary[];
+};
+
 /**
  * A renderable course lesson. This is OpenCreator's own model (it is not the
  * `bb_exam` course schema and not the retired `bb_video` module JSON).
