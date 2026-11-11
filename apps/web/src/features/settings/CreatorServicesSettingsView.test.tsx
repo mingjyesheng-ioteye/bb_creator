@@ -253,6 +253,102 @@ describe('CreatorServicesSettingsView', () => {
     expect(modelService.updateCodexProvider).not.toHaveBeenCalled();
   });
 
+  it('configures a local LocModel endpoint without an API key and detects models', async () => {
+    const user = userEvent.setup();
+    const service = createService();
+    vi.mocked(service.discoverModels).mockResolvedValue({
+      connected: true,
+      baseUrl: 'http://127.0.0.1:8686/v1',
+      models: ['qwen3:8b', 'gemma3:4b'],
+      latencyMs: 12
+    });
+    render(
+      <CreatorServicesSettingsView
+        connected
+        service={service}
+        modelService={createModelService()}
+      />
+    );
+
+    await screen.findByRole('heading', { name: 'AI 服务' });
+    await user.selectOptions(screen.getByLabelText('供应商'), 'locmodel');
+
+    expect(screen.getByLabelText('Base URL')).toHaveValue('http://127.0.0.1:8686/v1');
+    expect(screen.queryByLabelText('API Key')).not.toBeInTheDocument();
+    expect(screen.getByText(/本地模型服务不需要 API Key/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '检测模型' }));
+    expect(await screen.findByText('已发现 2 个模型')).toBeInTheDocument();
+    expect(service.discoverModels).toHaveBeenCalledWith({
+      baseUrl: 'http://127.0.0.1:8686/v1',
+      apiKey: ''
+    });
+    expect(screen.getByLabelText('模型')).toHaveValue('qwen3:8b');
+    expect(screen.getByText('文本任务可用')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '保存配置' }));
+    await waitFor(() => expect(service.saveConfig).toHaveBeenCalled());
+    expect(vi.mocked(service.saveConfig).mock.calls[0]?.[0].llm).toMatchObject({
+      baseUrl: 'http://127.0.0.1:8686/v1',
+      apiKey: '',
+      model: 'qwen3:8b',
+      source: 'custom'
+    });
+  });
+
+  it('shows a friendly name for detected GGUF model paths', async () => {
+    const user = userEvent.setup();
+    const service = createService();
+    const modelPath = 'D:\\AI-Models\\unsloth__Muse-Glimmer-30B-GGUF\\Muse-Glimmer-30B-UD-Q6_K_XL.gguf';
+    vi.mocked(service.discoverModels).mockResolvedValue({
+      connected: true,
+      baseUrl: 'http://127.0.0.1:8686/v1',
+      models: [modelPath],
+      latencyMs: 5
+    });
+    render(
+      <CreatorServicesSettingsView
+        connected
+        service={service}
+        modelService={createModelService()}
+      />
+    );
+
+    await screen.findByRole('heading', { name: 'AI 服务' });
+    await user.selectOptions(screen.getByLabelText('供应商'), 'locmodel');
+    await user.click(screen.getByRole('button', { name: '检测模型' }));
+
+    expect(await screen.findByRole('option', { name: 'Muse-Glimmer-30B-UD-Q6_K_XL' }))
+      .toBeInTheDocument();
+    expect(screen.getByLabelText('模型')).toHaveValue(modelPath);
+  });
+
+  it('selects the detected model when the saved name is not served', async () => {
+    const user = userEvent.setup();
+    const service = createService();
+    const modelPath = 'D:\\AI-Models\\unsloth__Muse-Glimmer-30B-GGUF\\Muse-Glimmer-30B-UD-Q6_K_XL.gguf';
+    vi.mocked(service.discoverModels).mockResolvedValue({
+      connected: true,
+      baseUrl: 'http://127.0.0.1:8686/v1',
+      models: [modelPath],
+      latencyMs: 5
+    });
+    render(
+      <CreatorServicesSettingsView
+        connected
+        service={service}
+        modelService={createModelService()}
+      />
+    );
+
+    await screen.findByRole('heading', { name: 'AI 服务' });
+    await user.selectOptions(screen.getByLabelText('供应商'), 'locmodel');
+    await user.type(screen.getByLabelText('模型'), 'stale-model');
+    await user.click(screen.getByRole('button', { name: '检测模型' }));
+
+    await waitFor(() => expect(screen.getByLabelText('模型')).toHaveValue(modelPath));
+  });
+
   it('does not report a custom provider ready from an unrelated API key login', async () => {
     render(
       <CreatorServicesSettingsView
@@ -512,6 +608,117 @@ describe('CreatorServicesSettingsView', () => {
     expect(screen.getByLabelText('默认模型')).toHaveValue('veo-3.1-generate-preview');
   });
 
+  it('configures local SD image and video services without API keys', async () => {
+    const user = userEvent.setup();
+    render(
+      <CreatorServicesSettingsView
+        connected
+        service={createService()}
+        modelService={createModelService()}
+      />
+    );
+    await screen.findByRole('tabpanel');
+
+    await user.click(screen.getByRole('tab', { name: '图像生成' }));
+    await user.click(screen.getByRole('combobox', { name: '服务商' }));
+    await user.click(screen.getByRole('option', { name: '本地 SD（stable-diffusion.cpp）' }));
+    expect(screen.getByLabelText('Base URL')).toHaveValue('http://127.0.0.1:8686');
+    expect(screen.getByLabelText('模型')).toHaveValue('sd-cpp-local');
+    expect(screen.queryByLabelText('API Key')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: '视频生成' }));
+    await user.click(screen.getByRole('combobox', { name: '服务商' }));
+    await user.click(screen.getByRole('option', { name: '本地 SD（stable-diffusion.cpp）' }));
+    expect(screen.getByLabelText('Base URL')).toHaveValue('http://127.0.0.1:8686');
+    expect(screen.getByLabelText('默认模型')).toHaveValue('sd-cpp-local');
+    expect(screen.queryByLabelText('API Key')).not.toBeInTheDocument();
+  });
+
+  it('lists LocModel downloaded models and selects the loaded model', async () => {
+    const user = userEvent.setup();
+    const service = createService();
+    vi.mocked(service.detectLocalEngine).mockResolvedValue({
+      connected: true,
+      baseUrl: 'http://127.0.0.1:8686',
+      engine: 'sd-server',
+      currentMode: 'img_gen',
+      supportedModes: ['img_gen'],
+      loadedModel: {
+        name: 'Qwen-Image 2.1 Q8_0',
+        stem: 'qwen_image_2.1-Q8_0',
+        path: 'D:\\AI-Models\\image\\qwen-image-2.1\\qwen_image_2.1-Q8_0.gguf'
+      },
+      downloadedModels: [
+        {
+          id: 'image/qwen-image-2.1/qwen_image_2.1-Q8_0.gguf',
+          name: 'Qwen-Image 2.1 Q8_0',
+          kind: 'image',
+          path: 'D:\\AI-Models\\image\\qwen-image-2.1\\qwen_image_2.1-Q8_0.gguf',
+          sizeBytes: 1
+        },
+        {
+          id: 'image/wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf',
+          name: 'Wan2.2 TI2V 5B Q8_0',
+          kind: 'video',
+          path: 'D:\\AI-Models\\image\\wan2.2-ti2v-5b\\Wan2.2-TI2V-5B-Q8_0.gguf',
+          sizeBytes: 1
+        }
+      ]
+    });
+    render(
+      <CreatorServicesSettingsView
+        connected
+        service={service}
+        modelService={createModelService()}
+      />
+    );
+
+    await user.click(await screen.findByRole('tab', { name: '图像生成' }));
+    await user.click(screen.getByRole('combobox', { name: '服务商' }));
+    await user.click(screen.getByRole('option', { name: '本地 SD（stable-diffusion.cpp）' }));
+    await user.click(screen.getByRole('button', { name: '检测 LocModel 模型' }));
+
+    expect(await screen.findByText('已连接，当前模型：Qwen-Image 2.1 Q8_0')).toBeVisible();
+    expect(screen.getByLabelText('模型')).toHaveValue('Qwen-Image 2.1 Q8_0');
+    expect(screen.getByRole('option', { name: 'Qwen-Image 2.1 Q8_0' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Wan2.2 TI2V 5B Q8_0' })).not.toBeInTheDocument();
+  });
+
+  it('lists downloaded LocModel video models in video settings', async () => {
+    const user = userEvent.setup();
+    const service = createService();
+    vi.mocked(service.detectLocalEngine).mockResolvedValue({
+      connected: false,
+      baseUrl: 'http://127.0.0.1:8686',
+      engine: 'sd-server',
+      downloadedModels: [
+        {
+          id: 'video/wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf',
+          name: 'Wan2.2 TI2V 5B Q8_0',
+          kind: 'video',
+          path: 'D:\\AI-Models\\image\\wan2.2-ti2v-5b\\Wan2.2-TI2V-5B-Q8_0.gguf',
+          sizeBytes: 1
+        }
+      ],
+      error: 'Local SD engine is not running'
+    });
+    render(
+      <CreatorServicesSettingsView
+        connected
+        service={service}
+        modelService={createModelService()}
+      />
+    );
+
+    await user.click(await screen.findByRole('tab', { name: '视频生成' }));
+    await user.click(screen.getByRole('combobox', { name: '服务商' }));
+    await user.click(screen.getByRole('option', { name: '本地 SD（stable-diffusion.cpp）' }));
+    await user.click(screen.getByRole('button', { name: '检测 LocModel 模型' }));
+
+    expect(await screen.findByText('Local SD engine is not running')).toBeVisible();
+    expect(screen.getByLabelText('默认模型')).toHaveValue('Wan2.2 TI2V 5B Q8_0');
+  });
+
   it('uses local Codex image generation by default without configuration fields', async () => {
     const user = userEvent.setup();
     render(
@@ -574,6 +781,19 @@ function createService(
     saveConfig: vi.fn(async next => ({ config: structuredClone(next), configuredCredentials })),
     resetConfig: vi.fn(async () => ({ config: createDefaultCreatorServicesConfig(), configuredCredentials: [] })),
     testTranscriptionConnection: vi.fn(async () => ({ connected: true, model: 'sensevoice', models: ['sensevoice'], capabilities: ['audio.transcriptions'] })),
+    discoverModels: vi.fn(async (request: { baseUrl: string; apiKey: string }) => ({
+      connected: true,
+      baseUrl: request.baseUrl,
+      models: [] as string[],
+      latencyMs: 1
+    })),
+    detectLocalEngine: vi.fn(async (request: { baseUrl: string; apiKey?: string }) => ({
+      connected: false,
+      baseUrl: request.baseUrl,
+      engine: 'sd-server' as const,
+      downloadedModels: [],
+      error: 'Local SD engine is not running'
+    })),
     getTtsVoices: vi.fn(async (provider: CreatorTtsProvider) => ({
       provider,
       model: config.tts[provider === 'edge-tts' ? 'openai' : provider].model,

@@ -4,7 +4,7 @@ import { ArrowLeft, LogIn, Monitor } from 'lucide-react';
 import OpenCreatorMark from '../../components/brand/OpenCreatorMark.js';
 import { useLocalizedCopy } from '../../i18n/useLocalizedCopy.js';
 import type { ConnectionService } from '../../services/connection-service.js';
-import { inferLlmProviderId, llmProviderOptions } from './llm-provider-selection.js';
+import { codexLlmProviderOptions, inferLlmProviderId } from './llm-provider-selection.js';
 import { availableAgentMode, type AgentSetupSnapshot } from './agent-setup-state.js';
 import './startup-agent-shell.css';
 import './startup-agent-setup.css';
@@ -201,7 +201,7 @@ export function StartupAgentSetup(props: {
           <form className="startup-agent-setup__form" onSubmit={event => { event.preventDefault(); void saveProvider(); }}>
             <label>{l('供应商', 'Provider')}
               <select value={providerId} onChange={event => selectProvider(event.target.value)}>
-                {llmProviderOptions.map(provider => <option key={provider.id} value={provider.id}>{provider.label}</option>)}
+                {codexLlmProviderOptions.map(provider => <option key={provider.id} value={provider.id}>{provider.label}</option>)}
               </select>
             </label>
             <label>{l('模型名称', 'Model name')}

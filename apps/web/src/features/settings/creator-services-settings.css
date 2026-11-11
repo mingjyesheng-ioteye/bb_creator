@@ -510,6 +510,19 @@
   .creator-services-spinner { animation: none; }
 }
 
+.creator-services-model-discovery {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  grid-column: 1 / -1;
+  font-size: 12px;
+}
+
+.creator-services-model-discovery .is-warning {
+  color: var(--warning);
+}
+
 @media (max-width: 760px) {
   .settings-section .creator-services-header { grid-template-columns: minmax(0, 1fr); }
   .creator-services-header > div { display: grid; gap: 4px; }
@@ -522,6 +535,7 @@
   .creator-services-tts-voice,
   .creator-services-toggle,
   .creator-services-inline-note,
+  .creator-services-model-discovery,
   .creator-services-runtime-note { grid-column: auto; }
   .creator-services-runtime-note { align-items: flex-start; flex-direction: column; gap: 3px; }
   .creator-services-actions { grid-template-columns: 1fr 1fr; }

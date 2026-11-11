@@ -3,6 +3,7 @@ import {
   creatorProviderCatalogById,
   creatorProviderOfKind,
   defaultVideoGenerationModels,
+  isLoopbackBaseUrl,
   videoGenerationModelIds,
   type CodexProviderConfig,
   type AliyunOssConfig,
@@ -32,6 +33,7 @@ import {
   Languages,
   LoaderCircle,
   Mic2,
+  RefreshCw,
   RotateCcw,
   Save
 } from 'lucide-react';
@@ -43,7 +45,7 @@ import type { CreatorServicesSettingsService } from '../../services/creator-serv
 import type { ConnectionService } from '../../services/connection-service.js';
 import { IssueList } from '../issues/IssuePresenter.js';
 import { usePageIssueState } from '../issues/page-issue-state.js';
-import { inferLlmProviderId, llmProviderOptions } from './llm-provider-selection.js';
+import { inferLlmProviderId, isLocalLlmProvider, llmProviderOptions } from './llm-provider-selection.js';
 import './creator-services-settings.css';
 
 const CodexImageStatusNotice = lazy(async () => {
@@ -57,6 +59,10 @@ type ModelSettingsService = Pick<ConnectionService, 'getCodexProvider' | 'update
 };
 type ModelFieldErrors = Partial<Record<'baseUrl' | 'apiKey' | 'model' | 'proxy', string>>;
 type TextModelMode = 'codex' | 'custom';
+type ModelDiscoveryState = {
+  status: 'idle' | 'loading' | 'done' | 'error';
+  message?: string;
+};
 
 export function CreatorServicesSettingsView(props: {
   connected: boolean;
@@ -80,6 +86,8 @@ export function CreatorServicesSettingsView(props: {
   const [modelBaseUrl, setModelBaseUrl] = useState('');
   const [modelName, setModelName] = useState('');
   const [modelApiKey, setModelApiKey] = useState('');
+  const [discoveredModelIds, setDiscoveredModelIds] = useState<string[]>([]);
+  const [modelDiscovery, setModelDiscovery] = useState<ModelDiscoveryState>({ status: 'idle' });
   const [configuredCredentials, setConfiguredCredentials] = useState<ReadonlySet<CreatorServicesCredentialField>>(new Set());
   const [savedTranscriptionSelection, setSavedTranscriptionSelection] = useState('');
   const [loading, setLoading] = useState(true);
@@ -308,6 +316,44 @@ export function CreatorServicesSettingsView(props: {
     }
   }
 
+  async function discoverModels() {
+    if (props.service === null || modelBaseUrl.trim().length === 0) return;
+    setModelDiscovery({ status: 'loading' });
+    try {
+      const result = await props.service.discoverModels({
+        baseUrl: modelBaseUrl,
+        apiKey: modelApiKey
+      });
+      setDiscoveredModelIds(result.models);
+      const firstModel = result.models[0];
+      if (
+        firstModel !== undefined
+        && (modelName.trim().length === 0 || !result.models.includes(modelName))
+      ) {
+        setModelName(firstModel);
+      }
+      setModelDiscovery({
+        status: 'done',
+        message: result.models.length === 0
+          ? l(
+              '已连接，但服务没有返回模型。请先启动模型或手动填写模型名称。',
+              'Connected, but the service returned no models. Start a model or enter its name manually.'
+            )
+          : l(
+              `已发现 ${result.models.length} 个模型`,
+              `Found ${result.models.length} model${result.models.length === 1 ? '' : 's'}`
+            )
+      });
+    } catch (cause) {
+      setModelDiscovery({
+        status: 'error',
+        message: cause instanceof Error && cause.message.trim().length > 0
+          ? cause.message
+          : l('无法连接本地模型服务', 'Could not reach the local model service')
+      });
+    }
+  }
+
   async function reset() {
     if (props.service === null) return;
     const confirmed = await confirm({
@@ -424,6 +470,9 @@ export function CreatorServicesSettingsView(props: {
               }}
               providerId={modelProviderId}
               runtimeModelIds={runtimeModelIds}
+              discoveredModelIds={discoveredModelIds}
+              discovery={modelDiscovery}
+              onDiscoverModels={() => void discoverModels()}
               onProviderIdChange={id => {
                 const preset = creatorProviderCatalogById.llm[id];
                 if (preset === undefined) return;
@@ -431,6 +480,8 @@ export function CreatorServicesSettingsView(props: {
                 setModelBaseUrl(preset.defaultBaseUrl ?? '');
                 setModelName(preset.models[0]?.id ?? '');
                 setModelApiKey('');
+                setDiscoveredModelIds([]);
+                setModelDiscovery({ status: 'idle' });
                 setModelFieldErrors({});
                 setValidationError(undefined);
                 setNotice(undefined);
@@ -457,7 +508,7 @@ export function CreatorServicesSettingsView(props: {
             <ImageSettings config={config} update={updateConfig} configuredCredentials={configuredCredentials} service={props.service} enabled={savedImageProvider === config.image.provider} />
           ) : null}
           {activeSection === 'video' ? (
-            <VideoSettings config={config} update={updateConfig} configuredCredentials={configuredCredentials} />
+            <VideoSettings config={config} update={updateConfig} configuredCredentials={configuredCredentials} service={props.service} />
           ) : null}
 
           <footer className="creator-services-actions">
@@ -522,6 +573,9 @@ function TextModelSettings(props: SettingsGroupProps & {
   onProviderChange(value: OpenAiCompatibleConfig): void;
   providerId: string;
   runtimeModelIds: readonly string[];
+  discoveredModelIds: readonly string[];
+  discovery: ModelDiscoveryState;
+  onDiscoverModels(): void;
   onProviderIdChange(value: string): void;
 }) {
   const l = useLocalizedCopy();
@@ -530,14 +584,24 @@ function TextModelSettings(props: SettingsGroupProps & {
   const providerApiKeyConfigured = props.provider?.apiKeyConfigured === true;
   const codexAvailable = props.provider !== undefined
     && (props.provider.authentication === 'chatgpt' || providerApiKeyConfigured);
+  const localProvider = props.mode === 'custom' && isLocalLlmProvider(props.providerId);
+  const loopbackEndpoint = props.mode === 'custom' && isLoopbackBaseUrl(props.baseUrl);
+  const hideApiKey = localProvider && loopbackEndpoint;
   const textTasksAvailable = props.mode === 'codex'
     ? codexAvailable
-    : legacyApiKeyConfigured || props.apiKey.trim().length > 0;
+    : legacyApiKeyConfigured
+      || props.apiKey.trim().length > 0
+      || (loopbackEndpoint && props.model.trim().length > 0);
   const selectedModeAvailable = props.mode === 'codex' ? codexAvailable : textTasksAvailable;
   const TextTaskStatusIcon = textTasksAvailable ? Check : CircleAlert;
   const modelCredentials = legacyApiKeyConfigured
     ? new Set<CreatorServicesCredentialField>(['llm.apiKey'])
     : new Set<CreatorServicesCredentialField>();
+  const modelSuggestions = localProvider && props.discoveredModelIds.length > 0
+    ? props.discoveredModelIds
+    : props.providerId === 'openai' && props.runtimeModelIds.length > 0
+      ? props.runtimeModelIds
+      : creatorProviderCatalogById.llm[props.providerId]?.models.map(model => model.id);
   return (
     <>
       <SettingsFieldset
@@ -571,6 +635,41 @@ function TextModelSettings(props: SettingsGroupProps & {
             ))}
           </select>
         </label> : null}
+        {localProvider ? (
+          <>
+            <p className="creator-services-inline-note is-wide">
+              {l(
+                '本地模型服务不需要 API Key。请先在 LocModel、Ollama 或 LM Studio 中启动模型，再检测可用模型。',
+                'Local model services do not need an API key. Start a model in LocModel, Ollama, or LM Studio, then detect the available models.'
+              )}
+            </p>
+            <div className="creator-services-model-discovery is-wide">
+              <button
+                type="button"
+                className="settings-secondary-button"
+                disabled={props.discovery.status === 'loading' || props.baseUrl.trim().length === 0}
+                onClick={props.onDiscoverModels}
+              >
+                {props.discovery.status === 'loading' ? (
+                  <LoaderCircle className="creator-services-spinner" size={14} aria-hidden="true" />
+                ) : (
+                  <RefreshCw size={14} aria-hidden="true" />
+                )}
+                {props.discovery.status === 'loading'
+                  ? l('检测中…', 'Detecting…')
+                  : l('检测模型', 'Detect models')}
+              </button>
+              {props.discovery.message === undefined ? null : (
+                <span
+                  className={props.discovery.status === 'error' ? 'is-warning' : undefined}
+                  role="status"
+                >
+                  {props.discovery.message}
+                </span>
+              )}
+            </div>
+          </>
+        ) : null}
         {props.mode === 'custom' ? <OpenAiFields
           id="llm"
           credential="llm.apiKey"
@@ -580,10 +679,11 @@ function TextModelSettings(props: SettingsGroupProps & {
             apiKey: props.apiKey,
             model: props.model
           }}
-          modelPlaceholder="gpt-5.6-sol"
-          modelSuggestions={props.providerId === 'openai' && props.runtimeModelIds.length > 0
-            ? props.runtimeModelIds
-            : creatorProviderCatalogById.llm[props.providerId]?.models.map(model => model.id)}
+          hideApiKey={hideApiKey}
+          modelPlaceholder={localProvider
+            ? l('本地模型名称，例如 qwen3:8b', 'Local model name, e.g. qwen3:8b')
+            : 'gpt-5.6-sol'}
+          modelSuggestions={modelSuggestions}
           errors={props.fieldErrors}
           onChange={props.onProviderChange}
         /> : (
@@ -602,7 +702,9 @@ function TextModelSettings(props: SettingsGroupProps & {
               ? l('文本任务可用', 'Text tasks ready')
               : props.mode === 'codex'
                 ? l('本机 Codex 尚未配置', 'Local Codex is not configured')
-                : l('文本任务需要 API Key', 'Text tasks require an API key')}
+                : localProvider || loopbackEndpoint
+                  ? l('请填写本地模型名称', 'Enter the local model name')
+                  : l('文本任务需要 API Key', 'Text tasks require an API key')}
           </span>
         </div>
         {props.mode === 'codex' && props.config.llm.source === 'codex' && codexAvailable ? (
@@ -1036,10 +1138,11 @@ function ImageSettings(props: SettingsGroupProps & {
 }) {
   const l = useLocalizedCopy();
   const provider = props.config.image.provider;
+  const [localSdModels, setLocalSdModels] = useState<string[]>([]);
   return (
     <SettingsFieldset
       title={l('图像生成', 'Image generation')}
-      description={l('选择本机 Codex 生图，或配置其他图像生成服务。', 'Use local Codex image generation or configure another image provider.')}
+      description={l('选择本机 Codex 生图、本地 SD 引擎，或配置其他图像生成服务。', 'Use local Codex image generation, a local SD engine, or another image provider.')}
     >
       <SelectField
         id="image-provider"
@@ -1047,6 +1150,7 @@ function ImageSettings(props: SettingsGroupProps & {
         value={provider}
         options={[
           ['codex-native', l('本机 Codex 生图', 'Local Codex image generation')],
+          ['local-sd', l('本地 SD（stable-diffusion.cpp）', 'Local SD (stable-diffusion.cpp)')],
           ['openai', 'GPT Image'],
           ['jimeng', l('即梦', 'Jimeng')],
           ['kling', l('可灵', 'Kling')],
@@ -1057,7 +1161,7 @@ function ImageSettings(props: SettingsGroupProps & {
           config.image.provider = nextProvider;
           if (nextProvider === 'codex-native') return;
           const preset = creatorProviderOfKind('image', nextProvider);
-          const target = config.image[nextProvider];
+          const target = nextProvider === 'local-sd' ? config.image.localSd : config.image[nextProvider];
           if (preset?.defaultBaseUrl !== undefined && !target.baseUrl) target.baseUrl = preset.defaultBaseUrl;
           if (!target.model && preset?.models[0] !== undefined) target.model = preset.models[0].id;
         })}
@@ -1071,6 +1175,9 @@ function ImageSettings(props: SettingsGroupProps & {
       {provider === 'jimeng' ? <OpenAiFields id="image-jimeng" credential="image.jimeng.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.image.jimeng} modelPlaceholder="doubao-seedream-4-0-250828" modelSuggestions={creatorProviderOfKind('image', 'jimeng')?.models.map(model => model.id)} baseUrlPlaceholder="https://ark.cn-beijing.volces.com/api/v3" onChange={value => props.update(config => { config.image.jimeng = value; })} /> : null}
       {provider === 'kling' ? <KlingFields id="image-kling" accessKeyCredential="image.kling.accessKey" secretKeyCredential="image.kling.secretKey" configuredCredentials={props.configuredCredentials} value={props.config.image.kling} modelPlaceholder="kling-v2-1" modelSuggestions={creatorProviderOfKind('image', 'kling')?.models.map(model => model.id)} onChange={value => props.update(config => { config.image.kling = value; })} /> : null}
       {provider === 'gemini' ? <OpenAiFields id="image-gemini" credential="image.gemini.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.image.gemini} modelPlaceholder="gemini-2.5-flash-image" modelSuggestions={creatorProviderOfKind('image', 'gemini')?.models.map(model => model.id)} baseUrlPlaceholder="https://generativelanguage.googleapis.com/v1beta" onChange={value => props.update(config => { config.image.gemini = value; })} /> : null}
+      {provider === 'local-sd' ? <OpenAiFields id="image-local-sd" credential="image.localSd.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.image.localSd} modelPlaceholder="sd-cpp-local" modelSuggestions={localSdModels.length > 0 ? localSdModels : creatorProviderOfKind('image', 'local-sd')?.models.map(model => model.id)} baseUrlPlaceholder="http://127.0.0.1:8686" hideApiKey onChange={value => props.update(config => { config.image.localSd = value; })} /> : null}
+      {provider === 'local-sd' ? <LocalSdModelDetector kind="image" service={props.service} baseUrl={props.config.image.localSd.baseUrl} apiKey={props.config.image.localSd.apiKey} onDetected={(models, loadedModel) => { setLocalSdModels(models); const next = loadedModel ?? (models.includes(props.config.image.localSd.model) ? undefined : models[0]); if (next !== undefined) props.update(config => { config.image.localSd.model = next; }); }} /> : null}
+      {provider === 'local-sd' ? <p className="creator-services-inline-note is-wide">{l('请先在 LocModel 中启动图片模型。LocModel 可能复用 8686 端口并停止 LLM，生成完成后再切回聊天模式。', 'Start the image model in LocModel first. LocModel may reuse port 8686 and stop the LLM; switch back to chat mode after generating.')}</p> : null}
     </SettingsFieldset>
   );
 }
@@ -1078,12 +1185,13 @@ function ImageSettings(props: SettingsGroupProps & {
 function VideoSettings(props: SettingsGroupProps) {
   const l = useLocalizedCopy();
   const provider = props.config.video.provider;
+  const [localSdModels, setLocalSdModels] = useState<string[]>([]);
   return (
     <SettingsFieldset
       title={l('视频生成', 'Video generation')}
       description={l(
-        '配置 Seedance、可灵或 Veo 视频生成服务，以及新任务使用的默认模型。',
-        'Configure Seedance, Kling, or Veo video generation and the default model for new tasks.'
+        '配置 Seedance、可灵、Veo 或本地 SD 视频生成服务，以及新任务使用的默认模型。',
+        'Configure Seedance, Kling, Veo, or a local SD video engine and the default model for new tasks.'
       )}
     >
       <SelectField
@@ -1093,14 +1201,15 @@ function VideoSettings(props: SettingsGroupProps) {
         options={[
           ['seedance', 'Seedance'],
           ['kling', l('可灵', 'Kling')],
-          ['veo', 'Veo']
+          ['veo', 'Veo'],
+          ['local-sd', l('本地 SD（stable-diffusion.cpp）', 'Local SD (stable-diffusion.cpp)')]
         ]}
         onChange={value => props.update(config => {
           const nextProvider = value as CreatorServicesConfig['video']['provider'];
           config.video.provider = nextProvider;
           const catalogId = nextProvider === 'kling' ? 'kling-video' : nextProvider;
           const preset = creatorProviderOfKind('video', catalogId);
-          const target = config.video[nextProvider];
+          const target = nextProvider === 'local-sd' ? config.video.localSd : config.video[nextProvider];
           if (preset?.defaultBaseUrl !== undefined && !target.baseUrl) target.baseUrl = preset.defaultBaseUrl;
           if (!target.model && preset?.models[0] !== undefined) target.model = preset.models[0].id;
         })}
@@ -1108,6 +1217,9 @@ function VideoSettings(props: SettingsGroupProps) {
       {provider === 'seedance' ? <OpenAiFields id="video-seedance" credential="video.seedance.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.video.seedance} modelLabel={l('默认模型', 'Default model')} modelPlaceholder={defaultVideoGenerationModels.seedance} modelSuggestions={videoGenerationModelIds.seedance} baseUrlPlaceholder="https://ark.cn-beijing.volces.com/api/v3" onChange={value => props.update(config => { config.video.seedance = value; })} /> : null}
       {provider === 'kling' ? <KlingFields id="video-kling" accessKeyCredential="video.kling.accessKey" secretKeyCredential="video.kling.secretKey" configuredCredentials={props.configuredCredentials} value={props.config.video.kling} modelLabel={l('默认模型', 'Default model')} modelPlaceholder={defaultVideoGenerationModels.kling} modelSuggestions={creatorProviderOfKind('video', 'kling-video')?.models.map(model => model.id)} onChange={value => props.update(config => { config.video.kling = value; })} /> : null}
       {provider === 'veo' ? <OpenAiFields id="video-veo" credential="video.veo.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.video.veo} modelLabel={l('默认模型', 'Default model')} modelPlaceholder={defaultVideoGenerationModels.veo} modelSuggestions={videoGenerationModelIds.veo} baseUrlPlaceholder="https://generativelanguage.googleapis.com/v1beta" onChange={value => props.update(config => { config.video.veo = value; })} /> : null}
+      {provider === 'local-sd' ? <OpenAiFields id="video-local-sd" credential="video.localSd.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.video.localSd} modelLabel={l('默认模型', 'Default model')} modelPlaceholder={defaultVideoGenerationModels['local-sd']} modelSuggestions={localSdModels.length > 0 ? localSdModels : videoGenerationModelIds['local-sd']} baseUrlPlaceholder="http://127.0.0.1:8686" hideApiKey onChange={value => props.update(config => { config.video.localSd = value; })} /> : null}
+      {provider === 'local-sd' ? <LocalSdModelDetector kind="video" service={props.service ?? null} baseUrl={props.config.video.localSd.baseUrl} apiKey={props.config.video.localSd.apiKey} onDetected={(models, loadedModel) => { setLocalSdModels(models); const next = loadedModel ?? (models.includes(props.config.video.localSd.model) ? undefined : models[0]); if (next !== undefined) props.update(config => { config.video.localSd.model = next; }); }} /> : null}
+      {provider === 'local-sd' ? <p className="creator-services-inline-note is-wide">{l('请先在 LocModel 中启动视频模型。LocModel 可能复用 8686 端口并停止 LLM，生成完成后再切回聊天模式。', 'Start the video model in LocModel first. LocModel may reuse port 8686 and stop the LLM; switch back to chat mode after generating.')}</p> : null}
     </SettingsFieldset>
   );
 }
@@ -1129,6 +1241,79 @@ function SettingsFieldset(props: { title: string; description: string; children:
   );
 }
 
+function LocalSdModelDetector(props: {
+  kind: 'image' | 'video';
+  service: CreatorServicesSettingsService | null;
+  baseUrl: string;
+  apiKey?: string;
+  onDetected(models: string[], loadedModel?: string): void;
+}) {
+  const l = useLocalizedCopy();
+  const [state, setState] = useState<{ status: 'idle' | 'loading' | 'done' | 'error'; message?: string }>({ status: 'idle' });
+
+  async function detect() {
+    if (props.service === null || props.baseUrl.trim().length === 0) return;
+    setState({ status: 'loading' });
+    try {
+      const result = await props.service.detectLocalEngine({
+        baseUrl: props.baseUrl,
+        ...(props.apiKey === undefined || props.apiKey.length === 0 ? {} : { apiKey: props.apiKey })
+      });
+      const loadedModel = result.loadedModel?.name?.trim() || undefined;
+      const downloaded = result.downloadedModels
+        .filter(model => model.kind === props.kind)
+        .map(model => model.name);
+      const models = loadedModel !== undefined && !downloaded.includes(loadedModel)
+        ? [loadedModel, ...downloaded]
+        : downloaded;
+      props.onDetected(models, loadedModel);
+      setState({
+        status: 'done',
+        message: result.connected
+          ? loadedModel === undefined
+            ? l('已连接本地 SD 引擎', 'Connected to the local SD engine')
+            : l(`已连接，当前模型：${loadedModel}`, `Connected. Loaded model: ${loadedModel}`)
+          : result.error ?? l(
+              '本地 SD 引擎未运行，已列出已下载模型',
+              'The local SD engine is not running. Downloaded models are listed.'
+            )
+      });
+    } catch (cause) {
+      setState({
+        status: 'error',
+        message: cause instanceof Error && cause.message.trim().length > 0
+          ? cause.message
+          : l('无法检测本地 SD 引擎', 'Could not detect the local SD engine')
+      });
+    }
+  }
+
+  return (
+    <div className="creator-services-model-discovery is-wide">
+      <button
+        type="button"
+        className="settings-secondary-button"
+        disabled={state.status === 'loading' || props.baseUrl.trim().length === 0}
+        onClick={() => void detect()}
+      >
+        {state.status === 'loading' ? (
+          <LoaderCircle className="creator-services-spinner" size={14} aria-hidden="true" />
+        ) : (
+          <RefreshCw size={14} aria-hidden="true" />
+        )}
+        {state.status === 'loading'
+          ? l('检测中…', 'Detecting…')
+          : l('检测 LocModel 模型', 'Detect LocModel models')}
+      </button>
+      {state.message === undefined ? null : (
+        <span className={state.status === 'error' ? 'is-warning' : undefined} role="status">
+          {state.message}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function OpenAiFields(props: {
   id: string;
   credential: CreatorServicesCredentialField;
@@ -1138,6 +1323,7 @@ function OpenAiFields(props: {
   modelLabel?: string;
   modelSuggestions?: readonly string[];
   modelReadonly?: boolean;
+  hideApiKey?: boolean;
   baseUrlPlaceholder?: string;
   errors?: ModelFieldErrors;
   onChange(value: OpenAiCompatibleConfig): void;
@@ -1154,14 +1340,16 @@ function OpenAiFields(props: {
         onChange={baseUrl => props.onChange({ ...props.value, baseUrl })}
         wide
       />
-      <PasswordField
-        id={`${props.id}-api-key`}
-        label="API Key"
-        value={props.value.apiKey}
-        configured={props.configuredCredentials.has(props.credential)}
-        error={props.errors?.apiKey}
-        onChange={apiKey => props.onChange({ ...props.value, apiKey })}
-      />
+      {props.hideApiKey === true ? null : (
+        <PasswordField
+          id={`${props.id}-api-key`}
+          label="API Key"
+          value={props.value.apiKey}
+          configured={props.configuredCredentials.has(props.credential)}
+          error={props.errors?.apiKey}
+          onChange={apiKey => props.onChange({ ...props.value, apiKey })}
+        />
+      )}
       {props.modelReadonly ? (
         <ReadonlyModelField label={props.modelLabel ?? l('模型', 'Model')} value={props.modelPlaceholder} />
       ) : (
@@ -1417,7 +1605,9 @@ function ModelField(props: {
             props.onChange(event.target.value);
           }}
         >
-          {props.suggestions.map(value => <option key={value} value={value}>{value}</option>)}
+          {props.suggestions.map(value => (
+            <option key={value} value={value} title={value}>{displayModelName(value)}</option>
+          ))}
           <option value="__custom__">{l('自定义模型', 'Custom model')}</option>
         </select>
       ) : null}
@@ -1601,6 +1791,12 @@ function SelectField(props: {
       ) : null}
     </div>
   );
+}
+
+function displayModelName(value: string): string {
+  const normalized = value.replace(/\\/g, '/');
+  const name = normalized.split('/').pop() ?? value;
+  return name.replace(/\.gguf$/i, '');
 }
 
 function ReadonlyModelField(props: { label: string; value: string }) {

@@ -876,13 +876,15 @@ function createVideoConfig() {
       jimeng: { baseUrl: '', apiKey: '', model: '' },
       kling: { baseUrl: '', accessKey: '', secretKey: '', model: '' },
       gemini: { baseUrl: '', apiKey: '', model: '' },
+      localSd: { baseUrl: 'http://127.0.0.1:8686', apiKey: '', model: 'sd-cpp-local' },
       codexNative: {}
     },
     video: {
       provider: 'seedance' as const,
       seedance: { baseUrl: '', apiKey: '', model: 'doubao-seedance-2-5-260628' },
       kling: { baseUrl: '', accessKey: '', secretKey: '', model: 'kling-v2-1-master' },
-      veo: { baseUrl: '', apiKey: '', model: 'veo-3.1-generate-preview' }
+      veo: { baseUrl: '', apiKey: '', model: 'veo-3.1-generate-preview' },
+      localSd: { baseUrl: 'http://127.0.0.1:8686', apiKey: '', model: 'sd-cpp-local' }
     }
   };
 }

@@ -62,13 +62,15 @@ const sizes: Array<{ value: VideoGenerationSize; zh: string; en: string; ratio: 
 const providers: Array<{ value: VideoGenerationProvider; zh: string; en: string }> = [
   { value: 'seedance', zh: 'Seedance', en: 'Seedance' },
   { value: 'kling', zh: '可灵', en: 'Kling' },
-  { value: 'veo', zh: 'Veo', en: 'Veo' }
+  { value: 'veo', zh: 'Veo', en: 'Veo' },
+  { value: 'local-sd', zh: '本地 SD', en: 'Local SD' }
 ];
 
 const providerDurations: Record<VideoGenerationProvider, VideoGenerationDuration[]> = {
   seedance: [5, 10],
   kling: [5, 10],
-  veo: [4, 6, 8]
+  veo: [4, 6, 8],
+  'local-sd': [4, 5, 6, 8, 10]
 };
 const modelLabels: Record<string, string> = {
   'doubao-seedance-2-5-260628': 'Seedance 2.5',
@@ -1064,7 +1066,8 @@ function videoModelDefaults(
   return {
     seedance: config.video.seedance.model.trim() || defaultVideoGenerationModels.seedance,
     kling: config.video.kling.model.trim() || defaultVideoGenerationModels.kling,
-    veo: config.video.veo.model.trim() || defaultVideoGenerationModels.veo
+    veo: config.video.veo.model.trim() || defaultVideoGenerationModels.veo,
+    'local-sd': config.video.localSd.model.trim() || defaultVideoGenerationModels['local-sd']
   };
 }
 

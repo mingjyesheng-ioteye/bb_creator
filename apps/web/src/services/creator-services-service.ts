@@ -1,6 +1,8 @@
 import type {
   CodexImageStatus,
   CodexProviderConfig,
+  CreatorLocalEngineDetectionResponse,
+  CreatorModelDiscoveryResponse,
   CreatorServicesCapabilitiesResponse,
   CreatorServicesConfig,
   CreatorServicesConfigResponse,
@@ -39,6 +41,18 @@ export function createCreatorServicesService(client: ClientLike) {
       return client.patch('/creator-services/config', config);
     },
     testTranscriptionConnection(config: CreatorServicesConfig['transcription']['funasr']): Promise<{ connected: boolean; model: string; models: string[]; capabilities: string[] }> { return client.rawRequest('/creator-services/transcription/test', { method: 'POST', body: config }).then(response => response.json()); },
+    discoverModels(request: { baseUrl: string; apiKey: string }): Promise<CreatorModelDiscoveryResponse> {
+      return client.rawRequest('/creator-services/model/discover', {
+        method: 'POST',
+        body: request
+      }).then(response => response.json() as Promise<CreatorModelDiscoveryResponse>);
+    },
+    detectLocalEngine(request: { baseUrl: string; apiKey?: string }): Promise<CreatorLocalEngineDetectionResponse> {
+      return client.rawRequest('/creator-services/local-engine/detect', {
+        method: 'POST',
+        body: request
+      }).then(response => response.json() as Promise<CreatorLocalEngineDetectionResponse>);
+    },
     resetConfig(): Promise<CreatorServicesConfigResponse> {
       return client.delete('/creator-services/config');
     },
