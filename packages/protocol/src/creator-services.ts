@@ -8,6 +8,75 @@ export type OpenAiCompatibleConfig = {
   model: string;
 };
 
+/**
+ * True when a Base URL points at the same machine. Local inference servers
+ * (LocModel, Ollama, LM Studio, llama.cpp) normally run without an API key.
+ */
+export function isLoopbackBaseUrl(baseUrl: string): boolean {
+  const trimmed = baseUrl.trim();
+  if (trimmed.length === 0) return false;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    const host = url.hostname.toLowerCase();
+    return host === 'localhost'
+      || host === '::1'
+      || host === '[::1]'
+      || /^127(?:\.\d{1,3}){3}$/.test(host);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Text tasks need a model name plus either an API key or a loopback endpoint.
+ * This keeps local OpenAI-compatible servers usable without a key.
+ */
+export function creatorTextModelConfigured(value: {
+  baseUrl?: string;
+  apiKey: string;
+  model: string;
+}): boolean {
+  return value.model.trim().length > 0
+    && (value.apiKey.trim().length > 0 || isLoopbackBaseUrl(value.baseUrl ?? ''));
+}
+
+export function creatorTextModelHeaders(apiKey: string): Record<string, string> {
+  const trimmed = apiKey.trim();
+  return trimmed.length > 0 ? { Authorization: `Bearer ${trimmed}` } : {};
+}
+
+export type CreatorModelDiscoveryResponse = {
+  connected: boolean;
+  baseUrl: string;
+  models: string[];
+  latencyMs: number;
+};
+
+export type CreatorLocalModelInfo = {
+  id: string;
+  name: string;
+  kind: 'image' | 'video';
+  path: string;
+  sizeBytes: number;
+  quantization?: string;
+};
+
+export type CreatorLocalEngineDetectionResponse = {
+  connected: boolean;
+  baseUrl: string;
+  engine: 'sd-server';
+  currentMode?: string;
+  supportedModes?: string[];
+  loadedModel?: {
+    name: string;
+    stem?: string;
+    path?: string;
+  };
+  downloadedModels: CreatorLocalModelInfo[];
+  error?: string;
+};
+
 export const creatorTtsProviders = ['openai', 'aliyun', 'edge-tts', 'minimax', 'volcengine'] as const;
 export type CreatorTtsProvider = (typeof creatorTtsProviders)[number];
 
@@ -132,18 +201,20 @@ export type CreatorServicesConfig = {
     volcengine: VolcengineTtsConfig;
   };
   image: {
-    provider: 'openai' | 'jimeng' | 'kling' | 'gemini' | 'codex-native';
+    provider: 'openai' | 'jimeng' | 'kling' | 'gemini' | 'codex-native' | 'local-sd';
     openai: OpenAiCompatibleConfig;
     jimeng: OpenAiCompatibleConfig;
     kling: KlingAiConfig;
     gemini: OpenAiCompatibleConfig;
+    localSd: OpenAiCompatibleConfig;
     codexNative: Record<never, never>;
   };
   video: {
-    provider: 'seedance' | 'kling' | 'veo';
+    provider: 'seedance' | 'kling' | 'veo' | 'local-sd';
     seedance: OpenAiCompatibleConfig;
     kling: KlingAiConfig;
     veo: OpenAiCompatibleConfig;
+    localSd: OpenAiCompatibleConfig;
   };
 };
 
@@ -253,10 +324,12 @@ export type CreatorServicesCredentialField =
   | 'image.kling.accessKey'
   | 'image.kling.secretKey'
   | 'image.gemini.apiKey'
+  | 'image.localSd.apiKey'
   | 'video.seedance.apiKey'
   | 'video.kling.accessKey'
   | 'video.kling.secretKey'
-  | 'video.veo.apiKey';
+  | 'video.veo.apiKey'
+  | 'video.localSd.apiKey';
 
 export const defaultVolcengineSpeechBaseUrl = 'https://openspeech.bytedance.com';
 export const defaultVolcengineAsrResourceId = 'volc.seedasr.auc';
@@ -347,6 +420,11 @@ export function createDefaultCreatorServicesConfig(): CreatorServicesConfig {
         apiKey: '',
         model: 'gemini-2.5-flash-image'
       },
+      localSd: {
+        baseUrl: 'http://127.0.0.1:8686',
+        apiKey: '',
+        model: 'sd-cpp-local'
+      },
       codexNative: {}
     },
     video: {
@@ -366,6 +444,11 @@ export function createDefaultCreatorServicesConfig(): CreatorServicesConfig {
         baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
         apiKey: '',
         model: defaultVideoGenerationModels.veo
+      },
+      localSd: {
+        baseUrl: 'http://127.0.0.1:8686',
+        apiKey: '',
+        model: defaultVideoGenerationModels['local-sd']
       }
     }
   };

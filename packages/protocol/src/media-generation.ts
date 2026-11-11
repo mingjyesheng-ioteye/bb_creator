@@ -3,7 +3,7 @@ import type { PublicErrorFacts } from './issues.js';
 export const imageGenerationSizes = ['1024x1024', '1536x1024', '1024x1536'] as const;
 export type ImageGenerationSize = typeof imageGenerationSizes[number];
 export type ImageGenerationQuality = 'low' | 'medium' | 'high';
-export type ImageGenerationProvider = 'openai' | 'jimeng' | 'kling' | 'gemini' | 'codex-native';
+export type ImageGenerationProvider = 'openai' | 'jimeng' | 'kling' | 'gemini' | 'codex-native' | 'local-sd';
 
 export const coverStyleIds = [
   'personal-growth',
@@ -72,7 +72,7 @@ export const videoGenerationDurations = [4, 5, 6, 8, 10] as const;
 export type VideoGenerationSize = typeof videoGenerationSizes[number] | `${number}x${number}` | `${string}@${number}:${number}`;
 export type VideoGenerationDuration = number;
 export type VideoGenerationStatus = 'queued' | 'in_progress' | 'completed' | 'failed';
-export type VideoGenerationProvider = 'seedance' | 'kling' | 'veo';
+export type VideoGenerationProvider = 'seedance' | 'kling' | 'veo' | 'local-sd';
 
 export const videoGenerationModelIds = {
   seedance: [
@@ -85,13 +85,15 @@ export const videoGenerationModelIds = {
     'doubao-seedance-1-0-pro-250528'
   ],
   kling: ['kling-v2-1-master'],
-  veo: ['veo-3.1-generate-preview']
+  veo: ['veo-3.1-generate-preview'],
+  'local-sd': ['sd-cpp-local']
 } as const;
 
 export const defaultVideoGenerationModels = {
   seedance: videoGenerationModelIds.seedance[0],
   kling: videoGenerationModelIds.kling[0],
-  veo: videoGenerationModelIds.veo[0]
+  veo: videoGenerationModelIds.veo[0],
+  'local-sd': videoGenerationModelIds['local-sd'][0]
 } satisfies Record<VideoGenerationProvider, string>;
 
 export type VideoGenerationReferenceImage = {
@@ -119,7 +121,7 @@ export type VideoGenerationResult = {
   progress: number;
   progressKnown?: boolean;
   fileName?: string;
-  mime?: 'video/mp4';
+  mime?: 'video/mp4' | 'video/webm' | 'video/x-msvideo';
   size?: number;
   error?: string;
   publicFacts?: PublicErrorFacts;

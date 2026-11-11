@@ -135,6 +135,7 @@ export type RuntimeErrorCode =
   | 'creator_agent_steer_unavailable'
   | 'creator_conflict_requires_user'
   | 'creator_llm_config_missing'
+  | 'creator_llm_discovery_failed'
   | 'creator_transcription_config_missing'
   | 'creator_tts_config_missing'
   | 'creator_tts_runtime_unavailable'

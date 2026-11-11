@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   creatorProviderCatalog,
-  creatorProviderCatalogById
+  creatorProviderCatalogById,
+  creatorProviderOfKind,
+  creatorProviderRequiresApiKey
 } from './creator-provider-catalog.js';
 
 describe('creator provider catalog', () => {
@@ -46,5 +48,37 @@ describe('creator provider catalog', () => {
       capabilities: ['text-to-image', 'image-edit', 'reference-image'],
       status: 'experimental'
     });
+  });
+
+  it('exposes local OpenAI-compatible text providers without an API key', () => {
+    for (const id of ['locmodel', 'ollama', 'lm-studio', 'llama-cpp'] as const) {
+      const provider = creatorProviderCatalogById.llm[id];
+      expect(provider).toMatchObject({
+        kind: 'llm',
+        protocol: 'local',
+        credentials: [],
+        apiKeyRequired: false,
+        defaultBaseUrl: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/v1$/)
+      });
+      expect(creatorProviderRequiresApiKey(provider)).toBe(false);
+    }
+    expect(creatorProviderRequiresApiKey(creatorProviderCatalogById.llm.openai)).toBe(true);
+    expect(creatorProviderRequiresApiKey(creatorProviderCatalogById.llm.custom)).toBe(true);
+  });
+
+  it('exposes local stable-diffusion.cpp image and video providers without an API key', () => {
+    for (const entry of [
+      creatorProviderOfKind('image', 'local-sd'),
+      creatorProviderOfKind('video', 'local-sd')
+    ]) {
+      expect(entry).toMatchObject({
+        protocol: 'local',
+        credentials: [],
+        apiKeyRequired: false,
+        defaultBaseUrl: 'http://127.0.0.1:8686',
+        models: [expect.objectContaining({ id: 'sd-cpp-local' })]
+      });
+      expect(creatorProviderRequiresApiKey(entry)).toBe(false);
+    }
   });
 });
