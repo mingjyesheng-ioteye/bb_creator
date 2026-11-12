@@ -26,11 +26,14 @@ export function applyAvatarClips(
   lesson: CourseLessonModule,
   avatar: CourseAvatarManifest | undefined
 ): CourseLessonModule {
-  if (!avatar || avatar.clips.length === 0) return lesson;
+  const withPortrait = avatar?.portraitPath
+    ? { ...lesson, presenter: { ...lesson.presenter, portraitSrc: avatar.portraitPath } }
+    : lesson;
+  if (!avatar || avatar.clips.length === 0) return withPortrait;
   const bySlide = new Map(avatar.clips.map((clip) => [clip.slideId, clip.path]));
   return {
-    ...lesson,
-    slides: lesson.slides.map((slide) => {
+    ...withPortrait,
+    slides: withPortrait.slides.map((slide) => {
       const path = bySlide.get(slide.id);
       return path ? { ...slide, avatarSrc: path } : slide;
     })

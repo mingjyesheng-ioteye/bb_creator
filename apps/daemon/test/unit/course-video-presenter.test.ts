@@ -90,6 +90,26 @@ describe('course video presenter executor', () => {
     expect(manifest.clips.map((clip: { slideId: string }) => clip.slideId)).toEqual(['m01:title', 'm01:summary']);
   });
 
+  it('keeps the portrait but skips clips when no lip-sync command is configured', async () => {
+    const { workdir, lessonPath } = setup();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png'
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({}),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    const manifest = JSON.parse(readFileSync(result.outputs[0]!.path!, 'utf8'));
+    expect(manifest.portraitPath).toBe('/portraits/instructor.png');
+    expect(manifest.clips).toEqual([]);
+  });
+
   it('writes an empty manifest when no portrait is available', async () => {
     const { workdir, lessonPath } = setup();
     const generateClip = vi.fn();
@@ -150,9 +170,17 @@ describe('applyAvatarClips', () => {
     });
     expect(merged.slides[0]!.avatarSrc).toBe('/clips/0.mp4');
     expect(merged.slides[1]!.avatarSrc).toBeUndefined();
+    expect(merged.presenter.portraitSrc).toBe('/p.png');
   });
 
-  it('returns the lesson unchanged without clips', () => {
+  it('uses the imported portrait as a static avatar when there are no clips', () => {
+    const lesson = narratedLesson();
+    const merged = applyAvatarClips(lesson as never, { portraitPath: '/p.png', clips: [] });
+    expect(merged.presenter.portraitSrc).toBe('/p.png');
+    expect(merged.slides.every(slide => slide.avatarSrc === undefined)).toBe(true);
+  });
+
+  it('returns the lesson unchanged without clips or a portrait', () => {
     const lesson = narratedLesson();
     expect(applyAvatarClips(lesson as never, undefined)).toBe(lesson);
     expect(applyAvatarClips(lesson as never, { portraitPath: '', clips: [] })).toBe(lesson);

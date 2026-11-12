@@ -1009,6 +1009,7 @@ export async function buildServer(input: BuildServerInput) {
   // Course Video only needs ffprobe, so it stays available even when the
   // optional KrillinAI runtime manifest is missing or fails verification.
   if (input.creatorExecutors === undefined && creatorFfprobePath) {
+    const presenterCommand = process.env.OPENCREATOR_PRESENTER_CMD?.trim() ?? '';
     creatorExecutors.push(
       createCourseNarrationExecutor({
         synthesizeSlide: createEdgeTtsSlideSynthesizer({
@@ -1017,14 +1018,13 @@ export async function buildServer(input: BuildServerInput) {
         })
       }),
       createCoursePresenterExecutor({
-        resolvePortrait: async (statePortrait) => {
-          const command = process.env.OPENCREATOR_PRESENTER_CMD?.trim() ?? '';
-          if (!command) return '';
-          return statePortrait || (process.env.OPENCREATOR_PRESENTER_PORTRAIT?.trim() ?? '');
-        },
-        generateClip: createCommandPresenterClipRunner({
-          command: process.env.OPENCREATOR_PRESENTER_CMD ?? '',
-          ...(process.env.OPENCREATOR_PRESENTER_CWD === undefined ? {} : { cwd: process.env.OPENCREATOR_PRESENTER_CWD })
+        resolvePortrait: async (statePortrait) =>
+          statePortrait || (process.env.OPENCREATOR_PRESENTER_PORTRAIT?.trim() ?? ''),
+        ...(presenterCommand.length === 0 ? {} : {
+          generateClip: createCommandPresenterClipRunner({
+            command: presenterCommand,
+            ...(process.env.OPENCREATOR_PRESENTER_CWD === undefined ? {} : { cwd: process.env.OPENCREATOR_PRESENTER_CWD })
+          })
         })
       }),
       createCourseRenderExecutor({

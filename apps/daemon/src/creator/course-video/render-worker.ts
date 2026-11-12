@@ -8,6 +8,7 @@ import type { CourseLessonModule } from '@opencreator/protocol';
 import type { CourseRenderRequest } from './render-contract.js';
 
 type SlideMedia = { audio?: string; avatar?: string; broll?: string };
+type LessonMedia = { slides: SlideMedia[]; portrait?: string };
 
 async function main(): Promise<void> {
   const requestPath = process.argv[2];
@@ -38,11 +39,19 @@ async function main(): Promise<void> {
     try {
       const renderLesson: CourseLessonModule = {
         ...lesson,
+        ...(media.portrait
+          ? {
+              presenter: {
+                ...lesson.presenter,
+                portraitSrc: `${assetServer.url}/media/presenter/portrait${extname(media.portrait)}`
+              }
+            }
+          : {}),
         slides: lesson.slides.map((slide, index) => ({
           ...slide,
-          ...(media[index]?.audio ? { audioSrc: `${assetServer.url}/media/${index}/audio${extname(media[index]!.audio!)}` } : {}),
-          ...(media[index]?.avatar ? { avatarSrc: `${assetServer.url}/media/${index}/avatar${extname(media[index]!.avatar!)}` } : {}),
-          ...(media[index]?.broll ? { brollSrc: `${assetServer.url}/media/${index}/broll${extname(media[index]!.broll!)}` } : {})
+          ...(media.slides[index]?.audio ? { audioSrc: `${assetServer.url}/media/${index}/audio${extname(media.slides[index]!.audio!)}` } : {}),
+          ...(media.slides[index]?.avatar ? { avatarSrc: `${assetServer.url}/media/${index}/avatar${extname(media.slides[index]!.avatar!)}` } : {}),
+          ...(media.slides[index]?.broll ? { brollSrc: `${assetServer.url}/media/${index}/broll${extname(media.slides[index]!.broll!)}` } : {})
         }))
       };
       const renderer = await import(request.rendererEntry ? pathToFileURL(request.rendererEntry).href : '@remotion/renderer') as typeof import('@remotion/renderer');
@@ -100,14 +109,21 @@ function resolveRenderConcurrency(requested: number | undefined): number {
   return Math.max(1, Math.min(cpus().length, DEFAULT_MAX_CONCURRENCY));
 }
 
-function collectMedia(lesson: CourseLessonModule, jobRoot: string): SlideMedia[] {
-  return lesson.slides.map((slide) => {
+function collectMedia(lesson: CourseLessonModule, jobRoot: string): LessonMedia {
+  const slides = lesson.slides.map((slide) => {
     const entry: SlideMedia = {};
     if (slide.audioSrc) entry.audio = inside(jobRoot, slide.audioSrc, 'audio');
     if (slide.avatarSrc) entry.avatar = inside(jobRoot, slide.avatarSrc, 'avatar');
     if (slide.brollSrc) entry.broll = inside(jobRoot, slide.brollSrc, 'broll');
     return entry;
   });
+  const portraitSrc = lesson.presenter?.portraitSrc;
+  const portrait = portraitSrc !== undefined
+    && portraitSrc.length > 0
+    && !/^(?:https?:|data:|blob:)/i.test(portraitSrc)
+    ? inside(jobRoot, portraitSrc, 'portrait')
+    : undefined;
+  return { slides, ...(portrait === undefined ? {} : { portrait }) };
 }
 
 function inside(jobRoot: string, path: string, label: string): string {
@@ -118,10 +134,11 @@ function inside(jobRoot: string, path: string, label: string): string {
 
 async function startAssetServer(
   bundleRoot: string,
-  media: SlideMedia[]
+  media: LessonMedia
 ): Promise<{ url: string; close(): Promise<void> }> {
   const files = new Map<string, string>();
-  for (const [index, entry] of media.entries()) {
+  if (media.portrait) files.set(`/media/presenter/portrait${extname(media.portrait)}`, media.portrait);
+  for (const [index, entry] of media.slides.entries()) {
     if (entry.audio) files.set(`/media/${index}/audio${extname(entry.audio)}`, entry.audio);
     if (entry.avatar) files.set(`/media/${index}/avatar${extname(entry.avatar)}`, entry.avatar);
     if (entry.broll) files.set(`/media/${index}/broll${extname(entry.broll)}`, entry.broll);

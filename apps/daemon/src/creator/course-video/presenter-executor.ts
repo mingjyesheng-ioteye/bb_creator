@@ -30,7 +30,12 @@ export type GeneratePresenterClip = (request: {
  */
 export function createCoursePresenterExecutor(input: {
   resolvePortrait(statePortrait: string): Promise<string>;
-  generateClip: GeneratePresenterClip;
+  /**
+   * Lip-sync clip generator. Omit it when no presenter command is configured:
+   * the imported portrait then renders as a static avatar instead of producing
+   * clip paths whose files were never written.
+   */
+  generateClip?: GeneratePresenterClip;
   /** Max clips generated in parallel. Defaults to OPENCREATOR_PRESENTER_CONCURRENCY or a CPU-based value. */
   concurrency?: number;
 }): CreatorExecutor {
@@ -51,8 +56,9 @@ export function createCoursePresenterExecutor(input: {
       const only = readIndexList(stage.job.state.presenterSlides);
       const total = lesson.slides.length;
       const clips: CourseAvatarClip[] = [];
+      const generateClip = input.generateClip;
 
-      if (portraitPath) {
+      if (portraitPath && generateClip !== undefined) {
         const targets: Array<{ index: number; slideId: string; audioPath: string }> = [];
         for (let index = 0; index < total; index += 1) {
           const slide = lesson.slides[index]!;
@@ -72,7 +78,7 @@ export function createCoursePresenterExecutor(input: {
         report();
         await mapWithConcurrency(targets, resolvePresenterConcurrency(input.concurrency), async (target, position) => {
           const outputPath = join(stage.workdir, `avatar-${String(target.index).padStart(2, '0')}.mp4`);
-          await input.generateClip({
+          await generateClip({
             portraitPath,
             audioPath: target.audioPath,
             outputPath,
