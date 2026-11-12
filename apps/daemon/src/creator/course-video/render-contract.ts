@@ -2,6 +2,8 @@ export type CourseRenderRequest = {
   lessonPath: string;
   outputPath: string;
   bundlePath: string;
+  /** Set when bundlePath is a development override outside runtimeRoot. */
+  externalBundle?: boolean;
   browserExecutable: string;
   rendererEntry?: string;
   workdir: string;

@@ -12,6 +12,7 @@ import type { CourseLessonAssessment, CourseLessonPresenter, CourseLessonSlide }
 import {
   assertCourseLesson,
   buildCourseLessonTimeline,
+  courseCaptionRightInset,
   courseLessonAssessmentFrames,
   courseLessonSlidesFrames,
   type CourseLessonProps
@@ -162,7 +163,12 @@ const LessonSlideView: React.FC<{
         </div>
       ) : null}
 
-      <SlideCaptions slide={slide} fps={fps} ratio={ratio} />
+      <SlideCaptions
+        slide={slide}
+        fps={fps}
+        ratio={ratio}
+        presenterVisible={presenter.mode !== 'none'}
+      />
 
       <div
         style={{
@@ -183,7 +189,8 @@ const SlideCaptions: React.FC<{
   slide: CourseLessonSlide;
   fps: number;
   ratio: CourseLessonProps['ratio'];
-}> = ({ slide, fps, ratio }) => {
+  presenterVisible: boolean;
+}> = ({ slide, fps, ratio, presenterVisible }) => {
   const frame = useCurrentFrame();
   const words = slide.captions ?? [];
   if (words.length === 0) return null;
@@ -194,7 +201,7 @@ const SlideCaptions: React.FC<{
       style={{
         position: 'absolute',
         left: portrait ? 48 : 120,
-        right: portrait ? 48 : 120,
+        right: courseCaptionRightInset(ratio, presenterVisible),
         bottom: portrait ? 140 : 120,
         textAlign: 'center',
         fontSize: portrait ? 40 : 36,
@@ -214,7 +221,7 @@ const SlideCaptions: React.FC<{
               opacity: word.end <= seconds ? 0.82 : word.start > seconds ? 0.32 : 1
             }}
           >
-            {word.word}
+            {word.word}{' '}
           </span>
         );
       })}

@@ -1030,7 +1030,10 @@ export async function buildServer(input: BuildServerInput) {
       createCourseRenderExecutor({
         ffprobePath: creatorFfprobePath,
         runtimeRoot: stickmanRuntimeRoot,
-        ensureRuntime: stage => remotionComponent.ensure(stage)
+        ensureRuntime: stage => remotionComponent.ensure(stage),
+        ...(process.env.OPENCREATOR_COURSE_RENDER_BUNDLE?.trim()
+          ? { bundlePath: process.env.OPENCREATOR_COURSE_RENDER_BUNDLE.trim() }
+          : {})
       }),
       createCourseDeliveryExecutor({
         resolveBaseUrl: async () => process.env.OPENCREATOR_BB_EXAM_BASE_URL?.trim() ?? '',

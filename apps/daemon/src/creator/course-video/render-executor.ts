@@ -57,6 +57,12 @@ type ValidateVideo = (path: string, ffprobePath: string) => Promise<{
 export function createCourseRenderExecutor(input: {
   ffprobePath: string;
   runtimeRoot: string;
+  /**
+   * Optional bundle override, used to iterate on the Remotion composition
+   * without repackaging the signed component. It must live inside runtimeRoot
+   * because the render worker confines bundle paths to that root.
+   */
+  bundlePath?: string;
   workerEntrypoint?: string;
   runtime?: StickmanRemotionRuntime;
   ensureRuntime?(stage: Parameters<CreatorExecutor['run']>[0]): Promise<StickmanRemotionRuntime>;
@@ -99,7 +105,8 @@ export function createCourseRenderExecutor(input: {
       const request: CourseRenderRequest = {
         lessonPath,
         outputPath,
-        bundlePath: runtime.bundlePath,
+        bundlePath: input.bundlePath ?? runtime.bundlePath,
+        ...(input.bundlePath === undefined ? {} : { externalBundle: true }),
         browserExecutable: runtime.browserExecutable,
         ...(runtime.rendererEntry ? { rendererEntry: runtime.rendererEntry } : {}),
         workdir: stage.workdir,

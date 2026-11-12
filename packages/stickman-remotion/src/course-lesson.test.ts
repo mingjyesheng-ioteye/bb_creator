@@ -3,6 +3,7 @@ import { courseLessonSchemaVersion, type CourseLessonModule } from '@opencreator
 import {
   assertCourseLesson,
   buildCourseLessonTimeline,
+  courseCaptionRightInset,
   courseLessonAssessmentFrames,
   courseLessonSlidesFrames,
   courseLessonTotalFrames,
@@ -78,5 +79,12 @@ describe('course lesson remotion helpers', () => {
       slides: [{ id: 'm01:title', kind: 'title', heading: 'H', bullets: [], narration: 'n' }]
     });
     expect(() => assertCourseLesson(buildProps(noDuration))).toThrow(/duration_missing/);
+  });
+
+  it('reserves the presenter PiP corner for landscape captions', () => {
+    expect(courseCaptionRightInset('16:9', true)).toBe(480);
+    expect(courseCaptionRightInset('16:9', false)).toBe(120);
+    expect(courseCaptionRightInset('9:16', true)).toBe(48);
+    expect(courseCaptionRightInset('9:16', false)).toBe(48);
   });
 });

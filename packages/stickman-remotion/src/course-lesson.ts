@@ -29,6 +29,19 @@ export type CourseLessonTimelineEntry = {
   durationInFrames: number;
 };
 
+/**
+ * Right inset for the caption block. Landscape lessons with a presenter PiP
+ * reserve the bottom-right corner (360px PiP + 72px inset + 48px gap) so the
+ * captions never draw over the presenter.
+ */
+export function courseCaptionRightInset(
+  ratio: CourseLessonProps['ratio'],
+  presenterVisible: boolean
+): number {
+  if (ratio === '9:16') return 48;
+  return presenterVisible ? 480 : 120;
+}
+
 export function courseLessonSlideFrames(slide: CourseLessonSlide): number {
   return slide.durationInFrames ?? 0;
 }

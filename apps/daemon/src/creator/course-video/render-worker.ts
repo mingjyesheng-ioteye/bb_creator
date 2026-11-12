@@ -22,7 +22,7 @@ async function main(): Promise<void> {
     assertInside(workdir, request.outputPath, 'output');
     assertInside(workdir, requestPath, 'request');
     assertInside(workdir, resultPath, 'result');
-    assertInside(runtimeRoot, request.bundlePath, 'bundle');
+    if (request.externalBundle !== true) assertInside(runtimeRoot, request.bundlePath, 'bundle');
     assertInside(runtimeRoot, request.browserExecutable, 'browser');
     if (request.rendererEntry) assertInside(runtimeRoot, request.rendererEntry, 'renderer');
     if (!existsSync(resolve(request.bundlePath)) || !statSync(resolve(request.bundlePath)).isDirectory()) {
