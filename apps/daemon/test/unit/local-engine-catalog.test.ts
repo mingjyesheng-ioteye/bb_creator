@@ -15,11 +15,16 @@ describe('LocModel local engine catalog', () => {
   it('lists downloaded image and video models and filters components', async () => {
     root = await mkdtemp(join(tmpdir(), 'locmodel-catalog-'));
     const imageDir = join(root, 'image');
+    const videoDir = join(root, 'video');
     await mkdir(join(imageDir, 'qwen-image-2.1'), { recursive: true });
     await mkdir(join(imageDir, 'wan2.2-ti2v-5b'), { recursive: true });
+    await mkdir(join(imageDir, 'minimax-h3'), { recursive: true });
     await mkdir(join(imageDir, 'common'), { recursive: true });
+    await mkdir(join(videoDir, 'hunyuan-video'), { recursive: true });
     await writeFile(join(imageDir, 'qwen-image-2.1', 'qwen_image_2.1-Q8_0.gguf'), 'image');
     await writeFile(join(imageDir, 'wan2.2-ti2v-5b', 'Wan2.2-TI2V-5B-Q8_0.gguf'), 'video');
+    await writeFile(join(imageDir, 'minimax-h3', 'minimax_h3_fl2va_hyperflow_flash_14b-Q8_0.gguf'), 'video');
+    await writeFile(join(videoDir, 'hunyuan-video', 'hunyuan_video-Q8_0.gguf'), 'video');
     await writeFile(join(imageDir, 'common', 'qwen_image_2.1_vae_bf16.safetensors'), 'vae');
     await writeFile(join(imageDir, 'common', 'Qwen3VL-8B-Instruct-Q4_K_M.gguf'), 'encoder');
     const settings = join(root, 'settings.json');
@@ -29,10 +34,14 @@ describe('LocModel local engine catalog', () => {
     const models = await readLocModelDownloadedModels();
 
     expect(models.map(model => model.name)).toEqual([
+      'Hunyuan Video Q8_0',
+      'MiniMax H3 Q8_0',
       'Qwen-Image 2.1 Q8_0',
       'Wan2.2 TI2V 5B Q8_0'
     ]);
-    expect(models[0]).toMatchObject({ kind: 'image', quantization: 'Q8_0' });
+    expect(models[0]).toMatchObject({ kind: 'video', quantization: 'Q8_0' });
     expect(models[1]).toMatchObject({ kind: 'video', quantization: 'Q8_0' });
+    expect(models[2]).toMatchObject({ kind: 'image', quantization: 'Q8_0' });
+    expect(models[3]).toMatchObject({ kind: 'video', quantization: 'Q8_0' });
   });
 });

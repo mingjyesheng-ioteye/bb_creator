@@ -27,40 +27,52 @@ export async function readLocModelDownloadedModels(): Promise<CreatorLocalModelI
   if (settings === undefined) return [];
   const modelsDir = typeof settings.models_dir === 'string' ? settings.models_dir.trim() : '';
   if (modelsDir.length === 0) return [];
-  const imageDir = join(toAccessiblePath(modelsDir), 'image');
-  let files: string[];
-  try {
-    files = await walk(imageDir, 0);
-  } catch {
-    return [];
-  }
+  const accessibleModelsDir = toAccessiblePath(modelsDir);
+  const roots: Array<{ directory: string; kind: CreatorLocalModelInfo['kind'] }> = [
+    { directory: join(accessibleModelsDir, 'image'), kind: 'image' },
+    { directory: join(accessibleModelsDir, 'video'), kind: 'video' }
+  ];
   const models: CreatorLocalModelInfo[] = [];
-  for (const file of files) {
-    if (!file.toLowerCase().endsWith('.gguf')) continue;
-    const name = basename(file);
-    if (COMPONENT_FILE.test(name)) continue;
-    const directory = basename(dirname(file));
-    if (COMPONENT_DIRECTORIES.has(directory.toLowerCase())) continue;
-    let sizeBytes = 0;
+  for (const root of roots) {
+    let files: string[];
     try {
-      sizeBytes = (await stat(file)).size;
+      files = await walk(root.directory, 0);
     } catch {
       continue;
     }
-    const quantization = readQuantization(name);
-    const kind: CreatorLocalModelInfo['kind'] = /(?:wan|video|ti2v|i2v|t2v)/i.test(`${directory}/${name}`)
-      ? 'video'
-      : 'image';
-    models.push({
-      id: `${kind}/${directory}/${name}`,
-      name: humanizeModelName(directory, quantization),
-      kind,
-      path: file,
-      sizeBytes,
-      ...(quantization === undefined ? {} : { quantization })
-    });
+    for (const file of files) {
+      if (!file.toLowerCase().endsWith('.gguf')) continue;
+      const name = basename(file);
+      if (COMPONENT_FILE.test(name)) continue;
+      const directory = basename(dirname(file));
+      if (COMPONENT_DIRECTORIES.has(directory.toLowerCase())) continue;
+      let sizeBytes = 0;
+      try {
+        sizeBytes = (await stat(file)).size;
+      } catch {
+        continue;
+      }
+      const quantization = readQuantization(name);
+      const kind: CreatorLocalModelInfo['kind'] = root.kind === 'video'
+        || isVideoModel(directory, name)
+        ? 'video'
+        : 'image';
+      models.push({
+        id: `${kind}/${directory}/${name}`,
+        name: humanizeModelName(directory, quantization),
+        kind,
+        path: file,
+        sizeBytes,
+        ...(quantization === undefined ? {} : { quantization })
+      });
+    }
   }
   return models.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function isVideoModel(directory: string, name: string): boolean {
+  return /(?:wan|video|ti2v|i2v|t2v|minimax|hyperflow|fl2va|flf2v|svd|ltx|cogvideo|mochi|hunyuan)/i
+    .test(`${directory}/${name}`);
 }
 
 async function readLocModelSettings(): Promise<Record<string, unknown> | undefined> {
@@ -130,6 +142,8 @@ function humanizeModelName(directory: string, quantization: string | undefined):
   const spaced = normalized
     .replace(/qwen-image/i, 'Qwen-Image')
     .replace(/z-image/i, 'Z-Image')
+    .replace(/minimax/i, 'MiniMax')
+    .replace(/hyperflow/i, 'HyperFlow')
     .replace(/wan(\d)/i, 'Wan$1')
     .replace(/ti2v/i, 'TI2V')
     .replace(/i2v/i, 'I2V')
