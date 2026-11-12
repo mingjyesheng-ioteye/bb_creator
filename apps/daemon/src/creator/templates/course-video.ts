@@ -15,6 +15,15 @@ const courseVideoInputSchema = z.object({
   voice: z.string().trim().default('en-US-AvaNeural'),
   rate: z.string().trim().default('-4%'),
   presenterEnabled: z.boolean().default(true),
+  /**
+   * Presenter engine: `auto` uses the lip-sync command when configured and the
+   * local video model otherwise; `command` and `locmodel` force one backend.
+   */
+  presenterBackend: z.enum(['auto', 'command', 'locmodel']).default('auto'),
+  /** LocModel video model id (e.g. `wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf`). */
+  presenterModel: z.string().trim().default(''),
+  /** Motion prompt for the video model; blank uses the built-in presenter prompt. */
+  presenterPrompt: z.string().trim().default(''),
   portraitPath: z.string().trim().default(''),
   portraitArtifactId: z.string().trim().default(''),
   portraitFileName: z.string().trim().default(''),

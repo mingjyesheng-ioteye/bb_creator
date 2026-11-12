@@ -78,6 +78,7 @@ import {
   createCoursePresenterExecutor,
   createCommandPresenterClipRunner
 } from '../creator/course-video/presenter-executor.js';
+import { createLocModelPresenterClipRunner } from '../creator/course-video/locmodel-presenter.js';
 import { createCourseRenderExecutor } from '../creator/course-video/render-executor.js';
 import { createCourseDeliveryExecutor } from '../creator/course-video/deliver-executor.js';
 import { createSmartDubbingExecutor } from '../creator/smart-dubbing/executor.js';
@@ -1025,6 +1026,12 @@ export async function buildServer(input: BuildServerInput) {
             command: presenterCommand,
             ...(process.env.OPENCREATOR_PRESENTER_CWD === undefined ? {} : { cwd: process.env.OPENCREATOR_PRESENTER_CWD })
           })
+        }),
+        // Local video-model presenter (LocModel / stable-diffusion.cpp): animates
+        // the portrait with head motion instead of lip-syncing it.
+        generateModelClip: createLocModelPresenterClipRunner({
+          service: videoGenerationService,
+          ...(creatorFfmpegPath === undefined ? {} : { ffmpegPath: creatorFfmpegPath })
         })
       }),
       createCourseRenderExecutor({

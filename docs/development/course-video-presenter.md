@@ -33,7 +33,10 @@
 按任务（job state）：
 
 - `portraitPath`：覆盖默认人像；
-- `presenterSlides`：可选，只对这些 slide 索引生成片段（例如 `[0]`）。
+- `presenterSlides`：可选，只对这些 slide 索引生成片段（例如 `[0]`）；
+- `presenterBackend`：`auto`（默认）| `command` | `locmodel`；
+- `presenterModel`：LocModel 视频模型 id（例如 `wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf`）；
+- `presenterPrompt`：视频模型的动作描述，留空用内置提示词。
 
 未配置 `OPENCREATOR_PRESENTER_CMD` 或人像时，`presenter` 输出空清单，渲染回退到静态人像。
 
@@ -65,6 +68,31 @@ SADTALKER_PREPROCESS=full
 - `SADTALKER_SIZE=256` 适合画中画；`512` 质量更高但明显更慢。
 - SadTalker 在 ROCm 上约每 30 秒音频需要数分钟，长 slide 会更久；可用 `presenterSlides` 限制范围。
 - 生成的数字人片段自带音频，但 `CourseLesson` 组合会对 `OffthreadVideo` 设置 `muted`，最终视频只保留旁白音轨。
+
+## LocModel 视频模型接入（本机 GPU）
+
+Creator 自带的本地视频生成走 **LocModel**（stable-diffusion.cpp 的 `/sdcpp/v1/vid_gen`），
+课程视频可以直接复用它来生成数字人片段：
+
+1. 在 LocModel 里下载并**启动**一个视频模型（如 Wan 2.2 TI2V 5B）；
+2. 在 Creator「设置 → 模型服务 → 视频 → 本地 SD」确认地址（默认 `http://127.0.0.1:8686`）与默认模型；
+3. 课程视频表单里把「数字人引擎」设为 **LocModel 视频模型**，可选择具体模型、填写动作描述，然后生成。
+
+行为：
+
+- `presenter` 阶段对每个 slide 用**导入的肖像**做 image-to-video（i2v），模型产生头部动作、
+  眨眼和手势；有 `presenterSlides` 时只生成指定 slide；
+- 模型单次只接受 4/5/6/8/10 秒，Daemon 会把片段用 ffmpeg `-stream_loop` **循环到与 slide 等长**
+  并转成 mp4（`-an`，音频由课程旁白音轨提供）；
+- **不做口型同步**：LocModel 视频模型不读取旁白音频，嘴型与台词不会严格对齐。需要口型时用
+  `presenterBackend=command`（`OPENCREATOR_PRESENTER_CMD`，SadTalker/MuseTalk/Wav2Lip）；
+- `auto`（默认）优先用已配置的口型同步命令，没有命令时用视频模型；
+- 显式选择 `locmodel` 但 Daemon 没有视频服务时，`presenter` 阶段会报错
+  `course_presenter_unavailable`，而不是静默退回静态头像；
+- 产物 `course-avatar.json` 的 metadata 里记录 `presenterBackend` 与 `presenterModel`，便于排查。
+
+注意：LocModel 的 `/sdcpp/v1/vid_gen` 始终使用**当前已加载**的模型，`presenterModel` 只作为
+选择与记录依据；切换模型要在 LocModel 里操作。
 
 ## 其他后端
 

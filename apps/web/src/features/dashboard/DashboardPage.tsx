@@ -490,6 +490,7 @@ export default function DashboardPage(props: {
       <CourseVideoWorkspace
         promptHint={activePromptHint}
         onBack={closeWorkspace}
+        creatorServicesService={props.creatorServicesService}
       />
     ));
   }

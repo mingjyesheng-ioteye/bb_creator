@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type { CourseLessonModule } from '@opencreator/protocol';
 import type { CreatorExecutor } from '../executor.js';
 import { CreatorExecutorError } from '../executor.js';
+import { COURSE_VIDEO_FPS } from './constants.js';
 
 export type CourseAvatarClip = { slideId: string; path: string };
 
@@ -19,6 +20,11 @@ export type GeneratePresenterClip = (request: {
   outputPath: string;
   slideId: string;
   index: number;
+  /** Narration length of the slide, in seconds (0 when the slide is silent). */
+  durationSeconds: number;
+  /** Optional video model id (LocModel) and motion prompt from the job state. */
+  model?: string;
+  prompt?: string;
   signal: AbortSignal;
 }) => Promise<void>;
 
@@ -36,6 +42,12 @@ export function createCoursePresenterExecutor(input: {
    * clip paths whose files were never written.
    */
   generateClip?: GeneratePresenterClip;
+  /**
+   * Video-model clip generator (the local LocModel / stable-diffusion.cpp video
+   * model). It animates the portrait with head motion and gestures; it does not
+   * lip-sync, so the narration audio still comes from the lesson track.
+   */
+  generateModelClip?: GeneratePresenterClip;
   /** Max clips generated in parallel. Defaults to OPENCREATOR_PRESENTER_CONCURRENCY or a CPU-based value. */
   concurrency?: number;
 }): CreatorExecutor {
@@ -56,15 +68,23 @@ export function createCoursePresenterExecutor(input: {
       const only = readIndexList(stage.job.state.presenterSlides);
       const total = lesson.slides.length;
       const clips: CourseAvatarClip[] = [];
-      const generateClip = input.generateClip;
+      const backend = readBackend(stage.job.state.presenterBackend);
+      const model = readString(stage.job.state.presenterModel);
+      const prompt = readString(stage.job.state.presenterPrompt);
+      const generateClip = selectClipGenerator(backend, input.generateClip, input.generateModelClip);
 
       if (portraitPath && generateClip !== undefined) {
-        const targets: Array<{ index: number; slideId: string; audioPath: string }> = [];
+        const targets: Array<{ index: number; slideId: string; audioPath: string; durationSeconds: number }> = [];
         for (let index = 0; index < total; index += 1) {
           const slide = lesson.slides[index]!;
           if (!slide.audioSrc) continue;
           if (only !== undefined && !only.includes(index)) continue;
-          targets.push({ index, slideId: slide.id, audioPath: slide.audioSrc });
+          targets.push({
+            index,
+            slideId: slide.id,
+            audioPath: slide.audioSrc,
+            durationSeconds: (slide.durationInFrames ?? 0) / COURSE_VIDEO_FPS
+          });
         }
         const generated: Array<CourseAvatarClip | undefined> = new Array(targets.length);
         let done = 0;
@@ -76,7 +96,12 @@ export function createCoursePresenterExecutor(input: {
           total: targets.length
         });
         report();
-        await mapWithConcurrency(targets, resolvePresenterConcurrency(input.concurrency), async (target, position) => {
+        // The video model is a single GPU queue: run one clip at a time so the
+        // LocModel server does not thrash VRAM (the command backend can fan out).
+        const concurrency = generateClip === input.generateModelClip
+          ? 1
+          : resolvePresenterConcurrency(input.concurrency);
+        await mapWithConcurrency(targets, concurrency, async (target, position) => {
           const outputPath = join(stage.workdir, `avatar-${String(target.index).padStart(2, '0')}.mp4`);
           await generateClip({
             portraitPath,
@@ -84,6 +109,9 @@ export function createCoursePresenterExecutor(input: {
             outputPath,
             slideId: target.slideId,
             index: target.index,
+            durationSeconds: target.durationSeconds,
+            ...(model ? { model } : {}),
+            ...(prompt ? { prompt } : {}),
             signal: stage.signal
           });
           generated[position] = { slideId: target.slideId, path: outputPath };
@@ -109,6 +137,8 @@ export function createCoursePresenterExecutor(input: {
             portraitPath,
             clipCount: clips.length,
             skipped: portraitPath ? 0 : 1,
+            presenterBackend: generateClip === undefined ? 'none' : backend,
+            ...(model ? { presenterModel: model } : {}),
             fileName: 'course-avatar.json',
             mimeType: 'application/json'
           }
@@ -192,6 +222,37 @@ async function mapWithConcurrency<T>(
     }
   };
   await Promise.all(Array.from({ length: workers }, () => run()));
+}
+
+/** Presenter engine: a lip-sync command, a local video model, or either. */
+export type CoursePresenterBackend = 'auto' | 'command' | 'locmodel';
+
+function readBackend(value: unknown): CoursePresenterBackend {
+  return value === 'command' || value === 'locmodel' ? value : 'auto';
+}
+
+/**
+ * Pick the clip generator for the requested backend. `auto` prefers the
+ * lip-sync command (exact mouth movement) and falls back to the video model.
+ * An explicit `locmodel` without a configured service fails loudly instead of
+ * silently rendering a static portrait.
+ */
+function selectClipGenerator(
+  backend: CoursePresenterBackend,
+  commandClip: GeneratePresenterClip | undefined,
+  modelClip: GeneratePresenterClip | undefined
+): GeneratePresenterClip | undefined {
+  if (backend === 'command') return commandClip;
+  if (backend === 'locmodel') {
+    if (modelClip === undefined) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'The LocModel video presenter is not available. Start the video model in LocModel and check the local SD settings.'
+      );
+    }
+    return modelClip;
+  }
+  return commandClip ?? modelClip;
 }
 
 function readString(value: unknown): string {

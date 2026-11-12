@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { CreatorArtifact, CreatorJob, CreatorStageRun } from '@opencreator/protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createCoursePresenterExecutor } from '../../src/creator/course-video/presenter-executor.js';
+import type { GeneratePresenterClip } from '../../src/creator/course-video/presenter-executor.js';
 import { applyAvatarClips } from '../../src/creator/course-video/render-executor.js';
 
 let tempDir = '';
@@ -63,6 +64,10 @@ function setup() {
   const lessonPath = join(tempDir, 'course-narrated-lesson.json');
   writeFileSync(lessonPath, JSON.stringify(narratedLesson()));
   return { workdir, lessonPath };
+}
+
+function clipMock() {
+  return vi.fn(async (_request: Parameters<GeneratePresenterClip>[0]) => undefined);
 }
 
 describe('course video presenter executor', () => {
@@ -127,6 +132,78 @@ describe('course video presenter executor', () => {
     expect(generateClip).not.toHaveBeenCalled();
     const manifest = JSON.parse(readFileSync(result.outputs[0]!.path!, 'utf8'));
     expect(manifest.clips).toEqual([]);
+  });
+
+  it('prefers the lip-sync command in auto mode and passes the slide length', async () => {
+    const { workdir, lessonPath } = setup();
+    const command = clipMock();
+    const model = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateClip: command,
+      generateModelClip: model
+    });
+
+    await executor.run({
+      stageRun: stageRun(),
+      job: job({}),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(command).toHaveBeenCalledTimes(2);
+    expect(model).not.toHaveBeenCalled();
+    expect(command.mock.calls[0]![0]).toMatchObject({ durationSeconds: 3 });
+  });
+
+  it('uses the LocModel video model when presenterBackend is locmodel', async () => {
+    const { workdir, lessonPath } = setup();
+    const command = clipMock();
+    const model = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateClip: command,
+      generateModelClip: model
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'locmodel', presenterModel: 'wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf', presenterPrompt: 'Subtle nod' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(command).not.toHaveBeenCalled();
+    expect(model).toHaveBeenCalledTimes(2);
+    expect(model.mock.calls[0]![0]).toMatchObject({
+      model: 'wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf',
+      prompt: 'Subtle nod',
+      durationSeconds: 3
+    });
+    expect(result.outputs[0]!.metadata).toMatchObject({
+      presenterBackend: 'locmodel',
+      presenterModel: 'wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf'
+    });
+  });
+
+  it('fails loudly when locmodel is selected but no video model service is wired', async () => {
+    const { workdir, lessonPath } = setup();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png'
+    });
+
+    await expect(executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'locmodel' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    })).rejects.toThrow(/LocModel video presenter is not available/);
   });
 
   it('runs clips with bounded concurrency and preserves slide order', async () => {

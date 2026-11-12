@@ -8,6 +8,7 @@ import type {
 import { Download, Film, ImagePlus, LoaderCircle, RotateCcw, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalizedCopy } from '../../i18n/useLocalizedCopy.js';
+import type { CreatorServicesSettingsService } from '../../services/creator-services-service.js';
 import NativeSelect from '../../components/forms/NativeSelect.js';
 import CreatorToolShell from './CreatorToolShell.js';
 import {
@@ -37,9 +38,12 @@ const courseVideoVoices = [
   'ko-KR-SunHiNeural'
 ];
 
+type PresenterBackend = 'auto' | 'command' | 'locmodel';
+
 export default function CourseVideoWorkspace(props: {
   onBack(): void;
   promptHint?: string;
+  creatorServicesService?: CreatorServicesSettingsService | null;
 }) {
   const l = useLocalizedCopy();
   const session = useOptionalCreatorSession();
@@ -50,6 +54,12 @@ export default function CourseVideoWorkspace(props: {
   const [rate, setRate] = useState(() => readString(session?.state.rate) || '-4%');
   const [presenterEnabled, setPresenterEnabled] = useState(() => session?.state.presenterEnabled !== false);
   const [portraitPath, setPortraitPath] = useState(() => readString(session?.state.portraitPath));
+  const [presenterBackend, setPresenterBackend] = useState<PresenterBackend>(() => readBackend(session?.state.presenterBackend));
+  const [presenterModel, setPresenterModel] = useState(() => readString(session?.state.presenterModel));
+  const [presenterPrompt, setPresenterPrompt] = useState(() => readString(session?.state.presenterPrompt));
+  const [localVideoModels, setLocalVideoModels] = useState<string[]>([]);
+  const [localModelsLoading, setLocalModelsLoading] = useState(false);
+  const [localModelHint, setLocalModelHint] = useState('');
   const [courses, setCourses] = useState<CourseVideoCourseSummary[]>([]);
   const [courseDetail, setCourseDetail] = useState<CourseVideoCourseDetail>();
   const [coursesLoading, setCoursesLoading] = useState(false);
@@ -89,6 +99,9 @@ export default function CourseVideoWorkspace(props: {
     setRate(readString(session?.state.rate) || '-4%');
     setPresenterEnabled(session?.state.presenterEnabled !== false);
     setPortraitPath(readString(session?.state.portraitPath));
+    setPresenterBackend(readBackend(session?.state.presenterBackend));
+    setPresenterModel(readString(session?.state.presenterModel));
+    setPresenterPrompt(readString(session?.state.presenterPrompt));
   }, [
     session?.state.courseSlug,
     session?.state.moduleKey,
@@ -96,8 +109,51 @@ export default function CourseVideoWorkspace(props: {
     session?.state.voice,
     session?.state.rate,
     session?.state.presenterEnabled,
-    session?.state.portraitPath
+    session?.state.portraitPath,
+    session?.state.presenterBackend,
+    session?.state.presenterModel,
+    session?.state.presenterPrompt
   ]);
+
+  // LocModel video models for the presenter engine: read the local SD settings
+  // once and ask LocModel which video models are downloaded / loaded.
+  const services = props.creatorServicesService;
+  useEffect(() => {
+    if (services === null || services === undefined) return undefined;
+    if (!presenterEnabled || presenterBackend !== 'locmodel') return undefined;
+    let active = true;
+    setLocalModelsLoading(true);
+    setLocalModelHint('');
+    void services.getConfig()
+      .then(async response => {
+        const local = response.config.video.localSd;
+        const detection = await services.detectLocalEngine({ baseUrl: local.baseUrl, apiKey: local.apiKey });
+        if (!active) return;
+        setLocalVideoModels(detection.downloadedModels
+          .filter(model => model.kind === 'video')
+          .map(model => model.id));
+        setLocalModelHint(detection.connected
+          ? l(
+            'LocModel 已连接：生成时使用 LocModel 中当前加载的视频模型。',
+            'LocModel connected: generation uses the video model currently loaded in LocModel.'
+          )
+          : l(
+            '无法连接 LocModel：请先在 LocModel 中启动视频模型，并确认设置里的本地 SD 地址。',
+            'Could not reach LocModel: start a video model in LocModel and check the local SD URL in settings.'
+          ));
+      })
+      .catch(() => {
+        if (active) {
+          setLocalModelHint(l('无法读取 LocModel 设置。', 'Could not read the LocModel settings.'));
+        }
+      })
+      .finally(() => {
+        if (active) setLocalModelsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [services, presenterEnabled, presenterBackend, l]);
 
   const listCourses = session?.listCourseVideoCourses;
   const getCourse = session?.getCourseVideoCourse;
@@ -232,6 +288,9 @@ export default function CourseVideoWorkspace(props: {
       voice: voice.trim(),
       rate: rate.trim(),
       presenterEnabled,
+      presenterBackend,
+      presenterModel: presenterModel.trim(),
+      presenterPrompt: presenterPrompt.trim(),
       portraitPath: portraitPath.trim(),
       portraitArtifactId: portraitPath.trim() ? readString(session.state.portraitArtifactId) : '',
       portraitFileName: portraitPath.trim() ? readString(session.state.portraitFileName) : ''
@@ -406,6 +465,53 @@ export default function CourseVideoWorkspace(props: {
                 </NativeSelect>
               </label>
               {presenterEnabled ? (
+                <>
+                  <label className="creator-tool-field">
+                    <span>{l('数字人引擎', 'Presenter engine')}</span>
+                    <NativeSelect
+                      aria-label={l('数字人引擎', 'Presenter engine')}
+                      value={presenterBackend}
+                      onChange={event => setPresenterBackend(readBackend(event.target.value))}
+                    >
+                      <option value="auto">{l('自动（优先口型同步）', 'Auto (lip-sync first)')}</option>
+                      <option value="command">{l('口型同步命令', 'Lip-sync command')}</option>
+                      <option value="locmodel">{l('LocModel 视频模型', 'LocModel video model')}</option>
+                    </NativeSelect>
+                  </label>
+                  {presenterBackend === 'locmodel' ? (
+                    <>
+                      <label className="creator-tool-field">
+                        <span>
+                          {l('视频模型', 'Video model')}{' '}
+                          <small>{localModelsLoading ? l('正在读取…', 'Loading…') : `${localVideoModels.length} ${l('个已下载', 'downloaded')}`}</small>
+                        </span>
+                        <NativeSelect
+                          aria-label={l('视频模型', 'Video model')}
+                          value={presenterModel}
+                          onChange={event => setPresenterModel(event.target.value)}
+                          disabled={localModelsLoading}
+                        >
+                          <option value="">{l('LocModel 当前加载的模型', 'The model loaded in LocModel')}</option>
+                          {localVideoModels.map(id => <option key={id} value={id}>{id}</option>)}
+                        </NativeSelect>
+                      </label>
+                      <label className="creator-tool-field">
+                        <span>{l('动作描述（可选）', 'Motion prompt (optional)')}</span>
+                        <input
+                          value={presenterPrompt}
+                          maxLength={300}
+                          onChange={event => setPresenterPrompt(event.target.value)}
+                          placeholder={l('自然的头部动作、眨眼与手势', 'Natural head movement, blinks and gestures')}
+                        />
+                      </label>
+                      <p className="creator-tool-notice" role="status">
+                        {localModelHint || l(
+                          'LocModel 视频模型会让肖像产生头部动作与表情，但不做口型同步；旁白仍使用课程旁白音轨。',
+                          'The LocModel video model animates the portrait (head motion, blinks, gestures) but does not lip-sync; the narration stays the lesson track.'
+                        )}
+                      </p>
+                    </>
+                  ) : null}
                 <div className="creator-tool-field course-video-portrait">
                   <span>{l('数字人肖像（可选）', 'Presenter portrait (optional)')}</span>
                   <div className="course-video-portrait-row">
@@ -460,6 +566,7 @@ export default function CourseVideoWorkspace(props: {
                     }}
                   />
                 </div>
+                </>
               ) : null}
             </div>
             {!presenterEnabled ? (
@@ -575,6 +682,10 @@ function latestStage(stages: CreatorStageRun[], stageId: string): CreatorStageRu
 
 function readRatio(value: CreatorJson | undefined): '16:9' | '9:16' {
   return value === '9:16' ? '9:16' : '16:9';
+}
+
+function readBackend(value: CreatorJson | undefined): PresenterBackend {
+  return value === 'command' || value === 'locmodel' ? value : 'auto';
 }
 
 function readString(value: CreatorJson | undefined): string {
