@@ -42,7 +42,7 @@ export function createCreatorReferenceImageUploadService(input: {
       mimeType: string;
       lastModified: number | null;
       source: Readable;
-      purpose?: 'reference' | 'article';
+      purpose?: 'reference' | 'article' | 'presenter';
     }): Promise<CreatorSourceUploadResponse> {
       const current = input.creator.getJob(request.jobId);
       if (current === undefined) {
@@ -64,12 +64,17 @@ export function createCreatorReferenceImageUploadService(input: {
       const fileName = safeFileName(request.fileName);
       const mimeType = safeMimeType(request.mimeType);
       const purpose = request.purpose ?? 'reference';
-      const uploadDir = join(jobsRoot, jobSegment, purpose === 'article' ? 'article-images' : 'references');
+      const uploadDir = join(jobsRoot, jobSegment, purpose === 'article'
+        ? 'article-images'
+        : purpose === 'presenter'
+          ? 'presenter-portraits'
+          : 'references');
       await mkdir(uploadDir, { recursive: true });
       const token = randomBytes(12).toString('hex');
       const extension = safeExtension(fileName, mimeType);
       const temporaryPath = join(uploadDir, `.${token}.upload`);
-      const finalPath = join(uploadDir, `${purpose === 'article' ? 'article-image' : 'reference'}-${token}${extension}`);
+      const stem = purpose === 'article' ? 'article-image' : purpose === 'presenter' ? 'presenter-portrait' : 'reference';
+      const finalPath = join(uploadDir, `${stem}-${token}${extension}`);
       const hash = createHash('sha256');
       let size = 0;
       const meter = new Transform({
@@ -116,7 +121,9 @@ export function createCreatorReferenceImageUploadService(input: {
         try {
           const register = purpose === 'article'
             ? input.creator.registerArticleImage
-            : input.creator.registerReferenceImage;
+            : purpose === 'presenter'
+              ? input.creator.registerPresenterPortrait
+              : input.creator.registerReferenceImage;
           const response = register(request.jobId, {
             expectedRevision: request.expectedRevision,
             path: finalPath,

@@ -16,6 +16,8 @@ const courseVideoInputSchema = z.object({
   rate: z.string().trim().default('-4%'),
   presenterEnabled: z.boolean().default(true),
   portraitPath: z.string().trim().default(''),
+  portraitArtifactId: z.string().trim().default(''),
+  portraitFileName: z.string().trim().default(''),
   currentStage: z.string().nullable().default(null)
 }).passthrough();
 

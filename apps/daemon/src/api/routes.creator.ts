@@ -439,6 +439,45 @@ export async function registerCreatorRoutes(
         }
       }
     );
+    server.post<{ Body: Readable }>(
+      '/creator/jobs/:id/presenter-portrait',
+      async (request, reply) => {
+        const { id } = request.params as { id: string };
+        try {
+          const query = readObject(request.query);
+          if (!isReadable(request.body)) {
+            throw new TypeError('body must be an image stream');
+          }
+          const response = await options.referenceImageUploadService!.upload({
+            jobId: id,
+            expectedRevision: readQueryInteger(query.expectedRevision, 'expectedRevision'),
+            fileName: readString(query.fileName, 'fileName'),
+            mimeType: readString(query.mime, 'mime'),
+            lastModified: query.lastModified === undefined
+              ? null
+              : readQueryInteger(query.lastModified, 'lastModified'),
+            source: request.body,
+            purpose: 'presenter'
+          });
+          events.publish({
+            id: `snapshot:${response.job.revision}`,
+            jobId: response.job.id,
+            revision: response.job.revision,
+            kind: 'snapshot_changed',
+            payload: { revision: response.job.revision }
+          });
+          return reply.code(response.deduplicated ? 200 : 201).send(response);
+        } catch (error) {
+          return sendCreatorError(reply, error, {
+            jobId: id,
+            source: 'upload',
+            operation: 'creator.upload-presenter-portrait',
+            service,
+            issueService: options.issueService
+          });
+        }
+      }
+    );
   }
 
   if (options.documentUploadService !== undefined) {

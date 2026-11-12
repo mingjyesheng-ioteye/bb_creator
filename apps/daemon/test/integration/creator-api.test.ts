@@ -121,6 +121,39 @@ describe('creator api', () => {
     });
   });
 
+  it('imports a presenter portrait for a course video job', async () => {
+    await setupServer({});
+    const created = await request('POST', '/creator/jobs', {
+      projectId: 'project_course_portrait',
+      templateId: 'course-video'
+    });
+    const job = created.json().job;
+    const uploaded = await server!.inject({
+      method: 'POST',
+      url: `/creator/jobs/${job.id}/presenter-portrait?expectedRevision=${job.revision}&fileName=portrait.png&mime=image%2Fpng&lastModified=123`,
+      headers: {
+        authorization: 'Bearer secret',
+        'content-type': 'application/vnd.opencreator.creator-reference-image'
+      },
+      payload: png('presenter-portrait')
+    });
+
+    expect(uploaded.statusCode).toBe(201);
+    expect(uploaded.json()).toMatchObject({
+      job: {
+        state: {
+          portraitArtifactId: expect.any(String),
+          portraitFileName: 'portrait.png',
+          portraitPath: expect.stringContaining('presenter-portraits')
+        }
+      },
+      artifact: {
+        kind: 'presenter-portrait',
+        metadata: { fileName: 'portrait.png', source: 'local-upload' }
+      }
+    });
+  });
+
   it('deletes an inactive creator job', async () => {
     await setupServer({});
     const created = await request('POST', '/creator/jobs', {

@@ -2303,6 +2303,56 @@
   line-height: 1.55;
 }
 
+.course-video-portrait-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.course-video-portrait-preview {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--conversation-bg);
+  color: var(--muted);
+}
+
+.course-video-portrait-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.course-video-portrait-meta {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.course-video-portrait-meta > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.course-video-portrait-meta small {
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.course-video-portrait-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .creator-tool-field input:focus,
 .creator-tool-field textarea:focus,
 .creator-tool-field select:focus,

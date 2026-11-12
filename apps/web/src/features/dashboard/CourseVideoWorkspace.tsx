@@ -5,7 +5,7 @@ import type {
   CreatorJson,
   CreatorStageRun
 } from '@opencreator/protocol';
-import { Download, Film, LoaderCircle, RotateCcw, Sparkles } from 'lucide-react';
+import { Download, Film, ImagePlus, LoaderCircle, RotateCcw, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalizedCopy } from '../../i18n/useLocalizedCopy.js';
 import NativeSelect from '../../components/forms/NativeSelect.js';
@@ -58,14 +58,22 @@ export default function CourseVideoWorkspace(props: {
   const [courseReload, setCourseReload] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [portraitUploading, setPortraitUploading] = useState(false);
   const [pipelineActive, setPipelineActive] = useState(false);
   const dispatchedRef = useRef<CourseVideoStage | null>(null);
+  const portraitInputRef = useRef<HTMLInputElement | null>(null);
 
   const result = useMemo(
     () => latestCompleted(session?.job.artifacts ?? [], 'course-video'),
     [session?.job.artifacts]
   );
   const videoUrl = useArtifactUrl(result?.id);
+  const portraitArtifact = useMemo(
+    () => latestCompleted(session?.job.artifacts ?? [], 'presenter-portrait'),
+    [session?.job.artifacts]
+  );
+  const portraitUrl = useArtifactUrl(portraitPath.trim() ? portraitArtifact?.id : undefined);
+  const portraitFileName = readString(session?.state.portraitFileName);
   const latest = latestStage(session?.job.stages ?? [], 'render');
   const rendering = pipelineActive || latest?.status === 'queued' || latest?.status === 'running';
   const runtimeError = latest?.status === 'failed'
@@ -168,6 +176,42 @@ export default function CourseVideoWorkspace(props: {
     setError('');
   }
 
+  async function importPortrait(file: File) {
+    if (session === null) {
+      setError(l('课程视频服务暂不可用，请检查 Runtime 连接', 'Course video is unavailable. Check the Runtime connection.'));
+      return;
+    }
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setError(l('请选择 PNG、JPG 或 WebP 图片', 'Choose a PNG, JPG, or WebP image'));
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setError(l('数字人肖像不能超过 20 MB', 'The presenter portrait must be 20 MB or smaller'));
+      return;
+    }
+    setError('');
+    setNotice('');
+    setPortraitUploading(true);
+    try {
+      await session.uploadPresenterPortrait(file);
+      setNotice(l('数字人肖像已导入', 'Presenter portrait imported'));
+    } catch {
+      // The session store records the upload failure as an issue.
+    } finally {
+      setPortraitUploading(false);
+    }
+  }
+
+  function clearPortrait() {
+    setPortraitPath('');
+    setNotice('');
+    session?.updateDraft({
+      portraitPath: '',
+      portraitArtifactId: '',
+      portraitFileName: ''
+    }, { semantic: true });
+  }
+
   async function generate() {
     if (rendering || session === null) {
       if (session === null) {
@@ -188,7 +232,9 @@ export default function CourseVideoWorkspace(props: {
       voice: voice.trim(),
       rate: rate.trim(),
       presenterEnabled,
-      portraitPath: portraitPath.trim()
+      portraitPath: portraitPath.trim(),
+      portraitArtifactId: portraitPath.trim() ? readString(session.state.portraitArtifactId) : '',
+      portraitFileName: portraitPath.trim() ? readString(session.state.portraitFileName) : ''
     }, { semantic: true });
     dispatchedRef.current = null;
     try {
@@ -360,15 +406,60 @@ export default function CourseVideoWorkspace(props: {
                 </NativeSelect>
               </label>
               {presenterEnabled ? (
-                <label className="creator-tool-field">
-                  <span>{l('数字人肖像路径（可选）', 'Presenter portrait path (optional)')}</span>
+                <div className="creator-tool-field course-video-portrait">
+                  <span>{l('数字人肖像（可选）', 'Presenter portrait (optional)')}</span>
+                  <div className="course-video-portrait-row">
+                    <div className="course-video-portrait-preview">
+                      {portraitUrl
+                        ? <img src={portraitUrl} alt={l('数字人肖像预览', 'Presenter portrait preview')} />
+                        : <ImagePlus size={22} strokeWidth={1.7} aria-hidden="true" />}
+                    </div>
+                    <div className="course-video-portrait-meta">
+                      <span>
+                        {portraitPath
+                          ? portraitFileName || portraitPath
+                          : l('未导入肖像，将使用默认静态头像', 'No portrait imported; the default static avatar is used')}
+                      </span>
+                      <div className="course-video-portrait-actions">
+                        <button
+                          className="creator-tool-secondary"
+                          type="button"
+                          onClick={() => portraitInputRef.current?.click()}
+                          disabled={portraitUploading || rendering}
+                        >
+                          {portraitUploading
+                            ? <LoaderCircle className="course-video-spinner" size={15} strokeWidth={1.8} aria-hidden="true" />
+                            : <ImagePlus size={15} strokeWidth={1.8} aria-hidden="true" />}
+                          {portraitPath
+                            ? l('更换肖像', 'Replace portrait')
+                            : l('导入肖像', 'Import portrait')}
+                        </button>
+                        {portraitPath ? (
+                          <button
+                            className="creator-tool-secondary"
+                            type="button"
+                            onClick={clearPortrait}
+                            disabled={portraitUploading || rendering}
+                          >
+                            {l('移除', 'Remove')}
+                          </button>
+                        ) : null}
+                      </div>
+                      <small>{l('PNG、JPG 或 WebP，最大 20 MB', 'PNG, JPG, or WebP up to 20 MB')}</small>
+                    </div>
+                  </div>
                   <input
-                    value={portraitPath}
-                    maxLength={1024}
-                    onChange={event => setPortraitPath(event.target.value)}
-                    placeholder="/path/to/portrait.png"
+                    ref={portraitInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    hidden
+                    onChange={event => {
+                      const file = event.target.files?.[0];
+                      event.target.value = '';
+                      if (file !== undefined) void importPortrait(file);
+                    }}
                   />
-                </label>
+                </div>
               ) : null}
             </div>
             {!presenterEnabled ? (

@@ -70,6 +70,7 @@ export type CreatorSessionContextValue = {
   resumeJob(): Promise<void>;
   uploadSourceVideo(file: File): Promise<void>;
   uploadReferenceImage(file: File): Promise<void>;
+  uploadPresenterPortrait(file: File): Promise<void>;
   uploadArticleImage(file: File): Promise<CreatorArtifact>;
   uploadSourceDocument(file: File): Promise<void>;
   openArtifact(artifactId: string): Promise<Response>;
@@ -177,6 +178,7 @@ export function CreatorSessionProvider(props: {
     | 'listCourseVideoCourses'
     | 'getCourseVideoCourse'
     | 'uploadReferenceImage'
+    | 'uploadPresenterPortrait'
     | 'uploadArticleImage'
     | 'uploadSourceVideo'
     | 'uploadSourceDocument'
@@ -734,6 +736,33 @@ export function CreatorSessionProvider(props: {
     }
   }, [captureCreatorFailure, ensurePersistedJob, flush, props.service]);
 
+  const uploadPresenterPortrait = useCallback(async (file: File) => {
+    if (props.service.uploadPresenterPortrait === undefined) {
+      const cause = new Error('Presenter portrait upload transport is unavailable');
+      captureCreatorFailure('creator.upload-presenter-portrait', cause, 'Presenter portrait upload is unavailable. Try again later.', 'upload');
+      throw cause;
+    }
+    let requestRevision = confirmedRef.current.revision;
+    try {
+      await flush();
+      await ensurePersistedJob();
+      requestRevision = confirmedRef.current.revision;
+      const response = await props.service.uploadPresenterPortrait(confirmedRef.current.id, {
+        file,
+        expectedRevision: requestRevision
+      });
+      confirmedRef.current = response.job;
+      setConfirmedJob(response.job);
+      setError(null);
+    } catch (cause) {
+      if (!isSupersededRevisionConflict(cause, requestRevision, confirmedRef.current.revision)) {
+        setError(toSessionError(cause));
+        captureCreatorFailure('creator.upload-presenter-portrait', cause, 'Presenter portrait upload did not complete. Check the image and try again.', 'upload');
+      }
+      throw cause;
+    }
+  }, [captureCreatorFailure, ensurePersistedJob, flush, props.service]);
+
   const uploadArticleImage = useCallback(async (file: File): Promise<CreatorArtifact> => {
     if (props.service.uploadArticleImage === undefined) {
       const cause = new Error('Creator article image upload transport is unavailable');
@@ -1027,6 +1056,7 @@ export function CreatorSessionProvider(props: {
     cancelJob,
     resumeJob,
     uploadReferenceImage,
+    uploadPresenterPortrait,
     uploadSourceDocument,
     uploadSourceVideo,
     uploadArticleImage,
@@ -1045,7 +1075,7 @@ export function CreatorSessionProvider(props: {
     steerAgentTurn,
     interruptAgentTurn,
     respondAgentApproval
-  }), [connection, reconnect, agentBusy, agentSession, askPendingIssue, applyAction, applyRemoteSnapshot, approvals, cancelJob, captureCreatorFailure, clearError, confirmedJob, conflictedFields, draft, error, flush, focusIssue, focusedIssue, interruptAgentTurn, issues, items, listCourseVideoCourses, getCourseVideoCourse, openArtifact, openDownloadThumbnail, openArtifactJson, preflight, props.service.openSubtitlePreview, repairIssue, respondAgentApproval, resumeJob, runAgentTurn, runPreflight, steerAgentTurn, turns, updateDraft, uploadArticleImage, uploadReferenceImage, uploadSourceDocument, uploadSourceVideo]);
+  }), [connection, reconnect, agentBusy, agentSession, askPendingIssue, applyAction, applyRemoteSnapshot, approvals, cancelJob, captureCreatorFailure, clearError, confirmedJob, conflictedFields, draft, error, flush, focusIssue, focusedIssue, interruptAgentTurn, issues, items, listCourseVideoCourses, getCourseVideoCourse, openArtifact, openDownloadThumbnail, openArtifactJson, preflight, props.service.openSubtitlePreview, repairIssue, respondAgentApproval, resumeJob, runAgentTurn, runPreflight, steerAgentTurn, turns, updateDraft, uploadArticleImage, uploadPresenterPortrait, uploadReferenceImage, uploadSourceDocument, uploadSourceVideo]);
 
   return (
     <CreatorSessionContext.Provider value={value}>

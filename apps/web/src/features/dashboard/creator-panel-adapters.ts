@@ -1268,7 +1268,9 @@ function courseVideoFieldLabel(
     voice: l('旁白音色', 'Narration voice'),
     rate: l('语速', 'Speaking rate'),
     presenterEnabled: l('数字人', 'Presenter'),
-    portraitPath: l('数字人肖像', 'Presenter portrait')
+    portraitPath: l('数字人肖像', 'Presenter portrait'),
+    portraitArtifactId: l('数字人肖像', 'Presenter portrait'),
+    portraitFileName: l('数字人肖像文件', 'Presenter portrait file')
   };
   return labels[field] ?? null;
 }

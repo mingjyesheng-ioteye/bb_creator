@@ -664,6 +664,94 @@ export function createCreatorService(input: {
         };
       });
     },
+    registerPresenterPortrait(jobId: string, input: {
+      expectedRevision: number;
+      path: string;
+      fileName: string;
+      mimeType: string;
+      size: number;
+      sha256: string;
+      lastModified: number | null;
+      format: 'png' | 'jpeg' | 'webp';
+    }): { job: CreatorJob; artifact: CreatorArtifact; deduplicated: boolean } {
+      return repository.transaction(() => {
+        const current = repository.getJob(jobId);
+        if (current === undefined) {
+          throw new CreatorServiceError('creator_job_not_found', 'Creator job not found');
+        }
+        if (current.revision !== input.expectedRevision) {
+          throw new CreatorServiceError(
+            'creator_revision_conflict',
+            'Creator job revision changed',
+            current.revision
+          );
+        }
+        if (current.templateId !== 'course-video') {
+          throw new CreatorServiceError(
+            'creator_presenter_portrait_unsupported',
+            'Presenter portrait upload is only supported for course video jobs'
+          );
+        }
+        const duplicate = [...current.artifacts].reverse().find(artifact => (
+          artifact.kind === 'presenter-portrait'
+          && artifact.status === 'completed'
+          && artifact.metadata.source === 'local-upload'
+          && artifact.metadata.sha256 === input.sha256
+        ));
+        if (
+          duplicate !== undefined
+          && current.state.portraitArtifactId === duplicate.id
+        ) {
+          return { job: current, artifact: duplicate, deduplicated: true };
+        }
+        const artifact = duplicate ?? repository.insertArtifact({
+          jobId,
+          kind: 'presenter-portrait',
+          status: 'completed',
+          path: input.path,
+          sourceArtifactIds: [],
+          metadata: {
+            fileName: input.fileName,
+            mimeType: input.mimeType,
+            size: input.size,
+            bytes: input.size,
+            sha256: input.sha256,
+            lastModified: input.lastModified,
+            format: input.format,
+            source: 'local-upload'
+          }
+        });
+        const revision = current.revision + 1;
+        const template = templates.get(current.templateId, current.templateVersion);
+        repository.updateJob({
+          id: jobId,
+          status: current.status,
+          revision,
+          state: template.inputSchema.parse({
+            ...current.state,
+            portraitPath: artifact.path,
+            portraitArtifactId: artifact.id,
+            portraitFileName: input.fileName
+          }) as Record<string, CreatorJson>
+        });
+        repository.insertActivity({
+          jobId,
+          revision,
+          actor: 'user',
+          action: 'register-presenter-portrait',
+          summary: duplicate === undefined ? 'Imported presenter portrait' : 'Reused presenter portrait',
+          details: {
+            objectId: input.fileName,
+            affectedArtifactIds: [artifact.id]
+          }
+        });
+        return {
+          job: repository.getJob(jobId)!,
+          artifact,
+          deduplicated: duplicate !== undefined
+        };
+      });
+    },
     registerSourceDocument(jobId: string, input: {
       expectedRevision: number;
       path: string;

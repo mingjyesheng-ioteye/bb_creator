@@ -1,4 +1,4 @@
-import type { CreatorActionRequest, CreatorJob } from '@opencreator/protocol';
+import type { CreatorActionRequest, CreatorArtifact, CreatorJob } from '@opencreator/protocol';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '../../i18n/LanguageProvider.js';
@@ -150,6 +150,59 @@ describe('CourseVideoWorkspace', () => {
       moduleKey: 'm01',
       presenterEnabled: false
     });
+  });
+
+  it('imports a presenter portrait and shows it as selected', async () => {
+    let current = initialJob();
+    const uploadPresenterPortrait = vi.fn(async () => {
+      const artifact: CreatorArtifact = {
+        id: 'creator_artifact_portrait',
+        jobId: current.id,
+        kind: 'presenter-portrait',
+        version: 1,
+        status: 'completed',
+        path: '/home/mingj/.opencreator/creator/jobs/course_video_job/presenter-portraits/portrait.png',
+        scopeKey: null,
+        inputFingerprint: null,
+        sha256: 'a'.repeat(64),
+        sourceArtifactIds: [],
+        metadata: { fileName: 'portrait.png', mimeType: 'image/png', size: 12, bytes: 12 },
+        createdAt: '2026-10-15T09:00:00.000Z'
+      };
+      current = {
+        ...current,
+        revision: current.revision + 1,
+        artifacts: [...current.artifacts, artifact],
+        state: {
+          ...current.state,
+          portraitPath: artifact.path,
+          portraitArtifactId: artifact.id,
+          portraitFileName: 'portrait.png'
+        }
+      };
+      return { job: current, artifact, deduplicated: false };
+    });
+    const { container } = render(
+      <LanguageProvider initialPreference="zh-CN">
+        <CreatorSessionProvider
+          initialJob={current}
+          service={{ applyAction: vi.fn(), runAgentTurn: vi.fn(), uploadPresenterPortrait }}
+        >
+          <CourseVideoWorkspace onBack={vi.fn()} />
+        </CreatorSessionProvider>
+      </LanguageProvider>
+    );
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+    fireEvent.change(input!, {
+      target: { files: [new File(['portrait'], 'portrait.png', { type: 'image/png' })] }
+    });
+
+    await waitFor(() => expect(uploadPresenterPortrait).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('数字人肖像已导入')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '更换肖像' })).toBeInTheDocument();
+    expect(screen.getByText('portrait.png')).toBeInTheDocument();
   });
 });
 
