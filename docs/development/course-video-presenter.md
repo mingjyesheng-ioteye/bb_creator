@@ -50,6 +50,22 @@ OPENCREATOR_PRESENTER_PORTRAIT=/path/to/instructor.png \
 pnpm daemon:dev
 ```
 
+## SadTalker 接入（完整数字人）
+
+Wav2Lip 只改变嘴部；需要头部姿态、眨眼和表情时使用 SadTalker。包装脚本需满足 `<portrait> <audio> <out>`：
+
+```bash
+OPENCREATOR_PRESENTER_CMD="/path/to/sadtalker_wrap.sh {portrait} {audio} {out}"
+SADTALKER_DIR=/path/to/SadTalker
+SADTALKER_PY=/path/to/sadtalker-venv/bin/python
+SADTALKER_SIZE=256
+SADTALKER_PREPROCESS=full
+```
+
+- `SADTALKER_SIZE=256` 适合画中画；`512` 质量更高但明显更慢。
+- SadTalker 在 ROCm 上约每 30 秒音频需要数分钟，长 slide 会更久；可用 `presenterSlides` 限制范围。
+- 生成的数字人片段自带音频，但 `CourseLesson` 组合会对 `OffthreadVideo` 设置 `muted`，最终视频只保留旁白音轨。
+
 ## 其他后端
 
 命令接口与后端无关。SadTalker、MuseTalk、LatentSync、InfiniteTalk 等只要满足 `<portrait> <audio> <out>` 语义即可，用包装脚本适配后设置 `OPENCREATOR_PRESENTER_CMD`。
