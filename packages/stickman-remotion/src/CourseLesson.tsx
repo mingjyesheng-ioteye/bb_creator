@@ -140,7 +140,11 @@ const LessonSlideView: React.FC<{
           }}
         >
           {slide.avatarSrc ? (
-            <OffthreadVideo src={fileUrl(slide.avatarSrc)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <OffthreadVideo
+              src={fileUrl(slide.avatarSrc)}
+              muted
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           ) : presenter.portraitSrc ? (
             <Img src={fileUrl(presenter.portraitSrc)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
