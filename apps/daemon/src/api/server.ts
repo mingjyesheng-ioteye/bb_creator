@@ -1032,7 +1032,24 @@ export async function buildServer(input: BuildServerInput) {
         generateModelClip: createLocModelPresenterClipRunner({
           service: videoGenerationService,
           ...(creatorFfmpegPath === undefined ? {} : { ffmpegPath: creatorFfmpegPath })
-        })
+        }),
+        canUseModelClip: async () => {
+          try {
+            const config = await creatorServicesConfigStore.read();
+            const baseUrl = config.video.localSd.baseUrl
+              .trim()
+              .replace(/\/+$/, '')
+              .replace(/\/v1$/i, '');
+            if (!baseUrl) return false;
+            const response = await fetch(`${baseUrl}/sdcpp/v1/capabilities`, {
+              headers: { Accept: 'application/json' },
+              signal: AbortSignal.timeout(3_000)
+            });
+            return response.ok;
+          } catch {
+            return false;
+          }
+        }
       }),
       createCourseRenderExecutor({
         ffprobePath: creatorFfprobePath,

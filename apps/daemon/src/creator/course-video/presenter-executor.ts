@@ -48,6 +48,12 @@ export function createCoursePresenterExecutor(input: {
    * lip-sync, so the narration audio still comes from the lesson track.
    */
   generateModelClip?: GeneratePresenterClip;
+  /**
+   * Optional reachability probe for the model backend. `auto` only uses the
+   * video model when this resolves true, so a host without LocModel keeps
+   * rendering the static portrait instead of failing the stage.
+   */
+  canUseModelClip?(): Promise<boolean>;
   /** Max clips generated in parallel. Defaults to OPENCREATOR_PRESENTER_CONCURRENCY or a CPU-based value. */
   concurrency?: number;
 }): CreatorExecutor {
@@ -71,7 +77,12 @@ export function createCoursePresenterExecutor(input: {
       const backend = readBackend(stage.job.state.presenterBackend);
       const model = readString(stage.job.state.presenterModel);
       const prompt = readString(stage.job.state.presenterPrompt);
-      const generateClip = selectClipGenerator(backend, input.generateClip, input.generateModelClip);
+      const generateClip = await resolveClipGenerator({
+        backend,
+        commandClip: input.generateClip,
+        modelClip: input.generateModelClip,
+        canUseModelClip: input.canUseModelClip
+      });
 
       if (portraitPath && generateClip !== undefined) {
         const targets: Array<{ index: number; slideId: string; audioPath: string; durationSeconds: number }> = [];
@@ -137,7 +148,9 @@ export function createCoursePresenterExecutor(input: {
             portraitPath,
             clipCount: clips.length,
             skipped: portraitPath ? 0 : 1,
-            presenterBackend: generateClip === undefined ? 'none' : backend,
+            presenterBackend: generateClip === undefined
+              ? 'none'
+              : generateClip === input.generateModelClip ? 'locmodel' : 'command',
             ...(model ? { presenterModel: model } : {}),
             fileName: 'course-avatar.json',
             mimeType: 'application/json'
@@ -233,26 +246,39 @@ function readBackend(value: unknown): CoursePresenterBackend {
 
 /**
  * Pick the clip generator for the requested backend. `auto` prefers the
- * lip-sync command (exact mouth movement) and falls back to the video model.
- * An explicit `locmodel` without a configured service fails loudly instead of
- * silently rendering a static portrait.
+ * lip-sync command (exact mouth movement) and falls back to the video model —
+ * but only when the model server actually answers, so a course that used to
+ * render a static portrait keeps rendering instead of failing. An explicit
+ * `locmodel` that cannot be reached fails loudly.
  */
-function selectClipGenerator(
-  backend: CoursePresenterBackend,
-  commandClip: GeneratePresenterClip | undefined,
-  modelClip: GeneratePresenterClip | undefined
-): GeneratePresenterClip | undefined {
-  if (backend === 'command') return commandClip;
-  if (backend === 'locmodel') {
-    if (modelClip === undefined) {
+async function resolveClipGenerator(input: {
+  backend: CoursePresenterBackend;
+  commandClip: GeneratePresenterClip | undefined;
+  modelClip: GeneratePresenterClip | undefined;
+  canUseModelClip: (() => Promise<boolean>) | undefined;
+}): Promise<GeneratePresenterClip | undefined> {
+  if (input.backend === 'command') return input.commandClip;
+  if (input.backend === 'locmodel') {
+    if (input.modelClip === undefined) {
       throw new CreatorExecutorError(
         'course_presenter_unavailable',
         'The LocModel video presenter is not available. Start the video model in LocModel and check the local SD settings.'
       );
     }
-    return modelClip;
+    if (input.canUseModelClip !== undefined && !(await input.canUseModelClip())) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'LocModel is not reachable. Start the video model in LocModel, then retry the presenter stage.'
+      );
+    }
+    return input.modelClip;
   }
-  return commandClip ?? modelClip;
+  if (input.commandClip !== undefined) return input.commandClip;
+  if (input.modelClip === undefined) return undefined;
+  if (input.canUseModelClip !== undefined && !(await input.canUseModelClip())) {
+    return undefined;
+  }
+  return input.modelClip;
 }
 
 function readString(value: unknown): string {

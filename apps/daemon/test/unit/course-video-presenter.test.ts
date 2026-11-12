@@ -190,6 +190,50 @@ describe('course video presenter executor', () => {
     });
   });
 
+  it('keeps the static portrait in auto mode when LocModel is unreachable', async () => {
+    const { workdir, lessonPath } = setup();
+    const model = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateModelClip: model,
+      canUseModelClip: async () => false
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({}),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(model).not.toHaveBeenCalled();
+    const manifest = JSON.parse(readFileSync(result.outputs[0]!.path!, 'utf8'));
+    expect(manifest.clips).toEqual([]);
+    expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'none' });
+  });
+
+  it('fails loudly when locmodel is selected but LocModel is unreachable', async () => {
+    const { workdir, lessonPath } = setup();
+    const model = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateModelClip: model,
+      canUseModelClip: async () => false
+    });
+
+    await expect(executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'locmodel' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    })).rejects.toThrow(/LocModel is not reachable/);
+    expect(model).not.toHaveBeenCalled();
+  });
+
   it('fails loudly when locmodel is selected but no video model service is wired', async () => {
     const { workdir, lessonPath } = setup();
     const executor = createCoursePresenterExecutor({
