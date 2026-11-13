@@ -824,9 +824,9 @@ function localSdVideoDimensions(size: CreateVideoGenerationRequest['size']) {
 }
 
 /**
- * Upstream size string. Unsloth's video models have trained resolutions and
- * reject arbitrary sizes (MiniMax-H3 wants multiples of 32, e.g. 1344x768), so
- * map the UI's three presets onto something the model accepts.
+ * Upstream size string. Unsloth's video models reject arbitrary sizes; MiniMax-H3
+ * only accepts its presets (864x480 is the smallest that fits this iGPU's Vulkan
+ * memory), so map the UI's three presets onto something the model accepts.
  */
 /**
  * Upstream `seconds` string. MiniMax-H3 only accepts 124-345 frames (about 6-15
@@ -839,9 +839,11 @@ function localSdVideoSeconds(model: string, duration: number): string {
 
 function localSdVideoSize(model: string, width: number, height: number): string {
   if (/minimax/i.test(model)) {
-    if (height > width) return '768x1344';
-    if (height === width) return '1024x1024';
-    return '1344x768';
+    // MiniMax-H3 presets; 864x480 is the smallest and the only one that fits the
+    // Vulkan device memory on this iGPU reliably.
+    if (height > width) return '480x864';
+    if (height === width) return '768x768';
+    return '864x480';
   }
   const align = (value: number) => Math.max(64, Math.min(4096, Math.round(value / 32) * 32));
   return `${align(width)}x${align(height)}`;

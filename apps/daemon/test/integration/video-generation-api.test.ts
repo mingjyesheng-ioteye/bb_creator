@@ -210,7 +210,7 @@ describe('video generation API', () => {
       model: 'unsloth/MiniMax-H3-GGUF',
       prompt: 'A local cinematic city reveal',
       seconds: '6',
-      size: '1344x768'
+      size: '864x480'
     });
 
     const refreshed = await server.inject({

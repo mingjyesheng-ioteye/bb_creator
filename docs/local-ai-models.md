@@ -42,7 +42,11 @@ API Key 在 Unsloth Studio 的 **设置 → API** 里创建，与其他本机客
 注意：
 
 - Unsloth 的视频模型有训练分辨率，不接受任意尺寸。OpenCreator 会把三种画幅映射成
-  MiniMax-H3 接受的值：横屏 `1344x768`、竖屏 `768x1344`、方形 `1024x1024`。
+  MiniMax-H3 的预设：横屏 `864x480`、竖屏 `480x864`、方形 `768x768`（864x480 是
+  本机 Vulkan 显存能稳定跑的最小档）。
+- MiniMax-H3 是 14B / 21 GB 的 Q8 模型；如果 Vulkan 报 out of memory，在 Unsloth 的
+  视频页把 **Memory mode** 设为 **Low VRAM**，或换更小的量化；再不行就用 ComfyUI 的
+  Wan 2.2（视频页/OpenMontage 面板）出片。
 - 单次生成只支持 4/5/6/8/10 秒（OpenAI `seconds` 字段）；更长的镜头请分段或换 Wan/ComfyUI。
 - 生成前必须**已加载对应模型**，否则接口返回 `No model loaded`（503）。
 
