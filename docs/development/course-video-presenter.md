@@ -64,7 +64,7 @@ OPENCREATOR_PRESENTER_CMD="/path/to/sadtalker_wrap.sh {portrait} {audio} {out}"
 SADTALKER_DIR=/path/to/SadTalker
 SADTALKER_PY=/path/to/sadtalker-venv/bin/python
 SADTALKER_SIZE=256
-SADTALKER_PREPROCESS=full
+SADTALKER_PREPROCESS=crop
 ```
 
 - `SADTALKER_SIZE=256` 适合画中画；`512` 质量更高但明显更慢。
