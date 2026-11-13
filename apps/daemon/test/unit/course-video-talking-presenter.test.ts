@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,6 +30,19 @@ function jsonResponse(payload: unknown, status = 200) {
     status,
     headers: { 'Content-Type': 'application/json' }
   });
+}
+
+/** Chunking needs a real ffmpeg; skip when this host has none. */
+function resolveFfmpeg(): string | undefined {
+  for (const candidate of ['/usr/bin/ffmpeg', 'ffmpeg']) {
+    try {
+      execFileSync(candidate, ['-version'], { stdio: 'ignore' });
+      return candidate;
+    } catch {
+      // try the next candidate
+    }
+  }
+  return undefined;
 }
 
 describe('talking-head presenter', () => {
@@ -77,7 +91,8 @@ describe('talking-head presenter', () => {
 
     await expect(createTalkingHeadClipRunner({
       baseUrl: 'http://127.0.0.1:8691',
-      pollIntervalMs: 1
+      pollIntervalMs: 1,
+      retries: 0
     })({
       portraitPath,
       audioPath,
@@ -87,6 +102,39 @@ describe('talking-head presenter', () => {
       durationSeconds: 4,
       signal: new AbortController().signal
     })).rejects.toThrow(/out of memory/);
+  });
+
+  it('retries a failed GPU job once before giving up', async () => {
+    const { portraitPath, audioPath, outputPath } = setup();
+    let jobs = 0;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith('/v1/avatar')) {
+        jobs += 1;
+        return jsonResponse({ id: `job_${jobs}`, status: 'running' }, 202);
+      }
+      if (url.endsWith(`/v1/avatar/job_${jobs}/content`)) {
+        return new Response(Buffer.from('mp4-retry'), { status: 200 });
+      }
+      return jsonResponse({ id: `job_${jobs}`, status: jobs === 1 ? 'failed' : 'done', error: 'ROCm crash' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createTalkingHeadClipRunner({
+      baseUrl: 'http://127.0.0.1:8691',
+      pollIntervalMs: 1,
+      retryDelayMs: 1
+    })({
+      portraitPath,
+      audioPath,
+      outputPath,
+      slideId: 'm02:body',
+      index: 1,
+      durationSeconds: 4,
+      signal: new AbortController().signal
+    });
+
+    expect(jobs).toBe(2);
+    expect(readFileSync(outputPath).toString()).toBe('mp4-retry');
   });
 
   it('waits for the busy service instead of failing', async () => {
@@ -121,6 +169,64 @@ describe('talking-head presenter', () => {
 
     expect(starts).toBe(2);
     expect(readFileSync(outputPath).toString()).toBe('mp4-after-wait');
+  });
+
+  it('splits a long slide into parallel chunks and stitches them', async () => {
+    const ffmpeg = resolveFfmpeg();
+    if (ffmpeg === undefined) return;
+
+    tempDir = mkdtempSync(join(tmpdir(), 'talking-chunks-'));
+    const portraitPath = join(tempDir, 'portrait.png');
+    const audioPath = join(tempDir, 'narration.wav');
+    const outputPath = join(tempDir, 'avatar.mp4');
+    execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'lavfi',
+      '-i', 'color=c=blue:s=160x96:d=1', '-frames:v', '1', portraitPath]);
+    execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'lavfi',
+      '-i', 'anullsrc=r=16000:cl=mono', '-t', '24', audioPath]);
+    const chunkPath = join(tempDir, 'chunk.mp4');
+    execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'lavfi',
+      '-i', 'testsrc=s=160x96:r=16:d=6', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+      '-t', '6', chunkPath]);
+    const chunkBytes = readFileSync(chunkPath);
+
+    let jobs = 0;
+    const durations: number[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/v1/avatar')) {
+        jobs += 1;
+        durations.push(JSON.parse(String(init?.body)).duration);
+        return jsonResponse({ id: `job_${jobs}`, status: 'running' }, 202);
+      }
+      if (url.endsWith('/content')) {
+        return new Response(chunkBytes, { status: 200 });
+      }
+      return jsonResponse({ id: 'job', status: 'done' });
+    }));
+
+    await createTalkingHeadClipRunner({
+      baseUrl: 'http://127.0.0.1:8691',
+      pollIntervalMs: 1,
+      ffmpegPath: ffmpeg,
+      chunkSeconds: 6,
+      chunkTriggerSeconds: 12,
+      chunkParallel: 2
+    })({
+      portraitPath,
+      audioPath,
+      outputPath,
+      slideId: 'm03:long',
+      index: 2,
+      durationSeconds: 24,
+      signal: new AbortController().signal
+    });
+
+    expect(jobs).toBe(4);
+    expect(durations).toEqual([6, 6, 6, 6]);
+    const duration = Number(execFileSync(ffmpeg.replace(/ffmpeg$/, 'ffprobe'), [
+      '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', outputPath
+    ]).toString().trim());
+    expect(duration).toBeGreaterThan(23);
+    expect(duration).toBeLessThan(25);
   });
 
   it('reports reachability from /health', async () => {

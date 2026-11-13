@@ -1044,24 +1044,34 @@ export async function buildServer(input: BuildServerInput) {
         ...(creatorFfmpegPath === undefined ? {} : {
           generateMotionClip: createPortraitMotionClipRunner({ ffmpegPath: creatorFfmpegPath })
         }),
-        // Real lip-sync talking head on the Windows GPU (MuseTalk over HTTP).
+        // Real lip-sync talking head on the Windows GPU (SadTalker over HTTP).
+        // Long slides are chunked and stitched with the same ffmpeg.
         ...(talkingHeadUrl.length === 0 ? {} : {
-          generateTalkingClip: createTalkingHeadClipRunner({ baseUrl: talkingHeadUrl }),
+          generateTalkingClip: createTalkingHeadClipRunner({
+            baseUrl: talkingHeadUrl,
+            ...(creatorFfmpegPath === undefined ? {} : { ffmpegPath: creatorFfmpegPath })
+          }),
           canUseTalkingClip: () => talkingHeadReachable(talkingHeadUrl)
         }),
         canUseModelClip: async () => {
           try {
             const config = await creatorServicesConfigStore.read();
-            const baseUrl = config.video.localSd.baseUrl
-              .trim()
-              .replace(/\/+$/, '')
-              .replace(/\/v1$/i, '');
+            const settings = config.video.localSd;
+            const baseUrl = settings.baseUrl.trim().replace(/\/+$/, '');
             if (!baseUrl) return false;
-            const response = await fetch(`${baseUrl}/sdcpp/v1/capabilities`, {
-              headers: { Accept: 'application/json' },
+            const headers: Record<string, string> = { Accept: 'application/json' };
+            if (settings.apiKey.trim()) headers.Authorization = `Bearer ${settings.apiKey.trim()}`;
+            const endpoint = `${/\/v1$/i.test(baseUrl) ? baseUrl : `${baseUrl}/v1`}/models`;
+            const response = await fetch(endpoint, {
+              headers,
               signal: AbortSignal.timeout(3_000)
             });
-            return response.ok;
+            if (!response.ok) return false;
+            const payload = await response.json().catch(() => undefined) as {
+              data?: Array<{ id?: unknown; loaded?: unknown }>;
+            } | undefined;
+            // Unsloth answers "No model loaded" (503) until a video model is resident.
+            return Array.isArray(payload?.data) && payload.data.some(entry => entry?.loaded === true);
           } catch {
             return false;
           }

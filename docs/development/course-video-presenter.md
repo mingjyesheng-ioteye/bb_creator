@@ -101,7 +101,7 @@ venv `D:\ai\avatar\venvs\sadtalker`（复用系统 Python312 的 ROCm torch）�
 接口（**异步任务**，渲染要几分钟，不能一直占着 HTTP 连接，否则会触发
 undici 的 5 分钟 `UND_ERR_HEADERS_TIMEOUT`）：
 
-- `GET /health` → `{"ok":true,"busy":false,"engine":"sadtalker"}`
+- `GET /health` → `{"ok":true,"busy":false,"engine":"sadtalker","active":0,"concurrency":2}`
 - `POST /v1/avatar` `{portrait_b64, audio_b64, duration, fps}` → `202 {id, status}`
 - `GET /v1/avatar/{id}` → `{status: queued|running|done|failed, error?}`
 - `GET /v1/avatar/{id}/content` → `video/mp4`（完成后）
@@ -109,7 +109,16 @@ undici 的 5 分钟 `UND_ERR_HEADERS_TIMEOUT`）：
 
 `auto` 的顺序是 **GPU 数字人 → `OPENCREATOR_PRESENTER_CMD`（CPU SadTalker）→ Ken Burns 人像运动**；
 显式选择 `talkinghead` 时如果服务不可达，preflight 会直接拦下并提示启动服务。
-服务一次只跑一条片段（单 GPU 队列），daemon 也把 presenter 阶段限制为 1 路并发。
+
+### 长镜头分片
+
+一段旁白超过 12 秒时，daemon 会把它切成 **10 秒一片**，同时最多送 **2 片**
+（服务端 `AVATAR_CONCURRENCY=2`，每个任务独立加载模型），渲染完再用 ffmpeg
+`concat` 拼回一条，并裁到旁白时长。好处是墙钟时间约减半，且重试只需要重渲染失败的分片。
+
+- 服务端忙时会立即返回 `429`（不占住连接），daemon 每 20 秒重试，最多等 40 分钟；
+  课程重试或 daemon 重启撞上正在渲染的片段时会排队继续，而不是直接失败。
+- 短于 12 秒的镜头仍然一次渲染，不做分片。
 
 ## 其他后端
 
