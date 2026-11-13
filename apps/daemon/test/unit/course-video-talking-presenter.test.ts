@@ -24,16 +24,31 @@ function setup() {
   return { portraitPath, audioPath, outputPath: join(tempDir, 'avatar.mp4') };
 }
 
+function jsonResponse(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
 describe('talking-head presenter', () => {
-  it('posts the portrait and narration and stores the returned clip', async () => {
+  it('starts a job, polls it, and stores the returned clip', async () => {
     const { portraitPath, audioPath, outputPath } = setup();
-    const fetchMock = vi.fn(async () => new Response(Buffer.from('mp4-bytes'), {
-      status: 200,
-      headers: { 'Content-Type': 'video/mp4' }
-    }));
+    let polls = 0;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith('/v1/avatar')) return jsonResponse({ id: 'job_1', status: 'running' }, 202);
+      if (url.endsWith('/v1/avatar/job_1/content')) {
+        return new Response(Buffer.from('mp4-bytes'), { status: 200 });
+      }
+      polls += 1;
+      return jsonResponse({ id: 'job_1', status: polls > 1 ? 'done' : 'running' });
+    });
     vi.stubGlobal('fetch', fetchMock);
 
-    await createTalkingHeadClipRunner({ baseUrl: 'http://127.0.0.1:8691/' })({
+    await createTalkingHeadClipRunner({
+      baseUrl: 'http://127.0.0.1:8691/',
+      pollIntervalMs: 1
+    })({
       portraitPath,
       audioPath,
       outputPath,
@@ -43,17 +58,38 @@ describe('talking-head presenter', () => {
       signal: new AbortController().signal
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe('http://127.0.0.1:8691/v1/avatar');
-    const body = JSON.parse(String(init.body));
+    const start = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(start[0]).toBe('http://127.0.0.1:8691/v1/avatar');
+    const body = JSON.parse(String(start[1].body));
     expect(body.duration).toBe(12.5);
     expect(Buffer.from(body.portrait_b64, 'base64').toString()).toBe('portrait-bytes');
     expect(Buffer.from(body.audio_b64, 'base64').toString()).toBe('audio-bytes');
     expect(readFileSync(outputPath).toString()).toBe('mp4-bytes');
   });
 
-  it('surfaces a service error with its message', async () => {
+  it('surfaces a failed job with its message', async () => {
+    const { portraitPath, audioPath, outputPath } = setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith('/v1/avatar')) return jsonResponse({ id: 'job_2', status: 'running' }, 202);
+      return jsonResponse({ id: 'job_2', status: 'failed', error: 'CUDA out of memory' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(createTalkingHeadClipRunner({
+      baseUrl: 'http://127.0.0.1:8691',
+      pollIntervalMs: 1
+    })({
+      portraitPath,
+      audioPath,
+      outputPath,
+      slideId: 'm01:title',
+      index: 0,
+      durationSeconds: 4,
+      signal: new AbortController().signal
+    })).rejects.toThrow(/out of memory/);
+  });
+
+  it('reports a busy service instead of hanging', async () => {
     const { portraitPath, audioPath, outputPath } = setup();
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"error":"busy"}', { status: 429 })));
 
@@ -65,12 +101,11 @@ describe('talking-head presenter', () => {
       index: 0,
       durationSeconds: 4,
       signal: new AbortController().signal
-    })).rejects.toThrow(/HTTP 429/);
+    })).rejects.toThrow(/busy/);
   });
 
   it('reports reachability from /health', async () => {
-    const ok = vi.fn(async () => new Response('{"ok":true}', { status: 200 }));
-    vi.stubGlobal('fetch', ok);
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ ok: true })));
     expect(await talkingHeadReachable('http://127.0.0.1:8691')).toBe(true);
 
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('connect ECONNREFUSED'); }));

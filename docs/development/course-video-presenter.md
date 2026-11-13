@@ -128,10 +128,14 @@ venv `D:\ai\avatar\venvs\sadtalker`（复用系统 Python312 的 ROCm torch）�
 由计划任务 **Avatar service (SadTalker)** 在登录时启动，或手动
 `D:\ai\avatar\bin\start-avatar-service.cmd`。
 
-接口：
+接口（**异步任务**，渲染要几分钟，不能一直占着 HTTP 连接，否则会触发
+undici 的 5 分钟 `UND_ERR_HEADERS_TIMEOUT`）：
 
 - `GET /health` → `{"ok":true,"busy":false,"engine":"sadtalker"}`
-- `POST /v1/avatar` `{portrait_b64, audio_b64, duration, fps}` → `video/mp4`
+- `POST /v1/avatar` `{portrait_b64, audio_b64, duration, fps}` → `202 {id, status}`
+- `GET /v1/avatar/{id}` → `{status: queued|running|done|failed, error?}`
+- `GET /v1/avatar/{id}/content` → `video/mp4`（完成后）
+- `DELETE /v1/avatar/{id}` → 清理
 
 `auto` 的顺序是 **GPU 数字人 → `OPENCREATOR_PRESENTER_CMD`（CPU SadTalker）→ Ken Burns 人像运动**；
 显式选择 `talkinghead` 时如果服务不可达，preflight 会直接拦下并提示启动服务。
