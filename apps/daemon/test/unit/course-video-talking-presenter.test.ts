@@ -89,11 +89,27 @@ describe('talking-head presenter', () => {
     })).rejects.toThrow(/out of memory/);
   });
 
-  it('reports a busy service instead of hanging', async () => {
+  it('waits for the busy service instead of failing', async () => {
     const { portraitPath, audioPath, outputPath } = setup();
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('{"error":"busy"}', { status: 429 })));
+    let starts = 0;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith('/v1/avatar')) {
+        starts += 1;
+        if (starts === 1) return new Response('{"error":"busy"}', { status: 429 });
+        return jsonResponse({ id: 'job_3', status: 'running' }, 202);
+      }
+      if (url.endsWith('/v1/avatar/job_3/content')) {
+        return new Response(Buffer.from('mp4-after-wait'), { status: 200 });
+      }
+      return jsonResponse({ id: 'job_3', status: 'done' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
-    await expect(createTalkingHeadClipRunner({ baseUrl: 'http://127.0.0.1:8691' })({
+    await createTalkingHeadClipRunner({
+      baseUrl: 'http://127.0.0.1:8691',
+      pollIntervalMs: 1,
+      busyRetryMs: 1
+    })({
       portraitPath,
       audioPath,
       outputPath,
@@ -101,7 +117,10 @@ describe('talking-head presenter', () => {
       index: 0,
       durationSeconds: 4,
       signal: new AbortController().signal
-    })).rejects.toThrow(/busy/);
+    });
+
+    expect(starts).toBe(2);
+    expect(readFileSync(outputPath).toString()).toBe('mp4-after-wait');
   });
 
   it('reports reachability from /health', async () => {

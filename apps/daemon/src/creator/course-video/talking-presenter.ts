@@ -4,6 +4,9 @@ import type { GeneratePresenterClip } from './presenter-executor.js';
 
 const DEFAULT_TIMEOUT_MS = 60 * 60_000;
 const POLL_INTERVAL_MS = 3_000;
+/** How long one clip may wait for the single-GPU queue before failing. */
+const BUSY_WAIT_MS = 40 * 60_000;
+const BUSY_RETRY_MS = 20_000;
 
 type JobStatus = { id: string; status: 'running' | 'done' | 'failed'; error?: string };
 
@@ -21,6 +24,8 @@ export function createTalkingHeadClipRunner(input: {
   baseUrl: string;
   timeoutMs?: number;
   pollIntervalMs?: number;
+  /** Retry interval when the service reports 429 (tests use 1 ms). */
+  busyRetryMs?: number;
 }): GeneratePresenterClip {
   const base = input.baseUrl.trim().replace(/\/+$/, '');
   const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -31,22 +36,32 @@ export function createTalkingHeadClipRunner(input: {
       readFile(request.portraitPath),
       readFile(request.audioPath)
     ]);
-    const started = await fetch(`${base}/v1/avatar`, {
+    const body = JSON.stringify({
+      portrait_b64: portrait.toString('base64'),
+      audio_b64: audio.toString('base64'),
+      duration: request.durationSeconds > 0.5 ? request.durationSeconds : 4,
+      fps: 25
+    });
+    const startJob = () => fetch(`${base}/v1/avatar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        portrait_b64: portrait.toString('base64'),
-        audio_b64: audio.toString('base64'),
-        duration: request.durationSeconds > 0.5 ? request.durationSeconds : 4,
-        fps: 25
-      }),
+      body,
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(60_000)])
     });
-    if (started.status === 429) {
-      throw new CreatorExecutorError(
-        'course_presenter_failed',
-        'The talking-head service is busy with another clip; retry the presenter stage.'
-      );
+    // The service runs one clip at a time. A course retry (or a daemon restart)
+    // can land while the previous slide is still rendering — wait for the GPU
+    // instead of failing the stage. Slides can take 20+ minutes.
+    let started = await startJob();
+    const busyUntil = Date.now() + BUSY_WAIT_MS;
+    while (started.status === 429) {
+      if (Date.now() > busyUntil) {
+        throw new CreatorExecutorError(
+          'course_presenter_failed',
+          'The talking-head service stayed busy for 40 minutes; check it on the GPU host.'
+        );
+      }
+      await delay(input.busyRetryMs ?? BUSY_RETRY_MS, request.signal);
+      started = await startJob();
     }
     if (!started.ok) {
       const detail = await started.text().catch(() => '');
