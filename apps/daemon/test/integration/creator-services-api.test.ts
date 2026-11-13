@@ -235,53 +235,43 @@ describe('creator services API', () => {
     expect(store.write).not.toHaveBeenCalled();
   });
 
-  it('detects the loaded LocModel model and lists downloaded models', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'locmodel-detect-'));
-    try {
-      const modelDir = join(root, 'image', 'qwen-image-2.1');
-      await mkdir(modelDir, { recursive: true });
-      await writeFile(join(modelDir, 'qwen_image_2.1-Q8_0.gguf'), 'model');
-      const settings = join(root, 'settings.json');
-      await writeFile(settings, JSON.stringify({ models_dir: root }));
-      process.env.LOCMODEL_SETTINGS_FILE = settings;
-
-      const endpoint = createServer((_request, response) => {
-        response.setHeader('Content-Type', 'application/json');
+  it('detects the loaded Unsloth model and lists image/video models', async () => {
+    const endpoint = createServer((request, response) => {
+      response.setHeader('Content-Type', 'application/json');
+      if (request.url?.startsWith('/v1/models')) {
         response.end(JSON.stringify({
-          model: {
-            name: 'Qwen-Image 2.1 Q8_0',
-            stem: 'qwen_image_2.1-Q8_0',
-            path: 'D:\\AI-Models\\image\\qwen-image-2.1\\qwen_image_2.1-Q8_0.gguf'
-          },
-          current_mode: 'img_gen',
-          supported_modes: ['img_gen']
-        }));
-      });
-      await new Promise<void>(resolve => endpoint.listen(0, '127.0.0.1', resolve));
-      try {
-        const address = endpoint.address();
-        if (address === null || typeof address === 'string') throw new Error('Missing endpoint address');
-        const response = await server.inject({
-          method: 'POST',
-          url: '/creator-services/local-engine/detect',
-          payload: { baseUrl: `http://127.0.0.1:${address.port}` }
-        });
-        expect(response.statusCode).toBe(200);
-        expect(response.json()).toMatchObject({
-          connected: true,
-          engine: 'sd-server',
-          currentMode: 'img_gen',
-          loadedModel: { name: 'Qwen-Image 2.1 Q8_0' },
-          downloadedModels: [
-            expect.objectContaining({ name: 'Qwen-Image 2.1 Q8_0', kind: 'image' })
+          object: 'list',
+          data: [
+            { id: 'unsloth/Qwen3.8-27B-GGUF', display_name: 'Qwen3.8 27B', loaded: true },
+            { id: 'unsloth/Qwen-Image-2.1-Turbo-GGUF', display_name: 'Qwen-Image 2.1 Turbo', quant: 'Q8_0' }
           ]
-        });
-      } finally {
-        endpoint.close();
+        }));
+        return;
       }
+      response.statusCode = 404;
+      response.end('{}');
+    });
+    await new Promise<void>(resolve => endpoint.listen(0, '127.0.0.1', resolve));
+    try {
+      const address = endpoint.address();
+      if (address === null || typeof address === 'string') throw new Error('Missing endpoint address');
+      const response = await server.inject({
+        method: 'POST',
+        url: '/creator-services/local-engine/detect',
+        payload: { baseUrl: `http://127.0.0.1:${address.port}`, apiKey: 'sk-test' }
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        connected: true,
+        engine: 'unsloth',
+        baseUrl: `http://127.0.0.1:${address.port}/v1`,
+        loadedModel: { name: 'Qwen3.8 27B' },
+        downloadedModels: [
+          expect.objectContaining({ id: 'unsloth/Qwen-Image-2.1-Turbo-GGUF', kind: 'image' })
+        ]
+      });
     } finally {
-      delete process.env.LOCMODEL_SETTINGS_FILE;
-      await rm(root, { recursive: true, force: true });
+      endpoint.close();
     }
   });
 

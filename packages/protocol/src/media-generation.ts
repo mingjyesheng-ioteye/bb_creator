@@ -86,7 +86,7 @@ export const videoGenerationModelIds = {
   ],
   kling: ['kling-v2-1-master'],
   veo: ['veo-3.1-generate-preview'],
-  'local-sd': ['sd-cpp-local']
+  'local-sd': ['unsloth/MiniMax-H3-GGUF']
 } as const;
 
 export const defaultVideoGenerationModels = {

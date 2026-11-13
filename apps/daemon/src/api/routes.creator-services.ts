@@ -19,7 +19,7 @@ import {
   type CreatorServicesConfigStore
 } from '../creator-services/config-store.js';
 import { createKrillinCreatorServicesCapabilities } from '../creator/krillin/capabilities.js';
-import { readLocModelDownloadedModels } from '../creator-services/local-engine-catalog.js';
+import { normalizeBaseUrl, readLocalEngineModels } from '../creator-services/local-engine-catalog.js';
 import {
   KrillinTtsServiceError,
   type KrillinTtsService
@@ -243,62 +243,54 @@ export async function registerCreatorServicesRoutes(
       return reply.code(400).send(apiError('VALIDATION_FAILED', 'Base URL must be a valid HTTP or HTTPS URL'));
     }
     const apiKey = typeof body?.apiKey === 'string' ? body.apiKey : '';
-    const downloadedModels = await readLocModelDownloadedModels();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5_000);
+    const modelsBaseUrl = normalizeBaseUrl(baseUrl);
     try {
-      const response = await fetch(`${baseUrl}/sdcpp/v1/capabilities`, {
+      const response = await fetch(`${modelsBaseUrl}/models`, {
         headers: { Accept: 'application/json', ...creatorTextModelHeaders(apiKey) },
-        signal: controller.signal
+        signal: AbortSignal.timeout(5_000)
       });
       if (!response.ok) {
         const result: CreatorLocalEngineDetectionResponse = {
           connected: false,
-          baseUrl,
-          engine: 'sd-server',
-          downloadedModels,
-          error: `Local SD engine returned HTTP ${response.status}`
+          baseUrl: modelsBaseUrl,
+          engine: 'unsloth',
+          downloadedModels: [],
+          error: `Unsloth returned HTTP ${response.status}`
         };
         return result;
       }
       const payload = await response.json().catch(() => undefined) as {
-        model?: { name?: unknown; stem?: unknown; path?: unknown };
-        current_mode?: unknown;
-        supported_modes?: unknown;
+        data?: Array<{ id?: unknown; display_name?: unknown; loaded?: unknown; quant?: unknown }>;
       } | undefined;
-      const model = payload?.model;
-      const loadedModel = model === undefined
+      const entries = Array.isArray(payload?.data) ? payload.data : [];
+      const loaded = entries.find(entry => entry?.loaded === true && typeof entry.id === 'string');
+      const loadedModel = loaded === undefined
         ? undefined
         : {
-            name: typeof model.name === 'string' ? model.name : typeof model.stem === 'string' ? model.stem : '',
-            ...(typeof model.stem === 'string' ? { stem: model.stem } : {}),
-            ...(typeof model.path === 'string' ? { path: model.path } : {})
+            name: typeof loaded.display_name === 'string' && loaded.display_name.trim()
+              ? loaded.display_name.trim()
+              : String(loaded.id),
+            ...(typeof loaded.id === 'string' ? { stem: loaded.id } : {})
           };
       const result: CreatorLocalEngineDetectionResponse = {
         connected: true,
-        baseUrl,
-        engine: 'sd-server',
-        ...(typeof payload?.current_mode === 'string' ? { currentMode: payload.current_mode } : {}),
-        ...(Array.isArray(payload?.supported_modes)
-          ? { supportedModes: payload.supported_modes.filter((value): value is string => typeof value === 'string') }
-          : {}),
-        ...(loadedModel === undefined || loadedModel.name.length === 0 ? {} : { loadedModel }),
-        downloadedModels
+        baseUrl: modelsBaseUrl,
+        engine: 'unsloth',
+        ...(loadedModel === undefined ? {} : { loadedModel }),
+        downloadedModels: await readLocalEngineModels({ baseUrl: modelsBaseUrl, apiKey })
       };
       return result;
     } catch (error) {
       const result: CreatorLocalEngineDetectionResponse = {
         connected: false,
-        baseUrl,
-        engine: 'sd-server',
-        downloadedModels,
-        error: error instanceof Error && error.name === 'AbortError'
-          ? 'The local SD engine did not respond in time'
-          : 'Could not reach the local SD engine'
+        baseUrl: modelsBaseUrl,
+        engine: 'unsloth',
+        downloadedModels: [],
+        error: error instanceof Error && error.name === 'TimeoutError'
+          ? 'Unsloth did not respond in time'
+          : 'Could not reach Unsloth Studio'
       };
       return result;
-    } finally {
-      clearTimeout(timer);
     }
   });
 

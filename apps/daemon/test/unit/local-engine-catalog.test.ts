@@ -1,47 +1,55 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { readLocModelDownloadedModels } from '../../src/creator-services/local-engine-catalog.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  normalizeBaseUrl,
+  readLocalEngineModels
+} from '../../src/creator-services/local-engine-catalog.js';
 
-describe('LocModel local engine catalog', () => {
-  let root: string | undefined;
+function jsonResponse(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
 
-  afterEach(async () => {
-    if (root !== undefined) await rm(root, { recursive: true, force: true });
-    delete process.env.LOCMODEL_SETTINGS_FILE;
+describe('Unsloth local engine catalog', () => {
+  it('lists image and video models and ignores chat models', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      object: 'list',
+      data: [
+        { id: 'unsloth/Qwen3.8-27B-GGUF', display_name: 'Qwen3.8 27B', loaded: true },
+        { id: 'unsloth/Qwen-Image-2.1-Turbo-GGUF', display_name: 'Qwen-Image 2.1 Turbo', quant: 'Q8_0' },
+        { id: 'unsloth/MiniMax-H3-GGUF', display_name: 'MiniMax H3' }
+      ]
+    }));
+
+    const models = await readLocalEngineModels({
+      baseUrl: 'http://127.0.0.1:8888',
+      apiKey: 'sk-test',
+      fetchImpl: fetchMock as never
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8888/v1/models',
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer sk-test' }) })
+    );
+    expect(models).toEqual([
+      expect.objectContaining({ id: 'unsloth/MiniMax-H3-GGUF', kind: 'video' }),
+      expect.objectContaining({ id: 'unsloth/Qwen-Image-2.1-Turbo-GGUF', kind: 'image', quantization: 'Q8_0' })
+    ]);
   });
 
-  it('lists downloaded image and video models and filters components', async () => {
-    root = await mkdtemp(join(tmpdir(), 'locmodel-catalog-'));
-    const imageDir = join(root, 'image');
-    const videoDir = join(root, 'video');
-    await mkdir(join(imageDir, 'qwen-image-2.1'), { recursive: true });
-    await mkdir(join(imageDir, 'wan2.2-ti2v-5b'), { recursive: true });
-    await mkdir(join(imageDir, 'minimax-h3'), { recursive: true });
-    await mkdir(join(imageDir, 'common'), { recursive: true });
-    await mkdir(join(videoDir, 'hunyuan-video'), { recursive: true });
-    await writeFile(join(imageDir, 'qwen-image-2.1', 'qwen_image_2.1-Q8_0.gguf'), 'image');
-    await writeFile(join(imageDir, 'wan2.2-ti2v-5b', 'Wan2.2-TI2V-5B-Q8_0.gguf'), 'video');
-    await writeFile(join(imageDir, 'minimax-h3', 'minimax_h3_fl2va_hyperflow_flash_14b-Q8_0.gguf'), 'video');
-    await writeFile(join(videoDir, 'hunyuan-video', 'hunyuan_video-Q8_0.gguf'), 'video');
-    await writeFile(join(imageDir, 'common', 'qwen_image_2.1_vae_bf16.safetensors'), 'vae');
-    await writeFile(join(imageDir, 'common', 'Qwen3VL-8B-Instruct-Q4_K_M.gguf'), 'encoder');
-    const settings = join(root, 'settings.json');
-    await writeFile(settings, JSON.stringify({ models_dir: root }));
-    process.env.LOCMODEL_SETTINGS_FILE = settings;
+  it('returns an empty list when Unsloth is unreachable', async () => {
+    const models = await readLocalEngineModels({
+      baseUrl: 'http://127.0.0.1:8888/v1',
+      apiKey: '',
+      fetchImpl: vi.fn(async () => { throw new Error('ECONNREFUSED'); }) as never
+    });
+    expect(models).toEqual([]);
+  });
 
-    const models = await readLocModelDownloadedModels();
-
-    expect(models.map(model => model.name)).toEqual([
-      'Hunyuan Video Q8_0',
-      'MiniMax H3 Q8_0',
-      'Qwen-Image 2.1 Q8_0',
-      'Wan2.2 TI2V 5B Q8_0'
-    ]);
-    expect(models[0]).toMatchObject({ kind: 'video', quantization: 'Q8_0' });
-    expect(models[1]).toMatchObject({ kind: 'video', quantization: 'Q8_0' });
-    expect(models[2]).toMatchObject({ kind: 'image', quantization: 'Q8_0' });
-    expect(models[3]).toMatchObject({ kind: 'video', quantization: 'Q8_0' });
+  it('accepts base URLs with or without /v1', () => {
+    expect(normalizeBaseUrl('http://127.0.0.1:8888')).toBe('http://127.0.0.1:8888/v1');
+    expect(normalizeBaseUrl('http://127.0.0.1:8888/v1/')).toBe('http://127.0.0.1:8888/v1');
+    expect(normalizeBaseUrl('  ')).toBe('');
   });
 });

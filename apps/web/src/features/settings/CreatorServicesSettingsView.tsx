@@ -1150,7 +1150,7 @@ function ImageSettings(props: SettingsGroupProps & {
         value={provider}
         options={[
           ['codex-native', l('本机 Codex 生图', 'Local Codex image generation')],
-          ['local-sd', l('本地 SD（stable-diffusion.cpp）', 'Local SD (stable-diffusion.cpp)')],
+          ['local-sd', l('Unsloth Studio（本地）', 'Unsloth Studio (local)')],
           ['openai', 'GPT Image'],
           ['jimeng', l('即梦', 'Jimeng')],
           ['kling', l('可灵', 'Kling')],
@@ -1175,9 +1175,9 @@ function ImageSettings(props: SettingsGroupProps & {
       {provider === 'jimeng' ? <OpenAiFields id="image-jimeng" credential="image.jimeng.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.image.jimeng} modelPlaceholder="doubao-seedream-4-0-250828" modelSuggestions={creatorProviderOfKind('image', 'jimeng')?.models.map(model => model.id)} baseUrlPlaceholder="https://ark.cn-beijing.volces.com/api/v3" onChange={value => props.update(config => { config.image.jimeng = value; })} /> : null}
       {provider === 'kling' ? <KlingFields id="image-kling" accessKeyCredential="image.kling.accessKey" secretKeyCredential="image.kling.secretKey" configuredCredentials={props.configuredCredentials} value={props.config.image.kling} modelPlaceholder="kling-v2-1" modelSuggestions={creatorProviderOfKind('image', 'kling')?.models.map(model => model.id)} onChange={value => props.update(config => { config.image.kling = value; })} /> : null}
       {provider === 'gemini' ? <OpenAiFields id="image-gemini" credential="image.gemini.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.image.gemini} modelPlaceholder="gemini-2.5-flash-image" modelSuggestions={creatorProviderOfKind('image', 'gemini')?.models.map(model => model.id)} baseUrlPlaceholder="https://generativelanguage.googleapis.com/v1beta" onChange={value => props.update(config => { config.image.gemini = value; })} /> : null}
-      {provider === 'local-sd' ? <OpenAiFields id="image-local-sd" credential="image.localSd.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.image.localSd} modelPlaceholder="sd-cpp-local" modelSuggestions={localSdModels.length > 0 ? localSdModels : creatorProviderOfKind('image', 'local-sd')?.models.map(model => model.id)} baseUrlPlaceholder="http://127.0.0.1:8686" hideApiKey onChange={value => props.update(config => { config.image.localSd = value; })} /> : null}
+      {provider === 'local-sd' ? <OpenAiFields id="image-local-sd" credential="image.localSd.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.image.localSd} modelPlaceholder="unsloth/Qwen-Image-2.1-Turbo-GGUF" modelSuggestions={localSdModels.length > 0 ? localSdModels : creatorProviderOfKind('image', 'local-sd')?.models.map(model => model.id)} baseUrlPlaceholder="http://127.0.0.1:8888/v1" hideApiKey onChange={value => props.update(config => { config.image.localSd = value; })} /> : null}
       {provider === 'local-sd' ? <LocalSdModelDetector kind="image" service={props.service} baseUrl={props.config.image.localSd.baseUrl} apiKey={props.config.image.localSd.apiKey} onDetected={(models, loadedModel) => { setLocalSdModels(models); const next = loadedModel ?? (models.includes(props.config.image.localSd.model) ? undefined : models[0]); if (next !== undefined) props.update(config => { config.image.localSd.model = next; }); }} /> : null}
-      {provider === 'local-sd' ? <p className="creator-services-inline-note is-wide">{l('请先在 LocModel 中启动图片模型。LocModel 可能复用 8686 端口并停止 LLM，生成完成后再切回聊天模式。', 'Start the image model in LocModel first. LocModel may reuse port 8686 and stop the LLM; switch back to chat mode after generating.')}</p> : null}
+      {provider === 'local-sd' ? <p className="creator-services-inline-note is-wide">{l('请先在 Unsloth Studio 中加载图片模型（或在设置 → API 开启模型自动切换）。', 'Load the image model in Unsloth Studio first (or enable Model auto-switch under Settings → API).')}</p> : null}
     </SettingsFieldset>
   );
 }
@@ -1202,7 +1202,7 @@ function VideoSettings(props: SettingsGroupProps) {
           ['seedance', 'Seedance'],
           ['kling', l('可灵', 'Kling')],
           ['veo', 'Veo'],
-          ['local-sd', l('本地 SD（stable-diffusion.cpp）', 'Local SD (stable-diffusion.cpp)')]
+          ['local-sd', l('Unsloth Studio（本地）', 'Unsloth Studio (local)')]
         ]}
         onChange={value => props.update(config => {
           const nextProvider = value as CreatorServicesConfig['video']['provider'];
@@ -1217,9 +1217,9 @@ function VideoSettings(props: SettingsGroupProps) {
       {provider === 'seedance' ? <OpenAiFields id="video-seedance" credential="video.seedance.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.video.seedance} modelLabel={l('默认模型', 'Default model')} modelPlaceholder={defaultVideoGenerationModels.seedance} modelSuggestions={videoGenerationModelIds.seedance} baseUrlPlaceholder="https://ark.cn-beijing.volces.com/api/v3" onChange={value => props.update(config => { config.video.seedance = value; })} /> : null}
       {provider === 'kling' ? <KlingFields id="video-kling" accessKeyCredential="video.kling.accessKey" secretKeyCredential="video.kling.secretKey" configuredCredentials={props.configuredCredentials} value={props.config.video.kling} modelLabel={l('默认模型', 'Default model')} modelPlaceholder={defaultVideoGenerationModels.kling} modelSuggestions={creatorProviderOfKind('video', 'kling-video')?.models.map(model => model.id)} onChange={value => props.update(config => { config.video.kling = value; })} /> : null}
       {provider === 'veo' ? <OpenAiFields id="video-veo" credential="video.veo.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.video.veo} modelLabel={l('默认模型', 'Default model')} modelPlaceholder={defaultVideoGenerationModels.veo} modelSuggestions={videoGenerationModelIds.veo} baseUrlPlaceholder="https://generativelanguage.googleapis.com/v1beta" onChange={value => props.update(config => { config.video.veo = value; })} /> : null}
-      {provider === 'local-sd' ? <OpenAiFields id="video-local-sd" credential="video.localSd.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.video.localSd} modelLabel={l('默认模型', 'Default model')} modelPlaceholder={defaultVideoGenerationModels['local-sd']} modelSuggestions={localSdModels.length > 0 ? localSdModels : videoGenerationModelIds['local-sd']} baseUrlPlaceholder="http://127.0.0.1:8686" hideApiKey onChange={value => props.update(config => { config.video.localSd = value; })} /> : null}
+      {provider === 'local-sd' ? <OpenAiFields id="video-local-sd" credential="video.localSd.apiKey" configuredCredentials={props.configuredCredentials} value={props.config.video.localSd} modelLabel={l('默认模型', 'Default model')} modelPlaceholder={defaultVideoGenerationModels['local-sd']} modelSuggestions={localSdModels.length > 0 ? localSdModels : videoGenerationModelIds['local-sd']} baseUrlPlaceholder="http://127.0.0.1:8888/v1" hideApiKey onChange={value => props.update(config => { config.video.localSd = value; })} /> : null}
       {provider === 'local-sd' ? <LocalSdModelDetector kind="video" service={props.service ?? null} baseUrl={props.config.video.localSd.baseUrl} apiKey={props.config.video.localSd.apiKey} onDetected={(models, loadedModel) => { setLocalSdModels(models); const next = loadedModel ?? (models.includes(props.config.video.localSd.model) ? undefined : models[0]); if (next !== undefined) props.update(config => { config.video.localSd.model = next; }); }} /> : null}
-      {provider === 'local-sd' ? <p className="creator-services-inline-note is-wide">{l('请先在 LocModel 中启动视频模型。LocModel 可能复用 8686 端口并停止 LLM，生成完成后再切回聊天模式。', 'Start the video model in LocModel first. LocModel may reuse port 8686 and stop the LLM; switch back to chat mode after generating.')}</p> : null}
+      {provider === 'local-sd' ? <p className="creator-services-inline-note is-wide">{l('请先在 Unsloth Studio 中加载视频模型（或在设置 → API 开启模型自动切换）。', 'Load the video model in Unsloth Studio first (or enable Model auto-switch under Settings → API).')}</p> : null}
     </SettingsFieldset>
   );
 }

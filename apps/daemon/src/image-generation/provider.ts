@@ -344,7 +344,8 @@ async function generateLocalSdImages(
       prompt: request.prompt.trim(),
       size: request.size,
       n: request.count,
-      output_format: 'png'
+      // Unsloth Studio implements OpenAI images; b64 avoids a second download.
+      response_format: 'b64_json'
     }),
     proxy: config.proxy.trim(),
     signal,
@@ -352,7 +353,7 @@ async function generateLocalSdImages(
     fetchImpl
   });
   if (!response.ok) {
-    const failure = await creatorServiceErrorInfo(response, 'Local SD image', request.provider);
+    const failure = await creatorServiceErrorInfo(response, 'Local image', request.provider);
     throw new ImageGenerationProviderError(
       'upstream_error',
       failure.message,

@@ -63,7 +63,7 @@ const providers: Array<{ value: VideoGenerationProvider; zh: string; en: string 
   { value: 'seedance', zh: 'Seedance', en: 'Seedance' },
   { value: 'kling', zh: '可灵', en: 'Kling' },
   { value: 'veo', zh: 'Veo', en: 'Veo' },
-  { value: 'local-sd', zh: '本地 SD', en: 'Local SD' }
+  { value: 'local-sd', zh: '本地 Unsloth', en: 'Local Unsloth' }
 ];
 
 const providerDurations: Record<VideoGenerationProvider, VideoGenerationDuration[]> = {

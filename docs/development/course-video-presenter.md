@@ -71,41 +71,11 @@ SADTALKER_PREPROCESS=crop
 - SadTalker 在 ROCm 上约每 30 秒音频需要数分钟，长 slide 会更久；可用 `presenterSlides` 限制范围。
 - 生成的数字人片段自带音频，但 `CourseLesson` 组合会对 `OffthreadVideo` 设置 `muted`，最终视频只保留旁白音轨。
 
-## LocModel 视频模型接入（本机 GPU）
+## LocModel 视频模型（已移除）
 
-Creator 自带的本地视频生成走 **LocModel**（stable-diffusion.cpp 的 `/sdcpp/v1/vid_gen`），
-课程视频可以直接复用它来生成数字人片段：
-
-1. 在 LocModel 里下载并**启动**一个视频模型（如 Wan 2.2 TI2V 5B）；
-2. 在 Creator「设置 → 模型服务 → 视频 → 本地 SD」确认地址（默认 `http://127.0.0.1:8686`）与默认模型；
-3. 课程视频表单里把「数字人引擎」设为 **LocModel 视频模型**，可选择具体模型、填写动作描述，然后生成。
-
-行为：
-
-- `presenter` 阶段对每个 slide 用**导入的肖像**做 image-to-video（i2v），模型产生头部动作、
-  眨眼和手势；有 `presenterSlides` 时只生成指定 slide；
-- 模型单次只接受 4/5/6/8/10 秒，Daemon 会把片段用 ffmpeg `-stream_loop` **循环到与 slide 等长**
-  并转成 mp4（`-an`，音频由课程旁白音轨提供）；
-- **不做口型同步**：LocModel 视频模型不读取旁白音频，嘴型与台词不会严格对齐。需要口型时用
-  `presenterBackend=command`（`OPENCREATOR_PRESENTER_CMD`，SadTalker/MuseTalk/Wav2Lip）；
-- `auto`（默认）优先用已配置的口型同步命令，没有命令时用视频模型；
-- 显式选择 `locmodel` 但 Daemon 没有视频服务时，`presenter` 阶段会报错
-  `course_presenter_unavailable`，而不是静默退回静态头像；
-- 产物 `course-avatar.json` 的 metadata 里记录 `presenterBackend` 与 `presenterModel`，便于排查。
-
-注意：LocModel 的 `/sdcpp/v1/vid_gen` 始终使用**当前已加载**的模型，`presenterModel` 只作为
-选择与记录依据；切换模型要在 LocModel 里操作。
-
-性能（本机 gfx1151 / Vulkan，Wan 2.2 TI2V-5B Q8，实测）：
-
-| 设置 | 结果 |
-| --- | --- |
-| 1280x720、64 帧、20 步 | 采样约 12 分钟，VAE 解码又超过 9 分钟仍未结束（**>20 分钟/4 秒**） |
-| 320x192、17 帧、4 步 | **12 秒**（同一模型，i2v 正常） |
-
-也就是说 720p 的课程数字人一条就要 20 分钟上下，一个 7 slide 的模块要几小时——不实用。
-如果要用视频模型，建议只给重点 slide（`presenterSlides`）或在 LocModel 里换更低分辨率/更少步数；
-平时用 `command` 或默认的 Ken Burns 人像运动。生成 4/5/6/8/10 秒的片段后，Daemon 会循环到 slide 所需长度。
+LocModel 已于 2026-11-13 卸载，`presenterBackend=locmodel` 仅作为旧任务的兼容值保留，
+选它会在 preflight 阶段被拦下。课程数字人现在用 Windows 上的 SadTalker 服务
+（见下一节）；偶尔需要「不口型同步的运动画面」时用默认的 Ken Burns 运动。
 
 ### 没有 GPU 后端时的人像运动（Ken Burns）
 

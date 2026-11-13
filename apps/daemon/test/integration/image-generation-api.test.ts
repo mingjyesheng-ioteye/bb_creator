@@ -126,10 +126,12 @@ describe('image generation API', () => {
       .toEqual(['0.png', 'result.json']);
   });
 
-  it('generates images through a keyless local stable-diffusion.cpp endpoint', async () => {
+  it('generates images through the local Unsloth OpenAI-compatible endpoint', async () => {
     const config = createDefaultCreatorServicesConfig();
     config.image.provider = 'local-sd';
-    config.image.localSd.baseUrl = 'http://127.0.0.1:8686';
+    config.image.localSd.baseUrl = 'http://127.0.0.1:8888/v1';
+    config.image.localSd.model = 'unsloth/Qwen-Image-2.1-Turbo-GGUF';
+    config.image.localSd.apiKey = 'sk-test';
     const image = Buffer.concat([
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
       Buffer.from('local-sd-image')
@@ -153,19 +155,19 @@ describe('image generation API', () => {
     expect(generated.statusCode).toBe(201);
     expect(generated.json().result).toMatchObject({
       provider: 'local-sd',
-      model: 'sd-cpp-local',
+      model: 'unsloth/Qwen-Image-2.1-Turbo-GGUF',
       images: [{ mime: 'image/png', size: image.length }]
     });
     expect(String(fetchImpl.mock.calls[0]?.[0]))
-      .toBe('http://127.0.0.1:8686/v1/images/generations');
+      .toBe('http://127.0.0.1:8888/v1/images/generations');
     expect((fetchImpl.mock.calls[0]?.[1]?.headers as Record<string, string>).Authorization)
-      .toBeUndefined();
+      .toBe('Bearer sk-test');
     expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
-      model: 'sd-cpp-local',
+      model: 'unsloth/Qwen-Image-2.1-Turbo-GGUF',
       prompt: 'A local studio portrait',
       size: '1024x1024',
       n: 1,
-      output_format: 'png'
+      response_format: 'b64_json'
     });
   });
 

@@ -269,6 +269,7 @@ import { registerCreatorRoutes } from './routes.creator.js';
 import { registerCreatorRuntimeRoutes } from './routes.creator-runtime.js';
 import { registerDiagnosticsRoutes } from './routes.diagnostics.js';
 import { registerImageGenerationRoutes } from './routes.image-generation.js';
+import { registerVideoGenerationRoutes } from './routes.video-generation.js';
 import { registerMcpRoutes } from './routes.mcp.js';
 import { registerMemoryRoutes } from './routes.memory.js';
 import { registerNotificationRoutes } from './routes.notifications.js';
@@ -1699,6 +1700,7 @@ export async function buildServer(input: BuildServerInput) {
     readConfig: () => creatorServicesConfigStore.read()
   });
   await registerImageGenerationRoutes(server, imageGenerationService);
+  await registerVideoGenerationRoutes(server, videoGenerationService);
   await registerCreatorRoutes(server, creatorService, creatorEvents, {
     sseHeartbeatMs: input.sseHeartbeatMs,
     jobsRoot: creatorJobsRoot,

@@ -65,7 +65,8 @@ export type CreatorLocalModelInfo = {
 export type CreatorLocalEngineDetectionResponse = {
   connected: boolean;
   baseUrl: string;
-  engine: 'sd-server';
+  /** `unsloth` is the current local engine; `sd-server` is kept for old clients. */
+  engine: 'unsloth' | 'sd-server';
   currentMode?: string;
   supportedModes?: string[];
   loadedModel?: {
@@ -420,10 +421,11 @@ export function createDefaultCreatorServicesConfig(): CreatorServicesConfig {
         apiKey: '',
         model: 'gemini-2.5-flash-image'
       },
+      // Unsloth Studio's OpenAI-compatible image API (LocModel was removed).
       localSd: {
-        baseUrl: 'http://127.0.0.1:8686',
+        baseUrl: 'http://127.0.0.1:8888/v1',
         apiKey: '',
-        model: 'sd-cpp-local'
+        model: 'unsloth/Qwen-Image-2.1-Turbo-GGUF'
       },
       codexNative: {}
     },
@@ -445,8 +447,9 @@ export function createDefaultCreatorServicesConfig(): CreatorServicesConfig {
         apiKey: '',
         model: defaultVideoGenerationModels.veo
       },
+      // Unsloth Studio's OpenAI-compatible video API (LocModel was removed).
       localSd: {
-        baseUrl: 'http://127.0.0.1:8686',
+        baseUrl: 'http://127.0.0.1:8888/v1',
         apiKey: '',
         model: defaultVideoGenerationModels['local-sd']
       }

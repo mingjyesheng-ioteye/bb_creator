@@ -167,7 +167,7 @@ export function createVideoGenerationService(input: {
     options: VideoGenerationOperationOptions = {}
   ): Promise<StoredVideoGeneration> {
     if (stored.result.provider === 'local-sd') {
-      return completeLocalSdVideo(stored, payload);
+      return completeLocalSdVideo(stored, config, options);
     }
     const download = resolveVideoDownload(stored, payload, config);
     options.onDownloadStart?.();
@@ -383,23 +383,40 @@ export function createVideoGenerationService(input: {
 
   async function completeLocalSdVideo(
     stored: StoredVideoGeneration,
-    payload: Record<string, unknown>
+    config: CreatorServicesConfig,
+    options: VideoGenerationOperationOptions = {}
   ): Promise<StoredVideoGeneration> {
-    const result = isRecord(payload.result) ? payload.result : undefined;
-    const encoded = result && typeof result.b64_json === 'string' ? result.b64_json : undefined;
-    if (!encoded) {
-      throw new VideoGenerationError('VIDEO_GENERATION_UPSTREAM_ERROR', 'The local SD video result is empty', 502);
+    const settings = config.video.localSd;
+    if (!settings.baseUrl.trim()) missingVideoConfig('local-sd');
+    options.onDownloadStart?.();
+    const operation = operationSignal(options.signal, DOWNLOAD_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await fetchCreatorService({
+        endpoint: localSdContentEndpoint(settings.baseUrl, stored.upstreamId),
+        method: 'GET',
+        headers: creatorTextModelHeaders(settings.apiKey),
+        proxy: config.proxy.trim(),
+        signal: operation.signal,
+        maxResponseBytes: MAX_VIDEO_BYTES,
+        fetchImpl: input.fetchImpl
+      });
+    } catch (error) {
+      throw new VideoGenerationError('VIDEO_GENERATION_UPSTREAM_ERROR', 'The generated video could not be downloaded', 502,
+        publicFactsFromFailure(error, stored.result.provider, { timedOut: operation.signal.aborted && options.signal?.aborted !== true }));
+    } finally {
+      operation.cleanup();
     }
-    const content = Buffer.from(encoded, 'base64');
+    if (!response.ok) {
+      const failure = await creatorServiceErrorInfo(response, 'Video download', stored.result.provider);
+      throw new VideoGenerationError('VIDEO_GENERATION_UPSTREAM_ERROR', failure.message, 502, failure.publicFacts);
+    }
+    const content = Buffer.from(await response.arrayBuffer());
     if (content.length === 0 || content.length > MAX_VIDEO_BYTES) {
-      throw new VideoGenerationError('VIDEO_GENERATION_UPSTREAM_ERROR', 'The local SD video result is invalid', 502);
+      throw new VideoGenerationError('VIDEO_GENERATION_UPSTREAM_ERROR', 'The local video result is invalid', 502);
     }
-    const mime = result?.mime_type === 'video/webm'
-      ? 'video/webm'
-      : result?.mime_type === 'video/x-msvideo'
-        ? 'video/x-msvideo'
-        : 'video/mp4';
-    const extension = mime === 'video/webm' ? 'webm' : mime === 'video/x-msvideo' ? 'avi' : 'mp4';
+    const mime = 'video/mp4';
+    const extension = 'mp4';
     const completed: VideoGenerationResult = {
       ...stored.result,
       status: 'completed',
@@ -502,8 +519,6 @@ async function createLocalSdVideoJob(
     defaultVideoGenerationModels['local-sd']
   );
   const { width, height } = localSdVideoDimensions(request.size);
-  const fps = 16;
-  const videoFrames = Math.max(1, Math.round(request.duration * fps));
   const payload = await requestVideoJson({
     provider: 'local-sd',
     endpoint: localSdVideoEndpoint(settings.baseUrl),
@@ -513,18 +528,13 @@ async function createLocalSdVideoJob(
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
+      model,
       prompt: request.prompt.trim(),
-      negative_prompt: '',
-      width,
-      height,
-      seed: -1,
-      video_frames: videoFrames,
-      fps,
+      seconds: localSdVideoSeconds(model, request.duration),
+      size: localSdVideoSize(model, width, height),
       ...(request.referenceImage
-        ? { init_image: referenceImageDataUrl(request.referenceImage) }
-        : {}),
-      sample_params: { sample_steps: 20 },
-      output_format: 'webm'
+        ? { input_reference: referenceImageDataUrl(request.referenceImage) }
+        : {})
     }),
     config,
     signal,
@@ -725,13 +735,7 @@ function normalizeRemoteVideoJob(
     progress = payload.done === true ? 100 : undefined;
   } else if (provider === 'local-sd') {
     rawStatus = payload.status;
-    const jobProgress = isRecord(payload.progress) ? payload.progress : undefined;
-    progress = jobProgress
-      && typeof jobProgress.completed === 'number'
-      && typeof jobProgress.total === 'number'
-      && jobProgress.total > 0
-      ? Math.round((jobProgress.completed / jobProgress.total) * 90)
-      : undefined;
+    progress = typeof payload.progress === 'number' ? payload.progress : undefined;
   } else {
     rawStatus = payload.status;
     progress = payload.progress;
@@ -793,16 +797,22 @@ function seedanceVideoEndpoint(baseUrl: string) {
   );
 }
 
+// Unsloth Studio exposes OpenAI-style video endpoints under its /v1 base
+// (`POST /videos`, `GET /videos/{id}`, `GET /videos/{id}/content`).
 function localSdBaseUrl(baseUrl: string) {
-  return baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/i, '');
+  return baseUrl.trim().replace(/\/+$/, '');
 }
 
 function localSdVideoEndpoint(baseUrl: string) {
-  return new URL(`${localSdBaseUrl(baseUrl)}/sdcpp/v1/vid_gen`);
+  return new URL(`${localSdBaseUrl(baseUrl)}/videos`);
 }
 
 function localSdJobEndpoint(baseUrl: string, id: string) {
-  return new URL(`${localSdBaseUrl(baseUrl)}/sdcpp/v1/jobs/${encodeURIComponent(id)}`);
+  return new URL(`${localSdBaseUrl(baseUrl)}/videos/${encodeURIComponent(id)}`);
+}
+
+function localSdContentEndpoint(baseUrl: string, id: string) {
+  return new URL(`${localSdBaseUrl(baseUrl)}/videos/${encodeURIComponent(id)}/content`);
 }
 
 function localSdVideoDimensions(size: CreateVideoGenerationRequest['size']) {
@@ -811,6 +821,30 @@ function localSdVideoDimensions(size: CreateVideoGenerationRequest['size']) {
   const height = match ? Number(match[2]) : 480;
   const align = (value: number) => Math.max(64, Math.min(4096, Math.round(value / 8) * 8));
   return { width: align(width), height: align(height) };
+}
+
+/**
+ * Upstream size string. Unsloth's video models have trained resolutions and
+ * reject arbitrary sizes (MiniMax-H3 wants multiples of 32, e.g. 1344x768), so
+ * map the UI's three presets onto something the model accepts.
+ */
+/**
+ * Upstream `seconds` string. MiniMax-H3 only accepts 124-345 frames (about 6-15
+ * seconds), so short UI durations are raised to its floor.
+ */
+function localSdVideoSeconds(model: string, duration: number): string {
+  const seconds = Math.max(4, Math.round(duration));
+  return String(/minimax/i.test(model) ? Math.max(6, seconds) : seconds);
+}
+
+function localSdVideoSize(model: string, width: number, height: number): string {
+  if (/minimax/i.test(model)) {
+    if (height > width) return '768x1344';
+    if (height === width) return '1024x1024';
+    return '1344x768';
+  }
+  const align = (value: number) => Math.max(64, Math.min(4096, Math.round(value / 32) * 32));
+  return `${align(width)}x${align(height)}`;
 }
 
 function klingVideoEndpoint(baseUrl: string, imageToVideo = false) {

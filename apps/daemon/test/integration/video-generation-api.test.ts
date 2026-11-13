@@ -145,36 +145,42 @@ describe('video generation API', () => {
     expect(content.rawPayload).toEqual(video);
   });
 
-  it('creates, refreshes, stores, and serves a local stable-diffusion.cpp video job', async () => {
+  it('creates, refreshes, stores, and serves a local Unsloth video job', async () => {
     const config = createDefaultCreatorServicesConfig();
     config.video.provider = 'local-sd';
-    config.video.localSd.baseUrl = 'http://127.0.0.1:8686';
-    const video = Buffer.from('local-sd-webm-video');
+    config.video.localSd.baseUrl = 'http://127.0.0.1:8888/v1';
+    config.video.localSd.model = 'unsloth/MiniMax-H3-GGUF';
+    config.video.localSd.apiKey = 'sk-test';
+    const video = Buffer.from('local-unsloth-mp4-video');
     const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
       const value = String(url);
-      if (value === 'http://127.0.0.1:8686/sdcpp/v1/vid_gen' && init?.method === 'POST') {
+      if (value === 'http://127.0.0.1:8888/v1/videos' && init?.method === 'POST') {
         return new Response(JSON.stringify({
-          id: 'job_local_video_1',
-          kind: 'vid_gen',
+          id: 'video_local_1',
+          object: 'video',
+          model: 'unsloth/MiniMax-H3-GGUF',
           status: 'queued',
-          created: 1794408209000,
-          poll_url: '/sdcpp/v1/jobs/job_local_video_1'
-        }), { status: 202, headers: { 'Content-Type': 'application/json' } });
-      }
-      if (value === 'http://127.0.0.1:8686/sdcpp/v1/jobs/job_local_video_1') {
-        return new Response(JSON.stringify({
-          id: 'job_local_video_1',
-          kind: 'vid_gen',
-          status: 'completed',
-          progress: { stage: 'encoding', completed: 1, total: 1, unit: 'video' },
-          result: {
-            output_format: 'webm',
-            mime_type: 'video/webm',
-            fps: 16,
-            frame_count: 33,
-            b64_json: video.toString('base64')
-          }
+          progress: 0,
+          created_at: 1794408209,
+          size: '1280x720',
+          seconds: '5'
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (value === 'http://127.0.0.1:8888/v1/videos/video_local_1') {
+        return new Response(JSON.stringify({
+          id: 'video_local_1',
+          object: 'video',
+          model: 'unsloth/MiniMax-H3-GGUF',
+          status: 'completed',
+          progress: 100,
+          created_at: 1794408209,
+          completed_at: 1794408260,
+          size: '1280x720',
+          seconds: '5'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (value === 'http://127.0.0.1:8888/v1/videos/video_local_1/content') {
+        return new Response(video, { status: 200, headers: { 'Content-Type': 'video/mp4' } });
       }
       return new Response('not found', { status: 404 });
     });
@@ -193,20 +199,18 @@ describe('video generation API', () => {
     expect(created.statusCode).toBe(202);
     expect(created.json().result).toMatchObject({
       provider: 'local-sd',
-      model: 'sd-cpp-local',
+      model: 'unsloth/MiniMax-H3-GGUF',
       status: 'queued',
       videoSize: '1280x720',
       duration: 5
     });
     expect((fetchImpl.mock.calls[0]?.[1]?.headers as Record<string, string>).Authorization)
-      .toBeUndefined();
+      .toBe('Bearer sk-test');
     expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
+      model: 'unsloth/MiniMax-H3-GGUF',
       prompt: 'A local cinematic city reveal',
-      width: 1280,
-      height: 720,
-      video_frames: 80,
-      fps: 16,
-      output_format: 'webm'
+      seconds: '6',
+      size: '1344x768'
     });
 
     const refreshed = await server.inject({
@@ -217,7 +221,7 @@ describe('video generation API', () => {
     expect(refreshed.json().result).toMatchObject({
       status: 'completed',
       progress: 100,
-      mime: 'video/webm',
+      mime: 'video/mp4',
       size: video.length
     });
 
@@ -226,7 +230,7 @@ describe('video generation API', () => {
       url: '/video-generation/results/local_video_result_1/content'
     });
     expect(content.statusCode).toBe(200);
-    expect(content.headers['content-type']).toContain('video/webm');
+    expect(content.headers['content-type']).toContain('video/mp4');
     expect(content.rawPayload).toEqual(video);
   });
 

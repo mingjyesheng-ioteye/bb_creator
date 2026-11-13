@@ -1,70 +1,58 @@
-# 本地 AI 模型接入
+# 本地 AI 模型接入（Unsloth Studio）
 
-OpenCreator 的文本任务支持直接使用本机运行的 OpenAI 兼容模型服务，不需要云端账号或 API Key。
+OpenCreator 的文本、图片和视频任务都可以直接使用本机 **Unsloth Studio** 的
+OpenAI 兼容接口。LocModel 已于 2026-11-13 卸载，所有本地生成改走 Unsloth。
 
-## 内置的本地服务预设
+Unsloth Studio 在 `127.0.0.1:8888` 提供：
 
-在「设置 → AI 服务 → 模型服务 → 自定义模型服务 → 供应商」中可以直接选择：
-
-| 预设 | 默认 Base URL | 说明 |
+| 能力 | 接口 | 说明 |
 | --- | --- | --- |
-| LocModel / llama.cpp (local) | `http://127.0.0.1:8686/v1` | LocModel 默认端口来自其 `settings.json` 的 `port` 字段 |
-| Ollama (local) | `http://127.0.0.1:11434/v1` | Ollama 的 OpenAI 兼容接口 |
-| LM Studio (local) | `http://127.0.0.1:1234/v1` | LM Studio 本地服务器 |
-| llama.cpp server (local) | `http://127.0.0.1:8080/v1` | 直接运行 `llama-server` |
+| 文本 | `POST /v1/chat/completions`、`/v1/messages`、`/v1/embeddings` | 需要加载一个 LLM（或在设置 → API 开启 Model auto-switch） |
+| 图片 | `POST /v1/images/generations` | OpenAI 兼容，`response_format: b64_json` 可直接取回图片 |
+| 视频 | `POST /v1/videos` + `GET /v1/videos/{id}` + `GET /v1/videos/{id}/content` | OpenAI 视频任务，需要加载视频模型 |
+| 模型列表 | `GET /v1/models` | 每个模型带 `loaded`、`quant`、`display_name` |
 
-选择预设后：
+API Key 在 Unsloth Studio 的 **设置 → API** 里创建，与其他本机客户端共用
+（Windows 用户环境变量 `STRATA_API_KEY` 里存的是同一个值）。
 
-1. 先在本机应用中启动模型，例如在 LocModel 中选择模型并点击启动。
-2. 点击「检测模型」。OpenCreator 会请求 `GET {Base URL}/models`，把返回的模型填入模型下拉框。
-3. 选择或手动填写模型名称，保存配置。
+## 在 OpenCreator 中配置
 
-本地服务使用回环地址（`localhost`、`127.0.0.1`、`::1`）时，API Key 可以留空，界面也不会要求填写。远端地址仍然需要 API Key。
+### 文本模型
 
-## 工作流实际使用的模型
+1. 设置 → AI 服务 → 模型服务 → 自定义模型服务 → 供应商：**Unsloth Studio (local)**。
+2. Base URL：`http://127.0.0.1:8888/v1`。
+3. 填入 API Key，点击 **检测模型**（读取 `GET /v1/models`），选择例如
+   `unsloth/Muse-Glimmer-30B-GGUF`。
+4. 保存。
 
-「模型服务」配置会被以下文本任务使用：
+### 图片
 
-- 视频翻译字幕、封面分析、短视频脚本、小红书文案、公众号文章
-- 剪辑分析、火柴人脚本与分镜
-- 模板预检中的 Text model 检查
+1. 先在 Unsloth Studio 里加载图片模型（例如 `unsloth/Qwen-Image-2.1-Turbo-GGUF`），
+   或在设置 → API 打开 **Model auto-switch**。
+2. 设置 → AI 服务 → 图像生成 → 服务商：**Unsloth Studio (local)**。
+3. Base URL：`http://127.0.0.1:8888/v1`，模型填上一步的 id，填 API Key。
+4. 保存后即可在「图像生成」里出图。
 
-切换服务后需要保存配置。本机 Codex 运行时与本地 OpenAI 兼容服务是两种独立模式，按需切换即可。
+### 视频
 
-## 本地图片与视频生成
-
-LocModel 的图片/视频引擎是 `stable-diffusion.cpp` 的 `sd-server`，同样通过本机端口提供 API：
-
-- 图片：`POST /v1/images/generations`（OpenAI 兼容）
-- 视频：`POST /sdcpp/v1/vid_gen` + `GET /sdcpp/v1/jobs/{id}`（原生异步任务）
-
-在 OpenCreator 中配置：
-
-1. 先在 LocModel 里打开「图片」或「视频」，选择一个模型并启动引擎。
-2. 设置 → AI 服务 → 图像生成（或视频生成）。
-3. 服务商选择 **本地 SD（stable-diffusion.cpp）**。
-4. Base URL 默认是 `http://127.0.0.1:8686`；如果 LocModel 使用其他端口，按实际端口修改。
-5. 点击 **检测 LocModel 模型**。OpenCreator 会读取 LocModel `settings.json` 中的 `models_dir`，列出 `models_dir/image` 下已下载的图片/视频模型，并优先选中当前引擎已加载的模型。
-6. 保存配置。
+1. 先在 Unsloth Studio 里加载视频模型（例如 `unsloth/MiniMax-H3-GGUF`）。
+2. 设置 → AI 服务 → 视频生成 → 服务商：**Unsloth Studio (local)**，同样填 Base URL、模型、Key。
+3. 保存。视频任务会 POST `/v1/videos`，轮询状态，然后从 `/v1/videos/{id}/content` 下载 mp4。
 
 注意：
 
-- LocModel 可能复用同一个端口运行 LLM 或图片/视频引擎。生成图片/视频前，请先在 LocModel 中切换到对应模式；切回聊天时再启动 LLM 模型。
-- 视频默认输出 `webm`，OpenCreator 会按实际 MIME 保存和播放。
-- 图片生成目前使用文生图接口；参考图重绘暂未接入。
-- 如果 LocModel 的端口不是 `8686`，请直接修改 Base URL，例如 `http://127.0.0.1:8687`。
-- 模型列表来自 LocModel 的已下载目录；实际推理仍使用 LocModel 当前启动的模型。切换模型后，请先在 LocModel 中启动对应模型再生成。
+- Unsloth 的视频模型有训练分辨率，不接受任意尺寸。OpenCreator 会把三种画幅映射成
+  MiniMax-H3 接受的值：横屏 `1344x768`、竖屏 `768x1344`、方形 `1024x1024`。
+- 单次生成只支持 4/5/6/8/10 秒（OpenAI `seconds` 字段）；更长的镜头请分段或换 Wan/ComfyUI。
+- 生成前必须**已加载对应模型**，否则接口返回 `No model loaded`（503）。
 
-## WSL / 容器中的注意事项
+## WSL / 容器
 
-如果 OpenCreator Runtime 运行在 WSL 或容器中，`127.0.0.1` 指向的是 WSL/容器自身，而不是 Windows 上的 LocModel。
-
-- 保持 LocModel 的 `lan_access` 关闭时，它只监听 Windows 本机回环地址，WSL 无法访问。
-- 需要跨环境访问时，在 LocModel 中开启局域网访问，然后在 OpenCreator 中把 Base URL 改成 Windows 主机地址（例如 WSL 中 `ip route show default` 得到的网关地址，或 `/etc/resolv.conf` 中的 nameserver）。
-- 跨环境地址不属于回环地址，界面会要求填写 API Key。LocModel/llama.cpp 不校验该值，可以填写任意占位值（例如 `local`）。
+OpenCreator Runtime 跑在 WSL 里，`.wslconfig` 的 `networkingMode=mirrored` 让
+`127.0.0.1:8888` 直接指向 Windows 上的 Unsloth，不需要 portproxy 或局域网开关。
 
 ## 安全说明
 
-- 本地服务的模型名称、提示词和生成结果都留在本机，不会经过 OpenCreator 的云端服务。
-- 检测模型只读取 OpenAI 兼容的 `/models` 列表，不会修改任何配置。
-- 切换到其他 Base URL 时，已保存的文本模型 API Key 不会被带到新地址。
+- 模型、提示词和生成结果都留在本机。
+- 检测模型只读取 `/v1/models`，不会修改配置。
+- 不要把 `8888` 暴露到局域网；跨机访问请走 `llm2.ioteyeinc.com`（FRP，仍需要 API Key）。
