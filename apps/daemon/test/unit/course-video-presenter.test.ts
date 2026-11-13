@@ -190,12 +190,14 @@ describe('course video presenter executor', () => {
     });
   });
 
-  it('keeps the static portrait in auto mode when LocModel is unreachable', async () => {
+  it('falls back to portrait motion in auto mode when LocModel is unreachable', async () => {
     const { workdir, lessonPath } = setup();
     const model = clipMock();
+    const motion = clipMock();
     const executor = createCoursePresenterExecutor({
       resolvePortrait: async () => '/portraits/instructor.png',
       generateModelClip: model,
+      generateMotionClip: motion,
       canUseModelClip: async () => false
     });
 
@@ -209,6 +211,27 @@ describe('course video presenter executor', () => {
     });
 
     expect(model).not.toHaveBeenCalled();
+    expect(motion).toHaveBeenCalledTimes(2);
+    const manifest = JSON.parse(readFileSync(result.outputs[0]!.path!, 'utf8'));
+    expect(manifest.clips.map((clip: { slideId: string }) => clip.slideId)).toEqual(['m01:title', 'm01:summary']);
+    expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'motion' });
+  });
+
+  it('keeps the static portrait when no generator is available at all', async () => {
+    const { workdir, lessonPath } = setup();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png'
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({}),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
     const manifest = JSON.parse(readFileSync(result.outputs[0]!.path!, 'utf8'));
     expect(manifest.clips).toEqual([]);
     expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'none' });

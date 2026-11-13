@@ -49,6 +49,12 @@ export function createCoursePresenterExecutor(input: {
    */
   generateModelClip?: GeneratePresenterClip;
   /**
+   * Cheap CPU fallback (Ken Burns over the portrait). `auto` uses it when no
+   * lip-sync command is configured and the video model is unreachable, so the
+   * presenter is never just a frozen still.
+   */
+  generateMotionClip?: GeneratePresenterClip;
+  /**
    * Optional reachability probe for the model backend. `auto` only uses the
    * video model when this resolves true, so a host without LocModel keeps
    * rendering the static portrait instead of failing the stage.
@@ -81,6 +87,7 @@ export function createCoursePresenterExecutor(input: {
         backend,
         commandClip: input.generateClip,
         modelClip: input.generateModelClip,
+        motionClip: input.generateMotionClip,
         canUseModelClip: input.canUseModelClip
       });
 
@@ -150,7 +157,9 @@ export function createCoursePresenterExecutor(input: {
             skipped: portraitPath ? 0 : 1,
             presenterBackend: generateClip === undefined
               ? 'none'
-              : generateClip === input.generateModelClip ? 'locmodel' : 'command',
+              : generateClip === input.generateModelClip
+                ? 'locmodel'
+                : generateClip === input.generateMotionClip ? 'motion' : 'command',
             ...(model ? { presenterModel: model } : {}),
             fileName: 'course-avatar.json',
             mimeType: 'application/json'
@@ -255,6 +264,7 @@ async function resolveClipGenerator(input: {
   backend: CoursePresenterBackend;
   commandClip: GeneratePresenterClip | undefined;
   modelClip: GeneratePresenterClip | undefined;
+  motionClip: GeneratePresenterClip | undefined;
   canUseModelClip: (() => Promise<boolean>) | undefined;
 }): Promise<GeneratePresenterClip | undefined> {
   if (input.backend === 'command') return input.commandClip;
@@ -273,12 +283,11 @@ async function resolveClipGenerator(input: {
     }
     return input.modelClip;
   }
+  // `auto` stays fast and predictable: a lip-sync command if configured,
+  // otherwise the cheap Ken Burns pass. The video model takes ~13 minutes per
+  // 4-second clip on the iGPU, so it is only used when explicitly selected.
   if (input.commandClip !== undefined) return input.commandClip;
-  if (input.modelClip === undefined) return undefined;
-  if (input.canUseModelClip !== undefined && !(await input.canUseModelClip())) {
-    return undefined;
-  }
-  return input.modelClip;
+  return input.motionClip;
 }
 
 function readString(value: unknown): string {

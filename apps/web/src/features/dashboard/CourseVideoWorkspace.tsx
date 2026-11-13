@@ -473,10 +473,18 @@ export default function CourseVideoWorkspace(props: {
                       value={presenterBackend}
                       onChange={event => setPresenterBackend(readBackend(event.target.value))}
                     >
-                      <option value="auto">{l('自动（优先口型同步）', 'Auto (lip-sync first)')}</option>
+                      <option value="auto">{l('自动（最佳可用）', 'Auto (best available)')}</option>
                       <option value="command">{l('口型同步命令', 'Lip-sync command')}</option>
                       <option value="locmodel">{l('LocModel 视频模型', 'LocModel video model')}</option>
                     </NativeSelect>
+                    {presenterBackend === 'auto' ? (
+                      <small>
+                        {l(
+                          '优先口型同步命令，其次 LocModel 视频模型，最后使用轻微人像运动。',
+                          'Uses a lip-sync command first, then the LocModel video model, then a subtle portrait move.'
+                        )}
+                      </small>
+                    ) : null}
                   </label>
                   {presenterBackend === 'locmodel' ? (
                     <>

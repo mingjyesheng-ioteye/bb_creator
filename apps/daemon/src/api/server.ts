@@ -79,6 +79,7 @@ import {
   createCommandPresenterClipRunner
 } from '../creator/course-video/presenter-executor.js';
 import { createLocModelPresenterClipRunner } from '../creator/course-video/locmodel-presenter.js';
+import { createPortraitMotionClipRunner } from '../creator/course-video/motion-presenter.js';
 import { createCourseRenderExecutor } from '../creator/course-video/render-executor.js';
 import { createCourseDeliveryExecutor } from '../creator/course-video/deliver-executor.js';
 import { createSmartDubbingExecutor } from '../creator/smart-dubbing/executor.js';
@@ -1032,6 +1033,10 @@ export async function buildServer(input: BuildServerInput) {
         generateModelClip: createLocModelPresenterClipRunner({
           service: videoGenerationService,
           ...(creatorFfmpegPath === undefined ? {} : { ffmpegPath: creatorFfmpegPath })
+        }),
+        // Auto fallback: gentle Ken Burns over the portrait (seconds, CPU only).
+        ...(creatorFfmpegPath === undefined ? {} : {
+          generateMotionClip: createPortraitMotionClipRunner({ ffmpegPath: creatorFfmpegPath })
         }),
         canUseModelClip: async () => {
           try {

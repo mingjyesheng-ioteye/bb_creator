@@ -35,6 +35,8 @@
 - `portraitPath`：覆盖默认人像；
 - `presenterSlides`：可选，只对这些 slide 索引生成片段（例如 `[0]`）；
 - `presenterBackend`：`auto`（默认）| `command` | `locmodel`；
+  `auto` 的选择顺序是 **已配置的口型同步命令 → 可达的 LocModel 视频模型 → 轻微人像运动（Ken Burns）**，
+  所以没有 GPU 后端时数字人也不会是一张静止图片；
 - `presenterModel`：LocModel 视频模型 id（例如 `wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf`）；
 - `presenterPrompt`：视频模型的动作描述，留空用内置提示词。
 
@@ -93,6 +95,17 @@ Creator 自带的本地视频生成走 **LocModel**（stable-diffusion.cpp 的 `
 
 注意：LocModel 的 `/sdcpp/v1/vid_gen` 始终使用**当前已加载**的模型，`presenterModel` 只作为
 选择与记录依据；切换模型要在 LocModel 里操作。
+
+性能（本机 gfx1151 / Vulkan，Wan 2.2 TI2V-5B Q8）：4 秒、1280x720、20 步约 **12–15 分钟**一条，
+因此一个 7 slide 的模块用视频模型会跑上一个多小时。建议用 `presenterSlides` 只给重点 slide 生成，
+或改用 `command` 后端。生成 4/5/6/8/10 秒的片段后，Daemon 会循环到 slide 所需长度。
+
+### 没有 GPU 后端时的人像运动（Ken Burns）
+
+`auto` 在既没有口型同步命令、LocModel 也不可达时，会用 ffmpeg 给肖像加一个很慢的推近 + 轻微平移
+（每个 slide 一条，CPU 上约 1 秒），并写入 `course-avatar` 的片段，`presenterBackend` 记为 `motion`。
+它只是让画面不是静止的，**不做口型同步**。preflight 会对这种情况给出警告标题
+“Presenter will only have portrait motion”。
 
 ## 其他后端
 
