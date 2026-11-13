@@ -96,9 +96,16 @@ Creator 自带的本地视频生成走 **LocModel**（stable-diffusion.cpp 的 `
 注意：LocModel 的 `/sdcpp/v1/vid_gen` 始终使用**当前已加载**的模型，`presenterModel` 只作为
 选择与记录依据；切换模型要在 LocModel 里操作。
 
-性能（本机 gfx1151 / Vulkan，Wan 2.2 TI2V-5B Q8）：4 秒、1280x720、20 步约 **12–15 分钟**一条，
-因此一个 7 slide 的模块用视频模型会跑上一个多小时。建议用 `presenterSlides` 只给重点 slide 生成，
-或改用 `command` 后端。生成 4/5/6/8/10 秒的片段后，Daemon 会循环到 slide 所需长度。
+性能（本机 gfx1151 / Vulkan，Wan 2.2 TI2V-5B Q8，实测）：
+
+| 设置 | 结果 |
+| --- | --- |
+| 1280x720、64 帧、20 步 | 采样约 12 分钟，VAE 解码又超过 9 分钟仍未结束（**>20 分钟/4 秒**） |
+| 320x192、17 帧、4 步 | **12 秒**（同一模型，i2v 正常） |
+
+也就是说 720p 的课程数字人一条就要 20 分钟上下，一个 7 slide 的模块要几小时——不实用。
+如果要用视频模型，建议只给重点 slide（`presenterSlides`）或在 LocModel 里换更低分辨率/更少步数；
+平时用 `command` 或默认的 Ken Burns 人像运动。生成 4/5/6/8/10 秒的片段后，Daemon 会循环到 slide 所需长度。
 
 ### 没有 GPU 后端时的人像运动（Ken Burns）
 
