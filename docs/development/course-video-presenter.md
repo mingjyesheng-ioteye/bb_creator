@@ -114,6 +114,29 @@ Creator 自带的本地视频生成走 **LocModel**（stable-diffusion.cpp 的 `
 它只是让画面不是静止的，**不做口型同步**。preflight 会对这种情况给出警告标题
 “Presenter will only have portrait motion”。
 
+## Windows GPU 数字人服务（SadTalker）
+
+WSL 没有 GPU，而课程视频的 daemon 跑在 WSL。GPU 数字人因此放在 Windows，
+通过本机 HTTP 服务调用（避免用 WSL interop 直接跑 GPU 进程——那会在 HIP 里崩溃）：
+
+```bash
+OPENCREATOR_TALKING_HEAD_URL=http://127.0.0.1:8691
+```
+
+服务端：`D:\ai\avatar\server.py`，`AVATAR_ENGINE=sadtalker`，
+venv `D:\ai\avatar\venvs\sadtalker`（复用系统 Python312 的 ROCm torch），
+由计划任务 **Avatar service (SadTalker)** 在登录时启动，或手动
+`D:\ai\avatar\bin\start-avatar-service.cmd`。
+
+接口：
+
+- `GET /health` → `{"ok":true,"busy":false,"engine":"sadtalker"}`
+- `POST /v1/avatar` `{portrait_b64, audio_b64, duration, fps}` → `video/mp4`
+
+`auto` 的顺序是 **GPU 数字人 → `OPENCREATOR_PRESENTER_CMD`（CPU SadTalker）→ Ken Burns 人像运动**；
+显式选择 `talkinghead` 时如果服务不可达，preflight 会直接拦下并提示启动服务。
+服务一次只跑一条片段（单 GPU 队列），daemon 也把 presenter 阶段限制为 1 路并发。
+
 ## 其他后端
 
 命令接口与后端无关。SadTalker、MuseTalk、LatentSync、InfiniteTalk 等只要满足 `<portrait> <audio> <out>` 语义即可，用包装脚本适配后设置 `OPENCREATOR_PRESENTER_CMD`。

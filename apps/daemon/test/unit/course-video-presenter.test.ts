@@ -215,6 +215,30 @@ describe('course video presenter executor', () => {
     expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'talkinghead' });
   });
 
+  it('prefers the GPU talking head over the CPU command in auto mode', async () => {
+    const { workdir, lessonPath } = setup();
+    const command = clipMock();
+    const talking = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateClip: command,
+      generateTalkingClip: talking,
+      canUseTalkingClip: async () => true
+    });
+
+    await executor.run({
+      stageRun: stageRun(),
+      job: job({}),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(talking).toHaveBeenCalledTimes(2);
+    expect(command).not.toHaveBeenCalled();
+  });
+
   it('falls back to portrait motion when the talking-head service is down', async () => {
     const { workdir, lessonPath } = setup();
     const talking = clipMock();

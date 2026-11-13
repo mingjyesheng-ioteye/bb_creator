@@ -474,7 +474,8 @@ export default function CourseVideoWorkspace(props: {
                       onChange={event => setPresenterBackend(readBackend(event.target.value))}
                     >
                       <option value="auto">{l('自动（最佳可用）', 'Auto (best available)')}</option>
-                      <option value="command">{l('口型同步命令', 'Lip-sync command')}</option>
+                      <option value="talkinghead">{l('真人口型同步（GPU）', 'Talking head (GPU)')}</option>
+                      <option value="command">{l('口型同步命令（CPU）', 'Lip-sync command (CPU)')}</option>
                       <option value="locmodel">{l('LocModel 视频模型', 'LocModel video model')}</option>
                     </NativeSelect>
                     {presenterBackend === 'auto' ? (
@@ -486,11 +487,19 @@ export default function CourseVideoWorkspace(props: {
                       </small>
                     ) : null}
                   </label>
+                  {presenterBackend === 'talkinghead' ? (
+                    <p className="creator-tool-notice" role="status">
+                      {l(
+                        '真人口型同步由 GPU 主机上的数字人服务完成（SadTalker，默认 http://127.0.0.1:8691），每条 slide 约 1–3 分钟。',
+                        'Lip sync runs on the talking-head service on the GPU host (SadTalker, default http://127.0.0.1:8691); about 1-3 minutes per slide.'
+                      )}
+                    </p>
+                  ) : null}
                   {presenterBackend === 'command' ? (
                     <p className="creator-tool-notice" role="status">
                       {l(
-                        '口型同步命令由 OPENCREATOR_PRESENTER_CMD 提供（当前为本机 CPU 上的 SadTalker），每条 slide 约 2–4 分钟。',
-                        'Lip sync comes from OPENCREATOR_PRESENTER_CMD (currently SadTalker on this CPU); about 2-4 minutes per slide.'
+                        '口型同步命令由 OPENCREATOR_PRESENTER_CMD 提供（本机 CPU 上的 SadTalker），每条 slide 约 2–4 分钟。',
+                        'Lip sync comes from OPENCREATOR_PRESENTER_CMD (SadTalker on this CPU); about 2-4 minutes per slide.'
                       )}
                     </p>
                   ) : null}

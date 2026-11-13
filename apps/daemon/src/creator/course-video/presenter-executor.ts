@@ -313,14 +313,14 @@ async function resolveClipGenerator(input: {
     }
     return input.talkingClip;
   }
-  // `auto` prefers a real talking head, then the cheap Ken Burns pass. The
-  // LocModel video model is excluded here on purpose: it does not lip-sync and
-  // takes ~20 minutes per 4-second clip, so it is opt-in only.
-  if (input.commandClip !== undefined) return input.commandClip;
+  // `auto` prefers the GPU talking head, then a lip-sync command (CPU fallback),
+  // then the cheap Ken Burns pass. The LocModel video model is excluded here on
+  // purpose: it does not lip-sync and takes ~20 minutes per 4-second clip.
   if (input.talkingClip !== undefined
       && (input.canUseTalkingClip === undefined || await input.canUseTalkingClip())) {
     return input.talkingClip;
   }
+  if (input.commandClip !== undefined) return input.commandClip;
   return input.motionClip;
 }
 
