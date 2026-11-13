@@ -54,12 +54,16 @@ export function createCoursePresenterExecutor(input: {
    * presenter is never just a frozen still.
    */
   generateMotionClip?: GeneratePresenterClip;
+  /** Real lip-sync talking head (MuseTalk on the Windows GPU, over HTTP). */
+  generateTalkingClip?: GeneratePresenterClip;
   /**
    * Optional reachability probe for the model backend. `auto` only uses the
    * video model when this resolves true, so a host without LocModel keeps
    * rendering the static portrait instead of failing the stage.
    */
   canUseModelClip?(): Promise<boolean>;
+  /** Reachability probe for the talking-head service. */
+  canUseTalkingClip?(): Promise<boolean>;
   /** Max clips generated in parallel. Defaults to OPENCREATOR_PRESENTER_CONCURRENCY or a CPU-based value. */
   concurrency?: number;
 }): CreatorExecutor {
@@ -87,8 +91,10 @@ export function createCoursePresenterExecutor(input: {
         backend,
         commandClip: input.generateClip,
         modelClip: input.generateModelClip,
+        talkingClip: input.generateTalkingClip,
         motionClip: input.generateMotionClip,
-        canUseModelClip: input.canUseModelClip
+        canUseModelClip: input.canUseModelClip,
+        canUseTalkingClip: input.canUseTalkingClip
       });
 
       if (portraitPath && generateClip !== undefined) {
@@ -116,7 +122,10 @@ export function createCoursePresenterExecutor(input: {
         report();
         // The video model is a single GPU queue: run one clip at a time so the
         // LocModel server does not thrash VRAM (the command backend can fan out).
+        // The video model and the talking-head service are single-GPU backends:
+        // run one clip at a time. ffmpeg motion clips can fan out on the CPU.
         const concurrency = generateClip === input.generateModelClip
+          || generateClip === input.generateTalkingClip
           ? 1
           : resolvePresenterConcurrency(input.concurrency);
         await mapWithConcurrency(targets, concurrency, async (target, position) => {
@@ -159,7 +168,9 @@ export function createCoursePresenterExecutor(input: {
               ? 'none'
               : generateClip === input.generateModelClip
                 ? 'locmodel'
-                : generateClip === input.generateMotionClip ? 'motion' : 'command',
+                : generateClip === input.generateTalkingClip
+                  ? 'talkinghead'
+                  : generateClip === input.generateMotionClip ? 'motion' : 'command',
             ...(model ? { presenterModel: model } : {}),
             fileName: 'course-avatar.json',
             mimeType: 'application/json'
@@ -246,11 +257,13 @@ async function mapWithConcurrency<T>(
   await Promise.all(Array.from({ length: workers }, () => run()));
 }
 
-/** Presenter engine: a lip-sync command, a local video model, or either. */
-export type CoursePresenterBackend = 'auto' | 'command' | 'locmodel';
+/** Presenter engine: lip-sync command, talking-head service, or video model. */
+export type CoursePresenterBackend = 'auto' | 'command' | 'locmodel' | 'talkinghead';
 
 function readBackend(value: unknown): CoursePresenterBackend {
-  return value === 'command' || value === 'locmodel' ? value : 'auto';
+  return value === 'command' || value === 'locmodel' || value === 'talkinghead'
+    ? value
+    : 'auto';
 }
 
 /**
@@ -264,8 +277,10 @@ async function resolveClipGenerator(input: {
   backend: CoursePresenterBackend;
   commandClip: GeneratePresenterClip | undefined;
   modelClip: GeneratePresenterClip | undefined;
+  talkingClip: GeneratePresenterClip | undefined;
   motionClip: GeneratePresenterClip | undefined;
   canUseModelClip: (() => Promise<boolean>) | undefined;
+  canUseTalkingClip: (() => Promise<boolean>) | undefined;
 }): Promise<GeneratePresenterClip | undefined> {
   if (input.backend === 'command') return input.commandClip;
   if (input.backend === 'locmodel') {
@@ -283,10 +298,29 @@ async function resolveClipGenerator(input: {
     }
     return input.modelClip;
   }
-  // `auto` stays fast and predictable: a lip-sync command if configured,
-  // otherwise the cheap Ken Burns pass. The video model takes ~13 minutes per
-  // 4-second clip on the iGPU, so it is only used when explicitly selected.
+  if (input.backend === 'talkinghead') {
+    if (input.talkingClip === undefined) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'The talking-head service is not configured. Set OPENCREATOR_TALKING_HEAD_URL and start the avatar service on the GPU host.'
+      );
+    }
+    if (input.canUseTalkingClip !== undefined && !(await input.canUseTalkingClip())) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'The talking-head service is not reachable. Start the avatar service on the GPU host, then retry the presenter stage.'
+      );
+    }
+    return input.talkingClip;
+  }
+  // `auto` prefers a real talking head, then the cheap Ken Burns pass. The
+  // LocModel video model is excluded here on purpose: it does not lip-sync and
+  // takes ~20 minutes per 4-second clip, so it is opt-in only.
   if (input.commandClip !== undefined) return input.commandClip;
+  if (input.talkingClip !== undefined
+      && (input.canUseTalkingClip === undefined || await input.canUseTalkingClip())) {
+    return input.talkingClip;
+  }
   return input.motionClip;
 }
 

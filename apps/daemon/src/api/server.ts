@@ -80,6 +80,10 @@ import {
 } from '../creator/course-video/presenter-executor.js';
 import { createLocModelPresenterClipRunner } from '../creator/course-video/locmodel-presenter.js';
 import { createPortraitMotionClipRunner } from '../creator/course-video/motion-presenter.js';
+import {
+  createTalkingHeadClipRunner,
+  talkingHeadReachable
+} from '../creator/course-video/talking-presenter.js';
 import { createCourseRenderExecutor } from '../creator/course-video/render-executor.js';
 import { createCourseDeliveryExecutor } from '../creator/course-video/deliver-executor.js';
 import { createSmartDubbingExecutor } from '../creator/smart-dubbing/executor.js';
@@ -1012,6 +1016,7 @@ export async function buildServer(input: BuildServerInput) {
   // optional KrillinAI runtime manifest is missing or fails verification.
   if (input.creatorExecutors === undefined && creatorFfprobePath) {
     const presenterCommand = process.env.OPENCREATOR_PRESENTER_CMD?.trim() ?? '';
+    const talkingHeadUrl = process.env.OPENCREATOR_TALKING_HEAD_URL?.trim() ?? '';
     creatorExecutors.push(
       createCourseNarrationExecutor({
         synthesizeSlide: createEdgeTtsSlideSynthesizer({
@@ -1037,6 +1042,11 @@ export async function buildServer(input: BuildServerInput) {
         // Auto fallback: gentle Ken Burns over the portrait (seconds, CPU only).
         ...(creatorFfmpegPath === undefined ? {} : {
           generateMotionClip: createPortraitMotionClipRunner({ ffmpegPath: creatorFfmpegPath })
+        }),
+        // Real lip-sync talking head on the Windows GPU (MuseTalk over HTTP).
+        ...(talkingHeadUrl.length === 0 ? {} : {
+          generateTalkingClip: createTalkingHeadClipRunner({ baseUrl: talkingHeadUrl }),
+          canUseTalkingClip: () => talkingHeadReachable(talkingHeadUrl)
         }),
         canUseModelClip: async () => {
           try {

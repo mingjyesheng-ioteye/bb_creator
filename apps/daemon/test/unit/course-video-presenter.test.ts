@@ -190,6 +190,75 @@ describe('course video presenter executor', () => {
     });
   });
 
+  it('prefers the talking-head service in auto mode when it answers', async () => {
+    const { workdir, lessonPath } = setup();
+    const talking = clipMock();
+    const motion = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateTalkingClip: talking,
+      generateMotionClip: motion,
+      canUseTalkingClip: async () => true
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({}),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(talking).toHaveBeenCalledTimes(2);
+    expect(motion).not.toHaveBeenCalled();
+    expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'talkinghead' });
+  });
+
+  it('falls back to portrait motion when the talking-head service is down', async () => {
+    const { workdir, lessonPath } = setup();
+    const talking = clipMock();
+    const motion = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateTalkingClip: talking,
+      generateMotionClip: motion,
+      canUseTalkingClip: async () => false
+    });
+
+    await executor.run({
+      stageRun: stageRun(),
+      job: job({}),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(talking).not.toHaveBeenCalled();
+    expect(motion).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails loudly when talkinghead is selected but the service is down', async () => {
+    const { workdir, lessonPath } = setup();
+    const talking = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateTalkingClip: talking,
+      canUseTalkingClip: async () => false
+    });
+
+    await expect(executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'talkinghead' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    })).rejects.toThrow(/talking-head service is not reachable/);
+    expect(talking).not.toHaveBeenCalled();
+  });
+
   it('falls back to portrait motion in auto mode when LocModel is unreachable', async () => {
     const { workdir, lessonPath } = setup();
     const model = clipMock();

@@ -38,7 +38,7 @@ const courseVideoVoices = [
   'ko-KR-SunHiNeural'
 ];
 
-type PresenterBackend = 'auto' | 'command' | 'locmodel';
+type PresenterBackend = 'auto' | 'command' | 'locmodel' | 'talkinghead';
 
 export default function CourseVideoWorkspace(props: {
   onBack(): void;
@@ -480,12 +480,20 @@ export default function CourseVideoWorkspace(props: {
                     {presenterBackend === 'auto' ? (
                       <small>
                         {l(
-                          '优先口型同步命令，其次 LocModel 视频模型，最后使用轻微人像运动。',
-                          'Uses a lip-sync command first, then the LocModel video model, then a subtle portrait move.'
+                          '优先口型同步命令，其次真人口型服务，最后使用轻微人像运动。',
+                          'Uses a lip-sync command first, then the talking-head service, then a subtle portrait move.'
                         )}
                       </small>
                     ) : null}
                   </label>
+                  {presenterBackend === 'command' ? (
+                    <p className="creator-tool-notice" role="status">
+                      {l(
+                        '口型同步命令由 OPENCREATOR_PRESENTER_CMD 提供（当前为本机 CPU 上的 SadTalker），每条 slide 约 2–4 分钟。',
+                        'Lip sync comes from OPENCREATOR_PRESENTER_CMD (currently SadTalker on this CPU); about 2-4 minutes per slide.'
+                      )}
+                    </p>
+                  ) : null}
                   {presenterBackend === 'locmodel' ? (
                     <>
                       <label className="creator-tool-field">
@@ -693,7 +701,9 @@ function readRatio(value: CreatorJson | undefined): '16:9' | '9:16' {
 }
 
 function readBackend(value: CreatorJson | undefined): PresenterBackend {
-  return value === 'command' || value === 'locmodel' ? value : 'auto';
+  return value === 'command' || value === 'locmodel' || value === 'talkinghead'
+    ? value
+    : 'auto';
 }
 
 function readString(value: CreatorJson | undefined): string {
