@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createTalkingHeadClipRunner,
+  planChunks,
   talkingHeadReachable
 } from '../../src/creator/course-video/talking-presenter.js';
 
@@ -46,6 +47,27 @@ function resolveFfmpeg(): string | undefined {
 }
 
 describe('talking-head presenter', () => {
+  it('plans chunks and folds a short tail into the last piece', () => {
+    expect(planChunks(42.84, 10)).toEqual([
+      { start: 0, length: 10 },
+      { start: 10, length: 10 },
+      { start: 20, length: 10 },
+      { start: 30, length: 12.84 }
+    ]);
+    // 13 s at 6 s pieces would leave a 1 s tail, which crashes SadTalker.
+    expect(planChunks(13, 6)).toEqual([
+      { start: 0, length: 6 },
+      { start: 6, length: 7 }
+    ]);
+    expect(planChunks(30, 10)).toEqual([
+      { start: 0, length: 10 },
+      { start: 10, length: 10 },
+      { start: 20, length: 10 }
+    ]);
+    expect(planChunks(12, 10)).toEqual([{ start: 0, length: 12 }]);
+    expect(planChunks(2.5, 10)).toEqual([{ start: 0, length: 3 }]);
+  });
+
   it('starts a job, polls it, and stores the returned clip', async () => {
     const { portraitPath, audioPath, outputPath } = setup();
     let polls = 0;

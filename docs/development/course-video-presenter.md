@@ -115,6 +115,9 @@ undici 的 5 分钟 `UND_ERR_HEADERS_TIMEOUT`）：
 一段旁白超过 12 秒时，daemon 会把它切成 **10 秒一片**，同时最多送 **2 片**
 （服务端 `AVATAR_CONCURRENCY=2`，每个任务独立加载模型），渲染完再用 ffmpeg
 `concat` 拼回一条，并裁到旁白时长。好处是墙钟时间约减半，且重试只需要重渲染失败的分片。
+末尾不足 3 秒的余量会并入上一片（例如 42.84 秒 → 10/10/10/12.84），
+因为 SadTalker 的 `savgol_filter` 在帧数太少时会直接报错
+（`polyorder must be less than window_length`）；服务端也会把过短的音频补静音到 2 秒。
 
 - 服务端忙时会立即返回 `429`（不占住连接），daemon 每 20 秒重试，最多等 40 分钟；
   课程重试或 daemon 重启撞上正在渲染的片段时会排队继续，而不是直接失败。

@@ -15,6 +15,31 @@ const RETRY_DELAY_MS = 5_000;
 const DEFAULT_CHUNK_SECONDS = 10;
 const DEFAULT_CHUNK_TRIGGER = 12;
 const DEFAULT_CHUNK_PARALLEL = 2;
+/** SadTalker needs a few pose frames; shorter pieces are merged into the previous one. */
+const MIN_CHUNK_SECONDS = 3;
+
+/**
+ * Split a narration into render pieces. The last piece absorbs a short
+ * remainder (e.g. 42.84 s at 10 s → 10/10/10/12.84 instead of a 2.84 s tail).
+ */
+export function planChunks(
+  duration: number,
+  chunkSeconds: number
+): Array<{ start: number; length: number }> {
+  const remainder = duration % chunkSeconds;
+  const count = Math.max(
+    1,
+    Math.ceil(duration / chunkSeconds) - (remainder > 0 && remainder < MIN_CHUNK_SECONDS ? 1 : 0)
+  );
+  return Array.from({ length: count }, (_value, index) => {
+    const start = index * chunkSeconds;
+    const end = index === count - 1 ? duration : start + chunkSeconds;
+    return {
+      start: Number(start.toFixed(3)),
+      length: Number(Math.max(MIN_CHUNK_SECONDS, end - start).toFixed(3))
+    };
+  });
+}
 
 type JobStatus = { id: string; status: 'running' | 'done' | 'failed'; error?: string };
 
@@ -93,7 +118,11 @@ export function createTalkingHeadClipRunner(input: {
 
     const work = await mkdtemp(join(tmpdir(), 'talking-chunks.'));
     try {
-      const count = Math.ceil(duration / chunkSeconds);
+      // SadTalker's savgol smoothing needs at least a few pose frames, so a
+      // ~0.2 s tail would crash it ("polyorder must be less than window_length").
+      // planChunks folds a short tail into the last full piece.
+      const plan = planChunks(duration, chunkSeconds);
+      const count = plan.length;
       const parts: string[] = new Array(count);
       let next = 0;
       const worker = async () => {
@@ -101,8 +130,9 @@ export function createTalkingHeadClipRunner(input: {
           const index = next;
           next += 1;
           if (index >= count) return;
-          const start = index * chunkSeconds;
-          const length = Math.min(chunkSeconds, Math.max(1, duration - start));
+          const piece = plan[index];
+          if (piece === undefined) return;
+          const { start, length } = piece;
           const audioPath = join(work, `audio-${index}.wav`);
           const videoPath = join(work, `clip-${index}.mp4`);
           await runFfmpeg(input.ffmpegPath!, [
