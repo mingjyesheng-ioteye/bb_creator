@@ -89,8 +89,7 @@ export function createCoursePresenterExecutor(input: {
       const total = lesson.slides.length;
       const clips: CourseAvatarClip[] = [];
       const backend = readBackend(stage.job.state.presenterBackend);
-      const engine: PresenterEngine | undefined =
-        backend === 'wav2lip' || backend === 'latentsync' ? backend : undefined;
+      const engine: PresenterEngine | undefined = backend === 'wav2lip' ? 'wav2lip' : undefined;
       const model = readString(stage.job.state.presenterModel);
       const prompt = readString(stage.job.state.presenterPrompt);
       const generateClip = await resolveClipGenerator({
@@ -271,8 +270,7 @@ export type CoursePresenterBackend =
   | 'locmodel'
   | 'minimax'
   | 'talkinghead'
-  | 'wav2lip'
-  | 'latentsync';
+  | 'wav2lip';
 
 function readBackend(value: unknown): CoursePresenterBackend {
   // `locmodel` is the pre-Unsloth name for the video-model backend; old jobs and
@@ -282,7 +280,6 @@ function readBackend(value: unknown): CoursePresenterBackend {
     || value === 'minimax'
     || value === 'talkinghead'
     || value === 'wav2lip'
-    || value === 'latentsync'
     ? value
     : 'auto';
 }
@@ -319,7 +316,7 @@ async function resolveClipGenerator(input: {
     }
     return input.modelClip;
   }
-  if (input.backend === 'wav2lip' || input.backend === 'latentsync') {
+  if (input.backend === 'wav2lip') {
     if (input.talkingClip === undefined) {
       throw new CreatorExecutorError(
         'course_presenter_unavailable',

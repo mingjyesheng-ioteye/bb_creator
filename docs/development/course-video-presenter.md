@@ -106,8 +106,11 @@ SADTALKER_PREPROCESS=crop
 | --- | --- | --- | --- |
 | `sadtalker` | `talkinghead` | 约 1.5–2.5 分钟（10 s 片段约 4 分钟） | 头部运动 + 眨眼 + 口型，长片段自动分片 |
 | `wav2lip` | `wav2lip` | 5 s 片段实测 10 s（冷启动约 20 s） | 只重绘嘴部，最快，适合整门课 |
-| `latentsync` | `latentsync` | 很慢（扩散模型，10 步 512² 需数十分钟） | 画质最好，建议只给重点 slide |
+| `latentsync` | 暂不开放 | 256² 约 9 分钟 / 3 秒；512² 24 分钟未完成 | 本机实测输出损坏或过慢，暂不作为选项 |
 | `musetalk` | 未开放 | 约 6 分钟 | 在这块 ROCm iGPU 上嘴部输出噪点，暂不可用 |
+
+结论：本机可用的口型引擎是 **SadTalker**（默认，头部运动）和 **Wav2Lip**（最快，只动嘴）。
+LatentSync 和 MuseTalk 的权重都已装好，但这块 ROCm iGPU 上的扩散/UNet 输出不可用。
 
 `GET /health` 会返回 `engines` 列表，preflight 用它判断所选引擎是否已安装。
 

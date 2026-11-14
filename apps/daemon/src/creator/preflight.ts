@@ -280,7 +280,7 @@ export function createCreatorPreflight(input: {
               executionMode: 'local'
             });
           }
-        } else if (backend === 'wav2lip' || backend === 'latentsync') {
+        } else if (backend === 'wav2lip') {
           const url = process.env.OPENCREATOR_TALKING_HEAD_URL?.trim() ?? '';
           const engines = await talkingHeadEngines(url);
           if (engines === undefined) {

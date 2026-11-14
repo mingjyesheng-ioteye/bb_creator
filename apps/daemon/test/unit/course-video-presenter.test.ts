@@ -269,7 +269,7 @@ describe('course video presenter executor', () => {
 
     await expect(executor.run({
       stageRun: stageRun(),
-      job: job({ presenterBackend: 'latentsync' }),
+      job: job({ presenterBackend: 'wav2lip' }),
       inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
       workdir,
       signal: new AbortController().signal,
