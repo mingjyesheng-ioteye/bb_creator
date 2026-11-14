@@ -242,11 +242,15 @@ export async function registerCreatorServicesRoutes(
     } catch {
       return reply.code(400).send(apiError('VALIDATION_FAILED', 'Base URL must be a valid HTTP or HTTPS URL'));
     }
-    const apiKey = typeof body?.apiKey === 'string' ? body.apiKey : '';
+    const apiKey = typeof body?.apiKey === 'string' ? body.apiKey.trim() : '';
     const modelsBaseUrl = normalizeBaseUrl(baseUrl);
+    // The settings form masks saved keys (it gets an empty apiKey back), so an
+    // empty field must fall back to the stored credential instead of sending an
+    // unauthenticated request (Unsloth then answers 401).
+    const effectiveKey = apiKey.length > 0 ? apiKey : await storedApiKeyFor(store, modelsBaseUrl);
     try {
       const response = await fetch(`${modelsBaseUrl}/models`, {
-        headers: { Accept: 'application/json', ...creatorTextModelHeaders(apiKey) },
+        headers: { Accept: 'application/json', ...creatorTextModelHeaders(effectiveKey) },
         signal: AbortSignal.timeout(5_000)
       });
       if (!response.ok) {
@@ -277,7 +281,7 @@ export async function registerCreatorServicesRoutes(
         baseUrl: modelsBaseUrl,
         engine: 'unsloth',
         ...(loadedModel === undefined ? {} : { loadedModel }),
-        downloadedModels: await readLocalEngineModels({ baseUrl: modelsBaseUrl, apiKey })
+        downloadedModels: await readLocalEngineModels({ baseUrl: modelsBaseUrl, apiKey: effectiveKey })
       };
       return result;
     } catch (error) {
@@ -362,6 +366,26 @@ function clearOfficialAddresses(value: unknown): void {
     if (key === 'baseUrl' || key === 'apiKey' || key === 'proxy') (value as Record<string, unknown>)[key] = '';
     else clearOfficialAddresses(child);
   }
+}
+
+/** Credential for a local engine, matched on its stored base URL. */
+async function storedApiKeyFor(
+  store: CreatorServicesConfigStore,
+  modelsBaseUrl: string
+): Promise<string> {
+  try {
+    const config = await store.read();
+    const target = comparableUrl(modelsBaseUrl);
+    const candidates = [config.llm, config.image.localSd, config.video.localSd];
+    const match = candidates.find(candidate => comparableUrl(candidate.baseUrl) === target);
+    return match?.apiKey?.trim() ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function comparableUrl(value: string): string {
+  return value.trim().replace(/\/+$/, '').replace(/\/v1$/i, '').toLowerCase();
 }
 
 function sendStoreError(reply: FastifyReply, error: unknown) {

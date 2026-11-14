@@ -235,6 +235,36 @@ describe('creator services API', () => {
     expect(store.write).not.toHaveBeenCalled();
   });
 
+  it('falls back to the saved key when detection is called without one', async () => {
+    let seenAuth = '';
+    const endpoint = createServer((request, response) => {
+      seenAuth = String(request.headers.authorization ?? '');
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ object: 'list', data: [] }));
+    });
+    await new Promise<void>(resolve => endpoint.listen(0, '127.0.0.1', resolve));
+    try {
+      const address = endpoint.address();
+      if (address === null || typeof address === 'string') throw new Error('Missing endpoint address');
+      const baseUrl = `http://127.0.0.1:${address.port}/v1`;
+      const config = createDefaultCreatorServicesConfig();
+      config.image.localSd.baseUrl = baseUrl;
+      config.image.localSd.apiKey = 'saved-key';
+      store.read = vi.fn(async () => config);
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/creator-services/local-engine/detect',
+        payload: { baseUrl, apiKey: '' }
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ connected: true });
+      expect(seenAuth).toBe('Bearer saved-key');
+    } finally {
+      endpoint.close();
+    }
+  });
+
   it('detects the loaded Unsloth model and lists image/video models', async () => {
     const endpoint = createServer((request, response) => {
       response.setHeader('Content-Type', 'application/json');
