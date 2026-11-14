@@ -10,26 +10,26 @@ import type { GeneratePresenterClip } from './presenter-executor.js';
 import type { VideoGenerationService } from '../../video-generation/service.js';
 
 /** Motion prompt used when the job does not specify one. */
-export const DEFAULT_LOCMODEL_PRESENTER_PROMPT =
+export const DEFAULT_MINIMAX_PRESENTER_PROMPT =
   'The presenter looks straight at the camera and speaks warmly, natural head movement, '
   + 'occasional blink, relaxed posture and subtle hand gestures, steady framing, '
   + 'soft studio lighting, photorealistic';
 
-/** stable-diffusion.cpp accepts 4/5/6/8/10 second jobs; longer slides loop. */
+/** The local video API accepts 4/5/6/8/10 second jobs; longer slides loop. */
 const CLIP_DURATIONS = [4, 5, 6, 8, 10] as const;
 const DEFAULT_POLL_MS = 2_000;
 const DEFAULT_TIMEOUT_MS = 45 * 60_000;
 
 /**
- * Generates the presenter clip with the **local LocModel video model**
- * (stable-diffusion.cpp `vid_gen`, image-to-video from the portrait).
+ * Generates the presenter clip with the **local video model**
+ * (Unsloth Studio, image-to-video from the portrait).
  *
  * The model animates the portrait (head motion, blinks, gestures) but does not
  * consume the narration audio, so there is no lip-sync: the lesson keeps its own
  * narration track and the composition mutes the clip. Clips shorter than the
  * slide are looped with ffmpeg so the presenter keeps moving for the whole slide.
  */
-export function createLocModelPresenterClipRunner(input: {
+export function createMinimaxPresenterClipRunner(input: {
   service: VideoGenerationService;
   /** ffmpeg from the creator runtime; without it the raw webm is kept. */
   ffmpegPath?: string;
@@ -46,7 +46,7 @@ export function createLocModelPresenterClipRunner(input: {
     const mime = referenceImageMime(request.portraitPath);
     const duration = clipDuration(request.durationSeconds);
     const created = await input.service.create({
-      prompt: request.prompt?.trim() || DEFAULT_LOCMODEL_PRESENTER_PROMPT,
+      prompt: request.prompt?.trim() || DEFAULT_MINIMAX_PRESENTER_PROMPT,
       provider: 'local-sd',
       ...(request.model?.trim() ? { model: request.model.trim() } : {}),
       size: input.size ?? '1280x720',
@@ -91,13 +91,13 @@ async function waitForCompletion(input: {
     if (result.status === 'failed') {
       throw new CreatorExecutorError(
         'course_presenter_failed',
-        `LocModel video generation failed${result.error === undefined ? '' : `: ${result.error}`}`
+        `MiniMax-H3 video generation failed${result.error === undefined ? '' : `: ${result.error}`}`
       );
     }
     if (Date.now() > deadline) {
       throw new CreatorExecutorError(
         'course_presenter_failed',
-        'LocModel video generation timed out; shorten the slide, lower the clip size, or raise the timeout'
+        'MiniMax-H3 video generation timed out; shorten the slide, lower the clip size, or raise the timeout'
       );
     }
     await delay(input.pollIntervalMs, input.signal);
@@ -143,7 +143,7 @@ function loopToMp4(
       if (error) {
         reject(new CreatorExecutorError(
           'course_presenter_failed',
-          `Could not prepare the LocModel presenter clip: ${error.message}`
+          `Could not prepare the MiniMax-H3 presenter clip: ${error.message}`
         ));
       } else {
         resolve();

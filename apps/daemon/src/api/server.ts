@@ -78,7 +78,7 @@ import {
   createCoursePresenterExecutor,
   createCommandPresenterClipRunner
 } from '../creator/course-video/presenter-executor.js';
-import { createLocModelPresenterClipRunner } from '../creator/course-video/locmodel-presenter.js';
+import { createMinimaxPresenterClipRunner } from '../creator/course-video/minimax-presenter.js';
 import { createPortraitMotionClipRunner } from '../creator/course-video/motion-presenter.js';
 import {
   createTalkingHeadClipRunner,
@@ -1034,9 +1034,9 @@ export async function buildServer(input: BuildServerInput) {
             ...(process.env.OPENCREATOR_PRESENTER_CWD === undefined ? {} : { cwd: process.env.OPENCREATOR_PRESENTER_CWD })
           })
         }),
-        // Local video-model presenter (LocModel / stable-diffusion.cpp): animates
+        // Local video-model presenter (Unsloth / MiniMax-H3): animates
         // the portrait with head motion instead of lip-syncing it.
-        generateModelClip: createLocModelPresenterClipRunner({
+        generateModelClip: createMinimaxPresenterClipRunner({
           service: videoGenerationService,
           ...(creatorFfmpegPath === undefined ? {} : { ffmpegPath: creatorFfmpegPath })
         }),

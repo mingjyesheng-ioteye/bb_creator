@@ -259,19 +259,26 @@ export function createCreatorPreflight(input: {
       if (stage.executor === 'course-presenter' && job.state.presenterEnabled !== false) {
         const presenterCommand = process.env.OPENCREATOR_PRESENTER_CMD?.trim() ?? '';
         const backend = job.state.presenterBackend;
-        if (backend === 'locmodel') {
-          if (await locModelReachable(config.video.localSd.baseUrl)) {
+        if (backend === 'minimax' || backend === 'locmodel') {
+          const status = await unslothVideoStatus(config.video.localSd.baseUrl, config.video.localSd.apiKey);
+          if (!status.reachable) {
+            add('blocked', {
+              id: 'minimax-video', title: 'Unsloth Studio is not running',
+              message: 'The presenter engine is set to MiniMax-H3, but Unsloth Studio does not answer on the configured video URL. Start Unsloth (and check Settings → AI 服务 → 视频生成) before rendering.',
+              executionMode: 'local'
+            }, { label: 'Open local component settings', deepLink: '#/settings?tab=local-components' });
+          } else if (status.loadedVideo === undefined) {
             add('warning', {
-              id: 'locmodel-video', title: 'LocModel video model is slow',
-              message: 'LocModel is reachable, but its video model needs roughly 10-20 minutes per 4-second clip on this GPU. Limit the slides with presenterSlides, or use the lip-sync command engine.',
+              id: 'minimax-video', title: 'No video model loaded',
+              message: 'Unsloth Studio answers, but no video model is loaded. Load MiniMax-H3 in Unsloth, or enable Settings → API → Model auto-switch, or the presenter stage will fail with "No video model loaded".',
               executionMode: 'local'
             });
           } else {
-            add('blocked', {
-              id: 'locmodel-video', title: 'LocModel is not running',
-              message: 'The presenter engine is set to the LocModel video model, but the local SD server does not answer. Load a video model in LocModel and start its server.',
+            add('warning', {
+              id: 'minimax-video', title: 'MiniMax-H3 does not lip-sync',
+              message: `Presenter clips will be animated by ${status.loadedVideo} (head motion, blinks, gestures) but the mouth will not follow the narration; the lesson keeps its own narration track. Pick the talking-head engine for real lip sync. Expect several minutes per clip.`,
               executionMode: 'local'
-            }, { label: 'Open local component settings', deepLink: '#/settings?tab=local-components' });
+            });
           }
         } else if (backend === 'talkinghead') {
           if (await talkingHeadReachable(process.env.OPENCREATOR_TALKING_HEAD_URL?.trim() ?? '')) {
@@ -632,18 +639,33 @@ function executionMode(stage: CreatorTemplateStage, job: CreatorJob): CreatorPre
   return 'local';
 }
 
-/** Is LocModel's stable-diffusion.cpp server answering on `baseUrl`? */
-async function locModelReachable(baseUrl: string): Promise<boolean> {
-  const base = baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/i, '');
-  if (base.length === 0) return false;
+/** Is Unsloth answering, and which video model is loaded? */
+async function unslothVideoStatus(
+  baseUrl: string,
+  apiKey: string
+): Promise<{ reachable: boolean; loadedVideo?: string }> {
+  const base = baseUrl.trim().replace(/\/+$/, '');
+  if (base.length === 0) return { reachable: false };
+  const endpoint = `${/\/v1$/i.test(base) ? base : `${base}/v1`}/models`;
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (apiKey.trim().length > 0) headers.Authorization = `Bearer ${apiKey.trim()}`;
   try {
-    const response = await fetch(`${base}/sdcpp/v1/capabilities`, {
-      headers: { Accept: 'application/json' },
+    const response = await fetch(endpoint, {
+      headers,
       signal: AbortSignal.timeout(2_500)
     });
-    return response.ok;
+    if (!response.ok) return { reachable: false };
+    const payload = await response.json().catch(() => undefined) as {
+      data?: Array<{ id?: unknown; loaded?: unknown }>;
+    } | undefined;
+    const loaded = (payload?.data ?? []).find(entry =>
+      entry?.loaded === true && typeof entry.id === 'string');
+    return {
+      reachable: true,
+      ...(loaded === undefined ? {} : { loadedVideo: String(loaded.id) })
+    };
   } catch {
-    return false;
+    return { reachable: false };
   }
 }
 

@@ -50,6 +50,11 @@ API Key 在 Unsloth Studio 的 **设置 → API** 里创建，与其他本机客
 - 单次生成只支持 4/5/6/8/10 秒（OpenAI `seconds` 字段）；更长的镜头请分段或换 Wan/ComfyUI。
 - 生成前必须**已加载对应模型**，否则接口返回 `No model loaded`（503）。
 
+课程视频的「数字人引擎」里选 **MiniMax-H3 人像动画** 时也走这套视频接口：
+肖像作为 `input_reference` 传入，片段循环到整条 slide。它**不读旁白音频、不做口型同步**，
+需要真口型请用 SadTalker（`talkinghead`）。详见
+`docs/development/course-video-presenter.md`。
+
 ## WSL / 容器
 
 OpenCreator Runtime 跑在 WSL 里，`.wslconfig` 的 `networkingMode=mirrored` 让

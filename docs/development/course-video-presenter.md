@@ -34,10 +34,10 @@
 
 - `portraitPath`：覆盖默认人像；
 - `presenterSlides`：可选，只对这些 slide 索引生成片段（例如 `[0]`）；
-- `presenterBackend`：`auto`（默认）| `command` | `locmodel`；
-  `auto` 的选择顺序是 **已配置的口型同步命令 → 可达的 LocModel 视频模型 → 轻微人像运动（Ken Burns）**，
-  所以没有 GPU 后端时数字人也不会是一张静止图片；
-- `presenterModel`：LocModel 视频模型 id（例如 `wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf`）；
+- `presenterBackend`：`auto`（默认）| `talkinghead` | `command` | `minimax`；
+  `auto` 的选择顺序是 **GPU 口型同步服务 → 口型同步命令 → 轻微人像运动（Ken Burns）**；
+  `locmodel` 是旧名字，读到时按 `minimax` 处理；
+- `presenterModel`：本地视频模型 id（例如 `unsloth/MiniMax-H3-GGUF`）；
 - `presenterPrompt`：视频模型的动作描述，留空用内置提示词。
 
 未配置 `OPENCREATOR_PRESENTER_CMD` 或人像时，`presenter` 输出空清单，渲染回退到静态人像。
@@ -71,15 +71,28 @@ SADTALKER_PREPROCESS=crop
 - SadTalker 在 ROCm 上约每 30 秒音频需要数分钟，长 slide 会更久；可用 `presenterSlides` 限制范围。
 - 生成的数字人片段自带音频，但 `CourseLesson` 组合会对 `OffthreadVideo` 设置 `muted`，最终视频只保留旁白音轨。
 
-## LocModel 视频模型（已移除）
+## MiniMax-H3 人像动画（无口型）
 
-LocModel 已于 2026-11-13 卸载，`presenterBackend=locmodel` 仅作为旧任务的兼容值保留，
-选它会在 preflight 阶段被拦下。课程数字人现在用 Windows 上的 SadTalker 服务
-（见下一节）；偶尔需要「不口型同步的运动画面」时用默认的 Ken Burns 运动。
+`presenterBackend=minimax`（旧值 `locmodel` 视为同一个）用本机 **Unsloth Studio** 的
+视频模型（默认 `unsloth/MiniMax-H3-GGUF`）把肖像做成动态画面：头部动作、眨眼、手势。
+
+- 走 Unsloth 的 OpenAI 视频接口：`POST /v1/videos`（带 `input_reference` 传肖像）→
+  轮询 `GET /v1/videos/{id}` → 从 `/v1/videos/{id}/content` 下载 mp4。
+  设置里的「视频生成 → 本地 Unsloth」地址/模型/Key 就是这里用的配置。
+- **不做口型同步**：视频接口不接受音频，嘴型不会跟旁白对齐。旁白仍用课程自己的音轨，
+  组合时数字人片段是静音的。需要真口型请选 `talkinghead`（SadTalker）。
+- 画幅会被映射成 MiniMax-H3 的预设（横屏 `864x480`，竖屏 `480x864`，方形 `768x768`）；
+  单条最多 10 秒，短于 slide 的片段用 ffmpeg `-stream_loop` 循环到整条 slide。
+- 生成前必须已加载视频模型，或在 Unsloth 设置 → API 打开 **Model auto-switch**，
+  否则接口返回 `No video model loaded`（503），preflight 也会给出警告。
+- MiniMax-H3 是 21 GB 的 Q8 模型，iGPU 显存紧张：如果报 out of memory，在 Unsloth 视频页把
+  **Memory mode** 设为 **Low VRAM**，或换更小的量化。渲染期间不要同时跑 SadTalker 分片或
+  ComfyUI，否则会互相抢显存。
+- 因为不快、也不口型同步，`auto` **不会**自动选它，必须显式选择。
 
 ### 没有 GPU 后端时的人像运动（Ken Burns）
 
-`auto` 在既没有口型同步命令、LocModel 也不可达时，会用 ffmpeg 给肖像加一个很慢的推近 + 轻微平移
+`auto` 在既没有口型同步命令、口型同步服务也不可达时，会用 ffmpeg 给肖像加一个很慢的推近 + 轻微平移
 （每个 slide 一条，CPU 上约 1 秒），并写入 `course-avatar` 的片段，`presenterBackend` 记为 `motion`。
 它只是让画面不是静止的，**不做口型同步**。preflight 会对这种情况给出警告标题
 “Presenter will only have portrait motion”。

@@ -38,7 +38,7 @@ const courseVideoVoices = [
   'ko-KR-SunHiNeural'
 ];
 
-type PresenterBackend = 'auto' | 'command' | 'locmodel' | 'talkinghead';
+type PresenterBackend = 'auto' | 'command' | 'locmodel' | 'minimax' | 'talkinghead';
 
 export default function CourseVideoWorkspace(props: {
   onBack(): void;
@@ -115,12 +115,12 @@ export default function CourseVideoWorkspace(props: {
     session?.state.presenterPrompt
   ]);
 
-  // LocModel video models for the presenter engine: read the local SD settings
-  // once and ask LocModel which video models are downloaded / loaded.
+  // Video models for the presenter engine: read the local video settings once
+  // and ask Unsloth which image/video models are known and which is loaded.
   const services = props.creatorServicesService;
   useEffect(() => {
     if (services === null || services === undefined) return undefined;
-    if (!presenterEnabled || presenterBackend !== 'locmodel') return undefined;
+    if (!presenterEnabled || presenterBackend !== 'minimax') return undefined;
     let active = true;
     setLocalModelsLoading(true);
     setLocalModelHint('');
@@ -134,17 +134,17 @@ export default function CourseVideoWorkspace(props: {
           .map(model => model.id));
         setLocalModelHint(detection.connected
           ? l(
-            'LocModel 已连接：生成时使用 LocModel 中当前加载的视频模型。',
-            'LocModel connected: generation uses the video model currently loaded in LocModel.'
+            'Unsloth 已连接：生成时使用 Unsloth 中当前加载的视频模型（默认 MiniMax-H3）。',
+            'Unsloth connected: generation uses the video model currently loaded in Unsloth (MiniMax-H3 by default).'
           )
           : l(
-            '无法连接 LocModel：请先在 LocModel 中启动视频模型，并确认设置里的本地 SD 地址。',
-            'Could not reach LocModel: start a video model in LocModel and check the local SD URL in settings.'
+            '无法连接 Unsloth：请先在 Unsloth 中加载 MiniMax-H3，并确认设置里的视频服务地址与 API Key。',
+            'Could not reach Unsloth: load MiniMax-H3 there first and check the video service URL and API key in settings.'
           ));
       })
       .catch(() => {
         if (active) {
-          setLocalModelHint(l('无法读取 LocModel 设置。', 'Could not read the LocModel settings.'));
+          setLocalModelHint(l('无法读取 Unsloth 设置。', 'Could not read the Unsloth settings.'));
         }
       })
       .finally(() => {
@@ -474,9 +474,9 @@ export default function CourseVideoWorkspace(props: {
                       onChange={event => setPresenterBackend(readBackend(event.target.value))}
                     >
                       <option value="auto">{l('自动（最佳可用）', 'Auto (best available)')}</option>
-                      <option value="talkinghead">{l('真人口型同步（GPU）', 'Talking head (GPU)')}</option>
+                      <option value="talkinghead">{l('真人口型同步（GPU，SadTalker）', 'Talking head (GPU, SadTalker)')}</option>
                       <option value="command">{l('口型同步命令（CPU）', 'Lip-sync command (CPU)')}</option>
-                      <option value="locmodel">{l('LocModel 视频模型', 'LocModel video model')}</option>
+                      <option value="minimax">{l('MiniMax-H3 人像动画（无口型）', 'MiniMax-H3 portrait animation (no lip-sync)')}</option>
                     </NativeSelect>
                     {presenterBackend === 'auto' ? (
                       <small>
@@ -503,7 +503,7 @@ export default function CourseVideoWorkspace(props: {
                       )}
                     </p>
                   ) : null}
-                  {presenterBackend === 'locmodel' ? (
+                  {presenterBackend === 'minimax' ? (
                     <>
                       <label className="creator-tool-field">
                         <span>
@@ -516,7 +516,7 @@ export default function CourseVideoWorkspace(props: {
                           onChange={event => setPresenterModel(event.target.value)}
                           disabled={localModelsLoading}
                         >
-                          <option value="">{l('LocModel 当前加载的模型', 'The model loaded in LocModel')}</option>
+                          <option value="">{l('Unsloth 当前加载的视频模型', 'The video model loaded in Unsloth')}</option>
                           {localVideoModels.map(id => <option key={id} value={id}>{id}</option>)}
                         </NativeSelect>
                       </label>
@@ -531,8 +531,8 @@ export default function CourseVideoWorkspace(props: {
                       </label>
                       <p className="creator-tool-notice" role="status">
                         {localModelHint || l(
-                          'LocModel 视频模型会让肖像产生头部动作与表情，但不做口型同步；旁白仍使用课程旁白音轨。',
-                          'The LocModel video model animates the portrait (head motion, blinks, gestures) but does not lip-sync; the narration stays the lesson track.'
+                          'MiniMax-H3 会让肖像产生头部动作与表情，但不读取旁白音频、不做口型同步；旁白仍使用课程旁白音轨，每条 slide 需要数分钟。',
+                          'MiniMax-H3 animates the portrait (head motion, blinks, gestures) but does not read the narration or lip-sync; the lesson keeps its own narration track. Expect several minutes per slide.'
                         )}
                       </p>
                     </>
@@ -710,7 +710,9 @@ function readRatio(value: CreatorJson | undefined): '16:9' | '9:16' {
 }
 
 function readBackend(value: CreatorJson | undefined): PresenterBackend {
-  return value === 'command' || value === 'locmodel' || value === 'talkinghead'
+  // `locmodel` is the old name for the video-model presenter.
+  if (value === 'locmodel') return 'minimax';
+  return value === 'command' || value === 'minimax' || value === 'talkinghead'
     ? value
     : 'auto';
 }

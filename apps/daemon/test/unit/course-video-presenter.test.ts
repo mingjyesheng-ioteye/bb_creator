@@ -158,7 +158,7 @@ describe('course video presenter executor', () => {
     expect(command.mock.calls[0]![0]).toMatchObject({ durationSeconds: 3 });
   });
 
-  it('uses the LocModel video model when presenterBackend is locmodel', async () => {
+  it('uses MiniMax-H3 when presenterBackend is minimax', async () => {
     const { workdir, lessonPath } = setup();
     const command = clipMock();
     const model = clipMock();
@@ -170,7 +170,7 @@ describe('course video presenter executor', () => {
 
     const result = await executor.run({
       stageRun: stageRun(),
-      job: job({ presenterBackend: 'locmodel', presenterModel: 'wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf', presenterPrompt: 'Subtle nod' }),
+      job: job({ presenterBackend: 'minimax', presenterModel: 'unsloth/MiniMax-H3-GGUF', presenterPrompt: 'Subtle nod' }),
       inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
       workdir,
       signal: new AbortController().signal,
@@ -180,14 +180,35 @@ describe('course video presenter executor', () => {
     expect(command).not.toHaveBeenCalled();
     expect(model).toHaveBeenCalledTimes(2);
     expect(model.mock.calls[0]![0]).toMatchObject({
-      model: 'wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf',
+      model: 'unsloth/MiniMax-H3-GGUF',
       prompt: 'Subtle nod',
       durationSeconds: 3
     });
     expect(result.outputs[0]!.metadata).toMatchObject({
-      presenterBackend: 'locmodel',
-      presenterModel: 'wan2.2-ti2v-5b/Wan2.2-TI2V-5B-Q8_0.gguf'
+      presenterBackend: 'minimax',
+      presenterModel: 'unsloth/MiniMax-H3-GGUF'
     });
+  });
+
+  it('treats the legacy locmodel backend as minimax', async () => {
+    const { workdir, lessonPath } = setup();
+    const model = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateModelClip: model
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'locmodel' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(model).toHaveBeenCalledTimes(2);
+    expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'minimax' });
   });
 
   it('prefers the talking-head service in auto mode when it answers', async () => {
@@ -283,7 +304,7 @@ describe('course video presenter executor', () => {
     expect(talking).not.toHaveBeenCalled();
   });
 
-  it('falls back to portrait motion in auto mode when LocModel is unreachable', async () => {
+  it('falls back to portrait motion in auto mode when no video model is available', async () => {
     const { workdir, lessonPath } = setup();
     const model = clipMock();
     const motion = clipMock();
@@ -330,7 +351,7 @@ describe('course video presenter executor', () => {
     expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'none' });
   });
 
-  it('fails loudly when locmodel is selected but LocModel is unreachable', async () => {
+  it('fails loudly when minimax is selected but Unsloth is unreachable', async () => {
     const { workdir, lessonPath } = setup();
     const model = clipMock();
     const executor = createCoursePresenterExecutor({
@@ -341,16 +362,16 @@ describe('course video presenter executor', () => {
 
     await expect(executor.run({
       stageRun: stageRun(),
-      job: job({ presenterBackend: 'locmodel' }),
+      job: job({ presenterBackend: 'minimax' }),
       inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
       workdir,
       signal: new AbortController().signal,
       reportProgress: vi.fn()
-    })).rejects.toThrow(/LocModel is not reachable/);
+    })).rejects.toThrow(/Unsloth Studio has no video model available/);
     expect(model).not.toHaveBeenCalled();
   });
 
-  it('fails loudly when locmodel is selected but no video model service is wired', async () => {
+  it('fails loudly when minimax is selected but no video model service is wired', async () => {
     const { workdir, lessonPath } = setup();
     const executor = createCoursePresenterExecutor({
       resolvePortrait: async () => '/portraits/instructor.png'
@@ -358,12 +379,12 @@ describe('course video presenter executor', () => {
 
     await expect(executor.run({
       stageRun: stageRun(),
-      job: job({ presenterBackend: 'locmodel' }),
+      job: job({ presenterBackend: 'minimax' }),
       inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
       workdir,
       signal: new AbortController().signal,
       reportProgress: vi.fn()
-    })).rejects.toThrow(/LocModel video presenter is not available/);
+    })).rejects.toThrow(/MiniMax-H3 presenter is not available/);
   });
 
   it('runs clips with bounded concurrency and preserves slide order', async () => {

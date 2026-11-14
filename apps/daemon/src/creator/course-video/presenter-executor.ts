@@ -22,7 +22,7 @@ export type GeneratePresenterClip = (request: {
   index: number;
   /** Narration length of the slide, in seconds (0 when the slide is silent). */
   durationSeconds: number;
-  /** Optional video model id (LocModel) and motion prompt from the job state. */
+  /** Optional video model id (MiniMax-H3) and motion prompt from the job state. */
   model?: string;
   prompt?: string;
   signal: AbortSignal;
@@ -43,7 +43,7 @@ export function createCoursePresenterExecutor(input: {
    */
   generateClip?: GeneratePresenterClip;
   /**
-   * Video-model clip generator (the local LocModel / stable-diffusion.cpp video
+   * Video-model clip generator (the local Unsloth / MiniMax-H3 video
    * model). It animates the portrait with head motion and gestures; it does not
    * lip-sync, so the narration audio still comes from the lesson track.
    */
@@ -58,7 +58,7 @@ export function createCoursePresenterExecutor(input: {
   generateTalkingClip?: GeneratePresenterClip;
   /**
    * Optional reachability probe for the model backend. `auto` only uses the
-   * video model when this resolves true, so a host without LocModel keeps
+   * video model when this resolves true, so a host without Unsloth keeps
    * rendering the static portrait instead of failing the stage.
    */
   canUseModelClip?(): Promise<boolean>;
@@ -121,7 +121,7 @@ export function createCoursePresenterExecutor(input: {
         });
         report();
         // The video model is a single GPU queue: run one clip at a time so the
-        // LocModel server does not thrash VRAM (the command backend can fan out).
+        // Unsloth server does not thrash VRAM (the command backend can fan out).
         // The video model and the talking-head service are single-GPU backends:
         // run one clip at a time. ffmpeg motion clips can fan out on the CPU.
         const concurrency = generateClip === input.generateModelClip
@@ -167,7 +167,7 @@ export function createCoursePresenterExecutor(input: {
             presenterBackend: generateClip === undefined
               ? 'none'
               : generateClip === input.generateModelClip
-                ? 'locmodel'
+                ? 'minimax'
                 : generateClip === input.generateTalkingClip
                   ? 'talkinghead'
                   : generateClip === input.generateMotionClip ? 'motion' : 'command',
@@ -257,11 +257,14 @@ async function mapWithConcurrency<T>(
   await Promise.all(Array.from({ length: workers }, () => run()));
 }
 
-/** Presenter engine: lip-sync command, talking-head service, or video model. */
-export type CoursePresenterBackend = 'auto' | 'command' | 'locmodel' | 'talkinghead';
+/** Presenter engine: lip-sync command, talking-head service, or a video model. */
+export type CoursePresenterBackend = 'auto' | 'command' | 'locmodel' | 'minimax' | 'talkinghead';
 
 function readBackend(value: unknown): CoursePresenterBackend {
-  return value === 'command' || value === 'locmodel' || value === 'talkinghead'
+  // `locmodel` is the pre-Unsloth name for the video-model backend; old jobs and
+  // saved sessions still carry it.
+  if (value === 'locmodel') return 'minimax';
+  return value === 'command' || value === 'minimax' || value === 'talkinghead'
     ? value
     : 'auto';
 }
@@ -271,7 +274,7 @@ function readBackend(value: unknown): CoursePresenterBackend {
  * lip-sync command (exact mouth movement) and falls back to the video model —
  * but only when the model server actually answers, so a course that used to
  * render a static portrait keeps rendering instead of failing. An explicit
- * `locmodel` that cannot be reached fails loudly.
+ * `minimax` that cannot be reached fails loudly.
  */
 async function resolveClipGenerator(input: {
   backend: CoursePresenterBackend;
@@ -283,17 +286,17 @@ async function resolveClipGenerator(input: {
   canUseTalkingClip: (() => Promise<boolean>) | undefined;
 }): Promise<GeneratePresenterClip | undefined> {
   if (input.backend === 'command') return input.commandClip;
-  if (input.backend === 'locmodel') {
+  if (input.backend === 'minimax') {
     if (input.modelClip === undefined) {
       throw new CreatorExecutorError(
         'course_presenter_unavailable',
-        'The LocModel video presenter is not available. Start the video model in LocModel and check the local SD settings.'
+        'The MiniMax-H3 presenter is not available. Start Unsloth Studio and load a video model in its local video settings.'
       );
     }
     if (input.canUseModelClip !== undefined && !(await input.canUseModelClip())) {
       throw new CreatorExecutorError(
         'course_presenter_unavailable',
-        'LocModel is not reachable. Start the video model in LocModel, then retry the presenter stage.'
+        'Unsloth Studio has no video model available. Load MiniMax-H3 (or enable Settings → API → Model auto-switch), then retry the presenter stage.'
       );
     }
     return input.modelClip;
@@ -314,7 +317,7 @@ async function resolveClipGenerator(input: {
     return input.talkingClip;
   }
   // `auto` prefers the GPU talking head, then a lip-sync command (CPU fallback),
-  // then the cheap Ken Burns pass. The LocModel video model is excluded here on
+  // then the cheap Ken Burns pass. MiniMax-H3 is excluded here on
   // purpose: it does not lip-sync and takes ~20 minutes per 4-second clip.
   if (input.talkingClip !== undefined
       && (input.canUseTalkingClip === undefined || await input.canUseTalkingClip())) {

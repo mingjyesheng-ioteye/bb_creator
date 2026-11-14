@@ -6,7 +6,7 @@ import type {
   VideoGenerationResult
 } from '@opencreator/protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createLocModelPresenterClipRunner } from '../../src/creator/course-video/locmodel-presenter.js';
+import { createMinimaxPresenterClipRunner } from '../../src/creator/course-video/minimax-presenter.js';
 import type {
   VideoGenerationOperationOptions,
   VideoGenerationService
@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 function setup() {
-  tempDir = mkdtempSync(join(tmpdir(), 'locmodel-presenter-'));
+  tempDir = mkdtempSync(join(tmpdir(), 'minimax-presenter-'));
   const portraitPath = join(tempDir, 'portrait.png');
   writeFileSync(portraitPath, Buffer.from('89504e470d0a1a0a', 'hex'));
   return { portraitPath, outputPath: join(tempDir, 'avatar-00.mp4') };
@@ -32,7 +32,7 @@ function result(overrides: Partial<VideoGenerationResult> = {}): VideoGeneration
     id: 'job_abcdefghijkl',
     prompt: 'presenter',
     provider: 'local-sd',
-    model: 'sd-cpp-local',
+    model: 'unsloth/MiniMax-H3-GGUF',
     videoSize: '1280x720',
     duration: 10,
     status: 'queued',
@@ -71,12 +71,12 @@ function fakeService(options: { failWith?: string } = {}) {
   return { service, create, refresh, copyTo };
 }
 
-describe('LocModel presenter clip runner', () => {
+describe('MiniMax-H3 presenter clip runner', () => {
   it('animates the portrait with the selected video model', async () => {
     const { portraitPath, outputPath } = setup();
     const { service, create, copyTo } = fakeService();
 
-    await createLocModelPresenterClipRunner({ service, pollIntervalMs: 1 })({
+    await createMinimaxPresenterClipRunner({ service, pollIntervalMs: 1 })({
       portraitPath,
       audioPath: join(tempDir, 'narration.mp3'),
       outputPath,
@@ -108,7 +108,7 @@ describe('LocModel presenter clip runner', () => {
     const { portraitPath, outputPath } = setup();
     const { service, create } = fakeService();
 
-    await createLocModelPresenterClipRunner({ service, pollIntervalMs: 1 })({
+    await createMinimaxPresenterClipRunner({ service, pollIntervalMs: 1 })({
       portraitPath,
       audioPath: join(tempDir, 'narration.mp3'),
       outputPath,
@@ -124,11 +124,11 @@ describe('LocModel presenter clip runner', () => {
     expect(request.model).toBeUndefined();
   });
 
-  it('surfaces a failed LocModel job', async () => {
+  it('surfaces a failed MiniMax-H3 job', async () => {
     const { portraitPath, outputPath } = setup();
     const { service } = fakeService({ failWith: 'out of memory' });
 
-    await expect(createLocModelPresenterClipRunner({ service, pollIntervalMs: 1 })({
+    await expect(createMinimaxPresenterClipRunner({ service, pollIntervalMs: 1 })({
       portraitPath,
       audioPath: join(tempDir, 'narration.mp3'),
       outputPath,
