@@ -97,6 +97,25 @@ SADTALKER_PREPROCESS=crop
 它只是让画面不是静止的，**不做口型同步**。preflight 会对这种情况给出警告标题
 “Presenter will only have portrait motion”。
 
+## 口型同步引擎（Windows GPU）
+
+数字人服务 `D:\ai\avatar\server.py` 现在内置多个引擎，任务里用 `engine` 字段选择
+（不填则用服务的 `AVATAR_ENGINE`，默认 `sadtalker`）：
+
+| `engine` | bb_creator 引擎 | 实测速度（5 s 旁白） | 特点 |
+| --- | --- | --- | --- |
+| `sadtalker` | `talkinghead` | 约 1.5–2.5 分钟（10 s 片段约 4 分钟） | 头部运动 + 眨眼 + 口型，长片段自动分片 |
+| `wav2lip` | `wav2lip` | 5 s 片段实测 10 s（冷启动约 20 s） | 只重绘嘴部，最快，适合整门课 |
+| `latentsync` | `latentsync` | 很慢（扩散模型，10 步 512² 需数十分钟） | 画质最好，建议只给重点 slide |
+| `musetalk` | 未开放 | 约 6 分钟 | 在这块 ROCm iGPU 上嘴部输出噪点，暂不可用 |
+
+`GET /health` 会返回 `engines` 列表，preflight 用它判断所选引擎是否已安装。
+
+Wav2Lip 需要 `wav2lip_gan.pth` + s3fd，装在 `D:\ai\avatar\repos\Wav2Lip`
+（`bin\wav2lip_infer_cpuface.py` 强制人脸检测走 CPU，避免 gfx1151 的 MIOpen 首次卷积变慢）。
+LatentSync 用 `D:\ai\avatar\repos\LatentSync` 和 `venvs\latentsync`（继承系统 ROCm torch），
+模型来自 WSL 里已有的 checkpoint 副本。
+
 ## Windows GPU 数字人服务（SadTalker）
 
 WSL 没有 GPU，而课程视频的 daemon 跑在 WSL。GPU 数字人因此放在 Windows，

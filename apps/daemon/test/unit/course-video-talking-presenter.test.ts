@@ -251,6 +251,43 @@ describe('talking-head presenter', () => {
     expect(duration).toBeLessThan(25);
   });
 
+  it('sends the engine and does not chunk a Wav2Lip slide', async () => {
+    const { portraitPath, audioPath, outputPath } = setup();
+    let jobs = 0;
+    const bodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/v1/avatar')) {
+        jobs += 1;
+        bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return jsonResponse({ id: `job_${jobs}`, status: 'running' }, 202);
+      }
+      if (url.endsWith('/content')) {
+        return new Response(Buffer.from('mp4-wav2lip'), { status: 200 });
+      }
+      return jsonResponse({ id: `job_${jobs}`, status: 'done' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createTalkingHeadClipRunner({
+      baseUrl: 'http://127.0.0.1:8691',
+      pollIntervalMs: 1,
+      ffmpegPath: '/usr/bin/ffmpeg'
+    })({
+      portraitPath,
+      audioPath,
+      outputPath,
+      slideId: 'm04:body',
+      index: 3,
+      durationSeconds: 20,
+      engine: 'wav2lip',
+      signal: new AbortController().signal
+    });
+
+    expect(jobs).toBe(1);
+    expect(bodies[0]).toMatchObject({ engine: 'wav2lip', duration: 20 });
+    expect(readFileSync(outputPath).toString()).toBe('mp4-wav2lip');
+  });
+
   it('reports reachability from /health', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ ok: true })));
     expect(await talkingHeadReachable('http://127.0.0.1:8691')).toBe(true);

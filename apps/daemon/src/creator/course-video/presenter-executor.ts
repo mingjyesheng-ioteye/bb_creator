@@ -9,6 +9,8 @@ import { COURSE_VIDEO_FPS } from './constants.js';
 
 export type CourseAvatarClip = { slideId: string; path: string };
 
+export type PresenterEngine = 'sadtalker' | 'musetalk' | 'wav2lip' | 'latentsync';
+
 export type CourseAvatarManifest = {
   portraitPath: string;
   clips: CourseAvatarClip[];
@@ -25,6 +27,8 @@ export type GeneratePresenterClip = (request: {
   /** Optional video model id (MiniMax-H3) and motion prompt from the job state. */
   model?: string;
   prompt?: string;
+  /** Lip-sync engine on the avatar service; omit for the service default. */
+  engine?: PresenterEngine;
   signal: AbortSignal;
 }) => Promise<void>;
 
@@ -85,6 +89,8 @@ export function createCoursePresenterExecutor(input: {
       const total = lesson.slides.length;
       const clips: CourseAvatarClip[] = [];
       const backend = readBackend(stage.job.state.presenterBackend);
+      const engine: PresenterEngine | undefined =
+        backend === 'wav2lip' || backend === 'latentsync' ? backend : undefined;
       const model = readString(stage.job.state.presenterModel);
       const prompt = readString(stage.job.state.presenterPrompt);
       const generateClip = await resolveClipGenerator({
@@ -137,6 +143,7 @@ export function createCoursePresenterExecutor(input: {
             slideId: target.slideId,
             index: target.index,
             durationSeconds: target.durationSeconds,
+            ...(engine ? { engine } : {}),
             ...(model ? { model } : {}),
             ...(prompt ? { prompt } : {}),
             signal: stage.signal
@@ -169,7 +176,7 @@ export function createCoursePresenterExecutor(input: {
               : generateClip === input.generateModelClip
                 ? 'minimax'
                 : generateClip === input.generateTalkingClip
-                  ? 'talkinghead'
+                  ? (engine ?? 'talkinghead')
                   : generateClip === input.generateMotionClip ? 'motion' : 'command',
             ...(model ? { presenterModel: model } : {}),
             fileName: 'course-avatar.json',
@@ -258,13 +265,24 @@ async function mapWithConcurrency<T>(
 }
 
 /** Presenter engine: lip-sync command, talking-head service, or a video model. */
-export type CoursePresenterBackend = 'auto' | 'command' | 'locmodel' | 'minimax' | 'talkinghead';
+export type CoursePresenterBackend =
+  | 'auto'
+  | 'command'
+  | 'locmodel'
+  | 'minimax'
+  | 'talkinghead'
+  | 'wav2lip'
+  | 'latentsync';
 
 function readBackend(value: unknown): CoursePresenterBackend {
   // `locmodel` is the pre-Unsloth name for the video-model backend; old jobs and
   // saved sessions still carry it.
   if (value === 'locmodel') return 'minimax';
-  return value === 'command' || value === 'minimax' || value === 'talkinghead'
+  return value === 'command'
+    || value === 'minimax'
+    || value === 'talkinghead'
+    || value === 'wav2lip'
+    || value === 'latentsync'
     ? value
     : 'auto';
 }
@@ -300,6 +318,21 @@ async function resolveClipGenerator(input: {
       );
     }
     return input.modelClip;
+  }
+  if (input.backend === 'wav2lip' || input.backend === 'latentsync') {
+    if (input.talkingClip === undefined) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'The talking-head service is not configured. Set OPENCREATOR_TALKING_HEAD_URL and start the avatar service on the GPU host.'
+      );
+    }
+    if (input.canUseTalkingClip !== undefined && !(await input.canUseTalkingClip())) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'The talking-head service is not reachable. Start the avatar service on the GPU host, then retry the presenter stage.'
+      );
+    }
+    return input.talkingClip;
   }
   if (input.backend === 'talkinghead') {
     if (input.talkingClip === undefined) {

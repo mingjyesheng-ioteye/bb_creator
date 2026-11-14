@@ -38,7 +38,7 @@ const courseVideoVoices = [
   'ko-KR-SunHiNeural'
 ];
 
-type PresenterBackend = 'auto' | 'command' | 'locmodel' | 'minimax' | 'talkinghead';
+type PresenterBackend = 'auto' | 'command' | 'locmodel' | 'minimax' | 'talkinghead' | 'wav2lip' | 'latentsync';
 
 export default function CourseVideoWorkspace(props: {
   onBack(): void;
@@ -475,6 +475,8 @@ export default function CourseVideoWorkspace(props: {
                     >
                       <option value="auto">{l('自动（最佳可用）', 'Auto (best available)')}</option>
                       <option value="talkinghead">{l('真人口型同步（GPU，SadTalker）', 'Talking head (GPU, SadTalker)')}</option>
+                      <option value="wav2lip">{l('Wav2Lip 快速口型（GPU）', 'Wav2Lip fast lip-sync (GPU)')}</option>
+                      <option value="latentsync">{l('LatentSync 高保真口型（GPU，慢）', 'LatentSync high-fidelity lip-sync (GPU, slow)')}</option>
                       <option value="command">{l('口型同步命令（CPU）', 'Lip-sync command (CPU)')}</option>
                       <option value="minimax">{l('MiniMax-H3 人像动画（无口型）', 'MiniMax-H3 portrait animation (no lip-sync)')}</option>
                     </NativeSelect>
@@ -492,6 +494,22 @@ export default function CourseVideoWorkspace(props: {
                       {l(
                         '真人口型同步由 GPU 主机上的数字人服务完成（SadTalker，默认 http://127.0.0.1:8691），每条 slide 约 1–3 分钟。',
                         'Lip sync runs on the talking-head service on the GPU host (SadTalker, default http://127.0.0.1:8691); about 1-3 minutes per slide.'
+                      )}
+                    </p>
+                  ) : null}
+                  {presenterBackend === 'wav2lip' ? (
+                    <p className="creator-tool-notice" role="status">
+                      {l(
+                        'Wav2Lip 在 GPU 主机上只重绘嘴部：约 4–5 倍实时（10 秒旁白约 20–30 秒），嘴部清晰度低于 SadTalker，整条课程都可用。',
+                        'Wav2Lip redraws just the mouth on the GPU host: about 4-5x realtime (a 10 s narration takes 20-30 s), with lower mouth detail than SadTalker, fast enough for every slide.'
+                      )}
+                    </p>
+                  ) : null}
+                  {presenterBackend === 'latentsync' ? (
+                    <p className="creator-tool-notice" role="status">
+                      {l(
+                        'LatentSync 用扩散模型重绘嘴部，画质最好，但在这块 iGPU 上很慢（每 5 秒片段可能十几分钟）；建议只给少数重点 slide 用。',
+                        'LatentSync redraws the mouth with a diffusion model: best quality, but slow on this iGPU (a 5 s clip can take 10+ minutes). Use it for a few hero slides only.'
                       )}
                     </p>
                   ) : null}
@@ -713,6 +731,7 @@ function readBackend(value: CreatorJson | undefined): PresenterBackend {
   // `locmodel` is the old name for the video-model presenter.
   if (value === 'locmodel') return 'minimax';
   return value === 'command' || value === 'minimax' || value === 'talkinghead'
+    || value === 'wav2lip' || value === 'latentsync'
     ? value
     : 'auto';
 }

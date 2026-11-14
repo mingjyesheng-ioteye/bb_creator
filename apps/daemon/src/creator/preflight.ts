@@ -280,6 +280,28 @@ export function createCreatorPreflight(input: {
               executionMode: 'local'
             });
           }
+        } else if (backend === 'wav2lip' || backend === 'latentsync') {
+          const url = process.env.OPENCREATOR_TALKING_HEAD_URL?.trim() ?? '';
+          const engines = await talkingHeadEngines(url);
+          if (engines === undefined) {
+            add('blocked', {
+              id: 'talking-head-engine', title: 'Talking-head service is not running',
+              message: `The presenter engine is set to ${backend}, but the avatar service does not answer. Start it on the GPU host (D:\\ai\\avatar\\bin\\start-avatar-service.cmd).`,
+              executionMode: 'local'
+            }, { label: 'Open local component settings', deepLink: '#/settings?tab=local-components' });
+          } else if (!engines.includes(backend)) {
+            add('blocked', {
+              id: 'talking-head-engine', title: `${backend} is not installed`,
+              message: `The avatar service is running but does not offer the ${backend} engine (available: ${engines.join(', ') || 'none'}). Install it on the GPU host or pick another engine.`,
+              executionMode: 'local'
+            }, { label: 'Open local component settings', deepLink: '#/settings?tab=local-components' });
+          } else {
+            add('ready', {
+              id: 'talking-head-engine', title: `Lip sync (${backend})`,
+              message: `Presenter clips will be lip-synced with ${backend} on the GPU host.`,
+              executionMode: 'local'
+            });
+          }
         } else if (backend === 'talkinghead') {
           if (await talkingHeadReachable(process.env.OPENCREATOR_TALKING_HEAD_URL?.trim() ?? '')) {
             add('ready', {
@@ -637,6 +659,25 @@ function executionMode(stage: CreatorTemplateStage, job: CreatorJob): CreatorPre
   ) return 'mixed';
   if (stage.executor === 'krillinai' && job.state.sourceType !== 'file') return 'mixed';
   return 'local';
+}
+
+/** Engines the avatar service advertises, or undefined when it is unreachable. */
+async function talkingHeadEngines(baseUrl: string): Promise<string[] | undefined> {
+  const base = baseUrl.trim().replace(/\/+$/, '');
+  if (base.length === 0) return undefined;
+  try {
+    const response = await fetch(`${base}/health`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(2_500)
+    });
+    if (!response.ok) return undefined;
+    const payload = await response.json().catch(() => undefined) as { engines?: unknown } | undefined;
+    return Array.isArray(payload?.engines)
+      ? payload.engines.filter((value): value is string => typeof value === 'string')
+      : [];
+  } catch {
+    return undefined;
+  }
 }
 
 /** Is Unsloth answering, and which video model is loaded? */

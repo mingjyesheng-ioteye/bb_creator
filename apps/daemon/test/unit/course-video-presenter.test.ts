@@ -236,8 +236,48 @@ describe('course video presenter executor', () => {
     expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'talkinghead' });
   });
 
-  it('prefers the GPU talking head over the CPU command in auto mode', async () => {
+  it('passes the selected engine to the talking-head clip generator', async () => {
     const { workdir, lessonPath } = setup();
+    const talking = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateTalkingClip: talking,
+      canUseTalkingClip: async () => true
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'wav2lip' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(talking).toHaveBeenCalledTimes(2);
+    expect(talking.mock.calls[0]![0]).toMatchObject({ engine: 'wav2lip' });
+    expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'wav2lip' });
+  });
+
+  it('fails loudly when the lip-sync service is down for wav2lip', async () => {
+    const { workdir, lessonPath } = setup();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateTalkingClip: clipMock(),
+      canUseTalkingClip: async () => false
+    });
+
+    await expect(executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'latentsync' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    })).rejects.toThrow(/not reachable/);
+  });
+
+  it('prefers the GPU talking head over the CPU command in auto mode', async () => {    const { workdir, lessonPath } = setup();
     const command = clipMock();
     const talking = clipMock();
     const executor = createCoursePresenterExecutor({

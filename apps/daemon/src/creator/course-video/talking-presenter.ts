@@ -93,11 +93,12 @@ export function createTalkingHeadClipRunner(input: {
   const retries = Math.max(0, input.retries ?? 1);
   const retryDelayMs = input.retryDelayMs ?? RETRY_DELAY_MS;
 
-  const payloadFor = (portraitB64: string, audio: Buffer, seconds: number) => JSON.stringify({
+  const payloadFor = (portraitB64: string, audio: Buffer, seconds: number, engine?: string) => JSON.stringify({
     portrait_b64: portraitB64,
     audio_b64: audio.toString('base64'),
     duration: seconds > 0.5 ? seconds : 4,
-    fps: 25
+    fps: 25,
+    ...(engine === undefined ? {} : { engine })
   });
 
   return async (request) => {
@@ -107,9 +108,12 @@ export function createTalkingHeadClipRunner(input: {
     ]);
     const portraitB64 = portrait.toString('base64');
     const duration = request.durationSeconds > 0.5 ? request.durationSeconds : 4;
+    // Only SadTalker is slow enough to profit from chunking; Wav2Lip/LatentSync
+    // render one job for the whole slide.
+    const chunkable = request.engine === undefined || request.engine === 'sadtalker';
 
-    if (input.ffmpegPath === undefined || duration <= chunkTrigger) {
-      const video = await runRemoteJob(base, payloadFor(portraitB64, audio, duration), {
+    if (input.ffmpegPath === undefined || !chunkable || duration <= chunkTrigger) {
+      const video = await runRemoteJob(base, payloadFor(portraitB64, audio, duration, request.engine), {
         timeoutMs, pollIntervalMs, busyRetryMs, retries, retryDelayMs, signal: request.signal
       });
       await writeFile(request.outputPath, video);
