@@ -481,8 +481,8 @@ export default function CourseVideoWorkspace(props: {
                     {presenterBackend === 'auto' ? (
                       <small>
                         {l(
-                          '优先口型同步命令，其次真人口型服务，最后使用轻微人像运动。',
-                          'Uses a lip-sync command first, then the talking-head service, then a subtle portrait move.'
+                          '优先 GPU 真人口型服务，其次口型同步命令，最后使用轻微人像运动；不会自动选 MiniMax-H3。',
+                          'Uses the GPU talking head first, then a lip-sync command, then a subtle portrait move; MiniMax-H3 is never picked automatically.'
                         )}
                       </small>
                     ) : null}
