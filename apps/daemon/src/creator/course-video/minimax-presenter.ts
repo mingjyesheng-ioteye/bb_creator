@@ -59,7 +59,8 @@ export function createMinimaxPresenterClipRunner(input: {
       id: created.id,
       signal: request.signal,
       pollIntervalMs,
-      timeoutMs
+      timeoutMs,
+      ...(request.onProgress === undefined ? {} : { onProgress: request.onProgress })
     });
 
     const raw = `${request.outputPath}.render`;
@@ -82,8 +83,10 @@ async function waitForCompletion(input: {
   signal: AbortSignal;
   pollIntervalMs: number;
   timeoutMs: number;
+  onProgress?: (update: { percent?: number; message?: string }) => void;
 }): Promise<VideoGenerationResult> {
   const deadline = Date.now() + input.timeoutMs;
+  let lastPercent: number | undefined;
   for (;;) {
     input.signal.throwIfAborted();
     const result = await input.service.refresh(input.id, { signal: input.signal });
@@ -93,6 +96,13 @@ async function waitForCompletion(input: {
         'course_presenter_failed',
         `MiniMax-H3 video generation failed${result.error === undefined ? '' : `: ${result.error}`}`
       );
+    }
+    if (result.progressKnown === true && result.progress !== lastPercent) {
+      lastPercent = result.progress;
+      input.onProgress?.({
+        percent: result.progress,
+        message: `MiniMax-H3: ${result.status} (${result.progress}%)`
+      });
     }
     if (Date.now() > deadline) {
       throw new CreatorExecutorError(

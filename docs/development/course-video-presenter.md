@@ -145,6 +145,17 @@ undici 的 5 分钟 `UND_ERR_HEADERS_TIMEOUT`）：
 `auto` 的顺序是 **GPU 数字人 → `OPENCREATOR_PRESENTER_CMD`（CPU SadTalker）→ Ken Burns 人像运动**；
 显式选择 `talkinghead` 时如果服务不可达，preflight 会直接拦下并提示启动服务。
 
+### 进度显示
+
+`presenter` 阶段会持续上报进度，界面不会只停在 0%：
+
+- 每个片段开始时显示「正在生成数字人片段（已完成/总数）」，并显示已运行时间；
+- MiniMax-H3 的 `%` 直接来自 Unsloth 的 `progress`，会按片段数折算成整体百分比；
+- SadTalker / Wav2Lip 的任务接口没有百分比，daemon 每 30 秒发一次心跳
+  （`Talking head clip running (elapsed 3:20)`），避免界面看起来卡住；
+- 视频生成工具同样显示百分比和已运行时间；MiniMax 前几分钟停在 0% 时会说明
+  「本机约每 2–3 分钟前进 5%」。
+
 ### 长镜头分片
 
 一段旁白超过 12 秒时，daemon 会把它切成 **10 秒一片**，同时最多送 **2 片**

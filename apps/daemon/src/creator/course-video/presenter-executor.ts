@@ -29,6 +29,8 @@ export type GeneratePresenterClip = (request: {
   prompt?: string;
   /** Lip-sync engine on the avatar service; omit for the service default. */
   engine?: PresenterEngine;
+  /** Progress heartbeat for long clips (provider percent, or a status message). */
+  onProgress?: (update: { percent?: number; message?: string }) => void;
   signal: AbortSignal;
 }) => Promise<void>;
 
@@ -133,6 +135,21 @@ export function createCoursePresenterExecutor(input: {
           || generateClip === input.generateTalkingClip
           ? 1
           : resolvePresenterConcurrency(input.concurrency);
+        // Long clips report provider progress so the stage shows more than 0%.
+        const reportClipProgress = (update: { percent?: number; message?: string }) => {
+          const fraction = update.percent === undefined
+            ? 0
+            : Math.max(0, Math.min(100, update.percent)) / 100;
+          const overall = Math.min(99, Math.round(((done + fraction) / Math.max(1, targets.length)) * 100));
+          stage.reportProgress({
+            phase: 'generating_presenter',
+            ...(update.percent === undefined ? {} : { percent: overall }),
+            completed: done,
+            failed: 0,
+            total: targets.length,
+            ...(update.message === undefined ? {} : { message: update.message })
+          });
+        };
         await mapWithConcurrency(targets, concurrency, async (target, position) => {
           const outputPath = join(stage.workdir, `avatar-${String(target.index).padStart(2, '0')}.mp4`);
           await generateClip({
@@ -145,6 +162,7 @@ export function createCoursePresenterExecutor(input: {
             ...(engine ? { engine } : {}),
             ...(model ? { model } : {}),
             ...(prompt ? { prompt } : {}),
+            onProgress: reportClipProgress,
             signal: stage.signal
           });
           generated[position] = { slideId: target.slideId, path: outputPath };

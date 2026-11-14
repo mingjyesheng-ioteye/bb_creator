@@ -277,6 +277,35 @@ describe('course video presenter executor', () => {
     })).rejects.toThrow(/not reachable/);
   });
 
+  it('reports clip progress into the stage percentage', async () => {
+    const { workdir, lessonPath } = setup();
+    const reportProgress = vi.fn();
+    const model = vi.fn(async (request: Parameters<GeneratePresenterClip>[0]) => {
+      request.onProgress?.({ percent: 50, message: 'MiniMax-H3: in_progress (50%)' });
+    });
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateModelClip: model
+    });
+
+    await executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'minimax' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress
+    });
+
+    expect(reportProgress).toHaveBeenCalledWith(expect.objectContaining({
+      phase: 'generating_presenter',
+      percent: 25,
+      completed: 0,
+      total: 2,
+      message: 'MiniMax-H3: in_progress (50%)'
+    }));
+  });
+
   it('prefers the GPU talking head over the CPU command in auto mode', async () => {    const { workdir, lessonPath } = setup();
     const command = clipMock();
     const talking = clipMock();

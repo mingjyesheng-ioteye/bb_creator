@@ -69,10 +69,32 @@ describe('video generation progress', () => {
       message: expect.stringContaining('Queue position and exact progress are not available')
     });
   });
+
+  it('explains the slow first minutes at a low percentage', () => {
+    const early = { ...stage('generate', '', 'running', null, 'generate'), progress: { phase: 'generating', percent: 10 } };
+    const progress = videoGenerationPanelAdapter.readStageProgress(early, en);
+    expect(progress).toMatchObject({ percent: 10, showTiming: true, showMessage: true });
+    expect(progress.message).toContain('MiniMax-H3');
+    expect(videoGenerationPanelAdapter.readStageProgress({
+      ...early, progress: { phase: 'generating', percent: 54 }
+    }, en)).toMatchObject({ showMessage: false, percent: 54 });
+  });
 });
 
-describe('shared native image progress', () => {
-  it.each(['image-generation', 'cover', 'stickman-video', 'wechat-article'])('shows native preparation and generation phases without fake percentages (%s)', template => {
+describe('course presenter progress', () => {
+  it('shows elapsed time and clip guidance while generating presenter clips', () => {
+    const running = {
+      ...stage('presenter', '', 'running', null, 'presenter'),
+      progress: { phase: 'generating_presenter', percent: 25, completed: 1, total: 4 }
+    };
+    const progress = creatorPanelAdapterFor('course-video').readStageProgress(running, en);
+    expect(progress).toMatchObject({ percent: 25, showTiming: true, showMessage: true });
+    expect(progress.message).toContain('MiniMax-H3');
+    expect(progress.message).toContain('1/4');
+  });
+});
+
+describe('shared native image progress', () => {  it.each(['image-generation', 'cover', 'stickman-video', 'wechat-article'])('shows native preparation and generation phases without fake percentages (%s)', template => {
     const adapter = creatorPanelAdapterFor(template);
     expect(adapter.phaseLabel('preparing_native_image', zh)).toContain('ChatGPT');
     expect(adapter.phaseLabel('generating_image', en)).toBe('Generating image');

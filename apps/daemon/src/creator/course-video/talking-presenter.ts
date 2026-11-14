@@ -47,6 +47,7 @@ type JobOptions = {
   timeoutMs: number;
   pollIntervalMs: number;
   busyRetryMs: number;
+  onProgress?: (update: { percent?: number; message?: string }) => void;
   /** Extra attempts after a failed job (a flaky GPU crash is often transient). */
   retries: number;
   retryDelayMs: number;
@@ -114,7 +115,8 @@ export function createTalkingHeadClipRunner(input: {
 
     if (input.ffmpegPath === undefined || !chunkable || duration <= chunkTrigger) {
       const video = await runRemoteJob(base, payloadFor(portraitB64, audio, duration, request.engine), {
-        timeoutMs, pollIntervalMs, busyRetryMs, retries, retryDelayMs, signal: request.signal
+        timeoutMs, pollIntervalMs, busyRetryMs, retries, retryDelayMs, signal: request.signal,
+            ...(request.onProgress === undefined ? {} : { onProgress: request.onProgress })
       });
       await writeFile(request.outputPath, video);
       return;
@@ -147,7 +149,8 @@ export function createTalkingHeadClipRunner(input: {
           ], request.signal);
           const chunkAudio = await readFile(audioPath);
           const video = await runRemoteJob(base, payloadFor(portraitB64, chunkAudio, length), {
-            timeoutMs, pollIntervalMs, busyRetryMs, retries, retryDelayMs, signal: request.signal
+            timeoutMs, pollIntervalMs, busyRetryMs, retries, retryDelayMs, signal: request.signal,
+            ...(request.onProgress === undefined ? {} : { onProgress: request.onProgress })
           });
           await writeFile(videoPath, video);
           parts[index] = videoPath;
@@ -220,6 +223,8 @@ async function runRemoteJobOnce(base: string, body: string, options: JobOptions)
   }
 
   const deadline = Date.now() + options.timeoutMs;
+  const startedAt = Date.now();
+  let lastHeartbeat = 0;
   for (;;) {
     await delay(options.pollIntervalMs, options.signal);
     if (Date.now() > deadline) {
@@ -248,6 +253,13 @@ async function runRemoteJobOnce(base: string, body: string, options: JobOptions)
       );
     }
     if (job.status === 'done') break;
+    if (options.onProgress !== undefined && Date.now() - lastHeartbeat >= 30_000) {
+      lastHeartbeat = Date.now();
+      const seconds = Math.round((Date.now() - startedAt) / 1_000);
+      options.onProgress({
+        message: `Talking head clip ${job.status} (elapsed ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')})`
+      });
+    }
   }
 
   const content = await fetch(`${base}/v1/avatar/${id}/content`, {
