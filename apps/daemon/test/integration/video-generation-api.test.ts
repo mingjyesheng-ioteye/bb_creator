@@ -194,7 +194,7 @@ describe('video generation API', () => {
     const created = await server.inject({
       method: 'POST',
       url: '/video-generation/results',
-      payload: { prompt: 'A local cinematic city reveal', provider: 'local-sd', size: '1280x720', duration: 5 }
+      payload: { prompt: 'A local cinematic city reveal', provider: 'local-sd', size: '1280x720', duration: 5, steps: 8 }
     });
     expect(created.statusCode).toBe(202);
     expect(created.json().result).toMatchObject({
@@ -210,7 +210,8 @@ describe('video generation API', () => {
       model: 'unsloth/MiniMax-H3-GGUF',
       prompt: 'A local cinematic city reveal',
       seconds: '6',
-      size: '864x480'
+      size: '864x480',
+      steps: 8
     });
 
     const refreshed = await server.inject({

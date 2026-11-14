@@ -1019,6 +1019,12 @@ export async function buildServer(input: BuildServerInput) {
   if (input.creatorExecutors === undefined && creatorFfprobePath) {
     const presenterCommand = process.env.OPENCREATOR_PRESENTER_CMD?.trim() ?? '';
     const talkingHeadUrl = process.env.OPENCREATOR_TALKING_HEAD_URL?.trim() ?? '';
+    // MiniMax-H3 denoising steps (default 20). Ten cuts a 5 s clip to ~22 min
+    // on this iGPU with no visible loss; override with the env var.
+    const minimaxSteps = (() => {
+      const value = Number(process.env.OPENCREATOR_MINIMAX_STEPS ?? '10');
+      return Number.isFinite(value) && value >= 1 ? Math.round(value) : 10;
+    })();
     creatorExecutors.push(
       createCourseNarrationExecutor({
         synthesizeSlide: createEdgeTtsSlideSynthesizer({
@@ -1039,6 +1045,7 @@ export async function buildServer(input: BuildServerInput) {
         // the portrait with head motion instead of lip-syncing it.
         generateModelClip: createMinimaxPresenterClipRunner({
           service: videoGenerationService,
+          steps: minimaxSteps,
           ...(creatorFfmpegPath === undefined ? {} : { ffmpegPath: creatorFfmpegPath })
         }),
         // MiniMax motion + Wav2Lip lips: MiniMax animates the portrait, then the
@@ -1046,7 +1053,8 @@ export async function buildServer(input: BuildServerInput) {
         ...(talkingHeadUrl.length === 0 ? {} : {
           generateLipsyncClip: createMinimaxLipsyncPresenterClipRunner({
             service: videoGenerationService,
-            avatarBaseUrl: talkingHeadUrl
+            avatarBaseUrl: talkingHeadUrl,
+            steps: minimaxSteps
           })
         }),
         // Auto fallback: gentle Ken Burns over the portrait (seconds, CPU only).

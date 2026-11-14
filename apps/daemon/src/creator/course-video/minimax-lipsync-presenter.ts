@@ -36,6 +36,10 @@ export function createMinimaxLipsyncPresenterClipRunner(input: {
   avatarPollIntervalMs?: number;
   avatarTimeoutMs?: number;
   busyRetryMs?: number;
+  /** Denoising steps (Unsloth H3 default 20; 10 is ~2x faster). */
+  steps?: number;
+  /** Cap the MiniMax job; the lip-synced clip is looped to the slide. */
+  maxClipSeconds?: number;
 }): GeneratePresenterClip {
   const base = input.avatarBaseUrl.trim().replace(/\/+$/, '');
   const videoPollMs = input.pollIntervalMs ?? VIDEO_POLL_MS;
@@ -52,7 +56,8 @@ export function createMinimaxLipsyncPresenterClipRunner(input: {
       provider: 'local-sd',
       ...(request.model?.trim() ? { model: request.model.trim() } : {}),
       size: input.size ?? '1280x720',
-      duration: clipDuration(request.durationSeconds),
+      duration: clipDuration(request.durationSeconds, input.maxClipSeconds ?? 5),
+      ...(input.steps === undefined ? {} : { steps: input.steps }),
       referenceImage: { mime: 'image/png', data: portrait.toString('base64') }
     }, { signal: request.signal });
 
@@ -207,8 +212,12 @@ async function runAvatarJob(input: {
   return video;
 }
 
-function clipDuration(seconds: number): CreateVideoGenerationRequest['duration'] {
-  const wanted = Number.isFinite(seconds) && seconds > 0 ? seconds : 4;
+function clipDuration(
+  seconds: number,
+  maxSeconds: number
+): CreateVideoGenerationRequest['duration'] {
+  const raw = Number.isFinite(seconds) && seconds > 0 ? seconds : 4;
+  const wanted = Math.min(raw, maxSeconds);
   const duration = CLIP_DURATIONS.find((value) => value >= Math.ceil(wanted)) ?? CLIP_DURATIONS.at(-1)!;
   return duration;
 }

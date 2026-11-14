@@ -108,6 +108,8 @@ export type CreateVideoGenerationRequest = {
   size: VideoGenerationSize;
   duration: VideoGenerationDuration;
   referenceImage?: VideoGenerationReferenceImage;
+  /** Denoising steps for local video models (Unsloth H3 default: 20). */
+  steps?: number;
 };
 
 export type VideoGenerationResult = {

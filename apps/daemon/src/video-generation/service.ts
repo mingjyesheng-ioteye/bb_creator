@@ -519,7 +519,17 @@ async function createLocalSdVideoJob(
     defaultVideoGenerationModels['local-sd']
   );
   const { width, height } = localSdVideoDimensions(request.size);
-  const payload = await requestVideoJson({
+  const body = (useModel: boolean) => JSON.stringify({
+    ...(useModel ? { model } : {}),
+    prompt: request.prompt.trim(),
+    seconds: localSdVideoSeconds(model, request.duration),
+    size: localSdVideoSize(model, width, height),
+    ...(request.steps === undefined ? {} : { steps: request.steps }),
+    ...(request.referenceImage
+      ? { input_reference: referenceImageDataUrl(request.referenceImage) }
+      : {})
+  });
+  const send = (useModel: boolean) => requestVideoJson({
     provider: 'local-sd',
     endpoint: localSdVideoEndpoint(settings.baseUrl),
     method: 'POST',
@@ -527,19 +537,22 @@ async function createLocalSdVideoJob(
       ...creatorTextModelHeaders(settings.apiKey),
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      model,
-      prompt: request.prompt.trim(),
-      seconds: localSdVideoSeconds(model, request.duration),
-      size: localSdVideoSize(model, width, height),
-      ...(request.referenceImage
-        ? { input_reference: referenceImageDataUrl(request.referenceImage) }
-        : {})
-    }),
+    body: body(useModel),
     config,
     signal,
     fetchImpl
   });
+  let payload: Record<string, unknown>;
+  try {
+    payload = await send(true);
+  } catch (error) {
+    // The app may rename a downloaded video model (e.g. -GGUF suffix dropped);
+    // in that case let the service use whatever model is loaded.
+    const modelMissing = error instanceof Error
+      && /No downloaded video model matches|missing some of its weights/i.test(error.message);
+    if (!modelMissing) throw error;
+    payload = await send(false);
+  }
   const upstreamId = readString(payload, ['id']);
   if (!upstreamId || !/^[A-Za-z0-9_-]{6,128}$/.test(upstreamId)) invalidRemoteJob('Local SD');
   return {

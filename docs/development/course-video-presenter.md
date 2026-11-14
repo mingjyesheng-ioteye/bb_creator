@@ -159,6 +159,22 @@ undici 的 5 分钟 `UND_ERR_HEADERS_TIMEOUT`）：
 `auto` 的顺序是 **GPU 数字人 → `OPENCREATOR_PRESENTER_CMD`（CPU SadTalker）→ Ken Burns 人像运动**；
 显式选择 `talkinghead` 时如果服务不可达，preflight 会直接拦下并提示启动服务。
 
+### MiniMax 速度配置
+
+本机实测（864×480、约 5 秒片段）：
+
+| steps | 时间 |
+| --- | --- |
+| 20（Unsloth 默认） | 约 45 分钟 |
+| 10 | **约 22 分钟**（画质无明显差异） |
+
+- `OPENCREATOR_MINIMAX_STEPS` 控制步数（默认 10，可设 6–8 再快，画质会下降）。
+- 生成片段统一压到最短档（约 5.2 秒 / 124 帧），更长的 slide 循环这段画面；
+  口型由 Wav2Lip 按完整旁白重绘，所以循环不影响口型。
+- 需要更快可换更小的量化（Q6_K 15 GB、Q5 13 GB、Q4_K 10.6 GB）；iGPU 受显存带宽限制，
+  Q4_K 通常还能再快一截。
+- 渲染期间不要同时跑图片生成、ComfyUI 或第二个视频任务；它们会互相抢 GPU。
+
 ### 进度显示
 
 `presenter` 阶段会持续上报进度，界面不会只停在 0%：

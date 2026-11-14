@@ -37,6 +37,10 @@ export function createMinimaxPresenterClipRunner(input: {
   size?: CreateVideoGenerationRequest['size'];
   pollIntervalMs?: number;
   timeoutMs?: number;
+  /** Denoising steps (Unsloth H3 default 20; 10 is ~2x faster). */
+  steps?: number;
+  /** Cap the MiniMax job; the clip is looped to the slide anyway. */
+  maxClipSeconds?: number;
 }): GeneratePresenterClip {
   const pollIntervalMs = input.pollIntervalMs ?? DEFAULT_POLL_MS;
   const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -44,13 +48,14 @@ export function createMinimaxPresenterClipRunner(input: {
   return async (request) => {
     const portrait = await readFile(request.portraitPath);
     const mime = referenceImageMime(request.portraitPath);
-    const duration = clipDuration(request.durationSeconds);
+    const duration = clipDuration(request.durationSeconds, input.maxClipSeconds ?? 5);
     const created = await input.service.create({
       prompt: request.prompt?.trim() || DEFAULT_MINIMAX_PRESENTER_PROMPT,
       provider: 'local-sd',
       ...(request.model?.trim() ? { model: request.model.trim() } : {}),
       size: input.size ?? '1280x720',
       duration,
+      ...(input.steps === undefined ? {} : { steps: input.steps }),
       referenceImage: { mime, data: portrait.toString('base64') }
     }, { signal: request.signal });
 
@@ -114,8 +119,12 @@ async function waitForCompletion(input: {
   }
 }
 
-function clipDuration(seconds: number): CreateVideoGenerationRequest['duration'] {
-  const wanted = Number.isFinite(seconds) && seconds > 0 ? seconds : 4;
+function clipDuration(
+  seconds: number,
+  maxSeconds: number
+): CreateVideoGenerationRequest['duration'] {
+  const raw = Number.isFinite(seconds) && seconds > 0 ? seconds : 4;
+  const wanted = Math.min(raw, maxSeconds);
   const duration = CLIP_DURATIONS.find((value) => value >= Math.ceil(wanted)) ?? CLIP_DURATIONS.at(-1)!;
   return duration;
 }
