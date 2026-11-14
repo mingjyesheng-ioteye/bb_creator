@@ -106,6 +106,7 @@ SADTALKER_PREPROCESS=crop
 | --- | --- | --- | --- |
 | `sadtalker` | `talkinghead` | 约 1.5–2.5 分钟（10 s 片段约 4 分钟） | 头部运动 + 眨眼 + 口型，长片段自动分片 |
 | `wav2lip` | `wav2lip` | 5 s 片段实测 10 s（冷启动约 20 s） | 只重绘嘴部，最快，适合整门课 |
+| MiniMax+Wav2Lip | `minimax_lipsync` | 每条 ~45 分钟 + 1–2 分钟 | MiniMax 做头部动作，Wav2Lip 按旁白重绘嘴部（真口型），适合重点 slide |
 | `latentsync` | 暂不开放 | 256² 约 9 分钟 / 3 秒；512² 24 分钟未完成 | 本机实测输出损坏或过慢，暂不作为选项 |
 | `musetalk` | 未开放 | 约 6 分钟 | 在这块 ROCm iGPU 上嘴部输出噪点，暂不可用 |
 
@@ -118,6 +119,19 @@ Wav2Lip 需要 `wav2lip_gan.pth` + s3fd，装在 `D:\ai\avatar\repos\Wav2Lip`
 （`bin\wav2lip_infer_cpuface.py` 强制人脸检测走 CPU，避免 gfx1151 的 MIOpen 首次卷积变慢）。
 LatentSync 用 `D:\ai\avatar\repos\LatentSync` 和 `venvs\latentsync`（继承系统 ROCm torch），
 模型来自 WSL 里已有的 checkpoint 副本。
+
+## MiniMax + Wav2Lip（有口型）
+
+MiniMax-H3 的 fl2va 检查点只做画面、不读音频；ref2va 的音频条件需要 dense 模型。
+折中方案 `presenterBackend=minimax_lipsync`：
+
+1. 用 MiniMax-H3 生成肖像的动作片段（头部动作/眨眼/手势），
+2. 把这段视频 + slide 旁白发给 Windows 数字人服务，用 Wav2Lip 重绘嘴部
+   （服务端 `video_b64` + `engine=wav2lip`），
+3. 结果循环到 slide 长度。
+
+实测 5 s 片段的 Wav2Lip 第二遍约 45 秒；MiniMax 第一遍仍是每条约 45 分钟，
+所以只适合少数重点 slide。整门课用 Wav2Lip 或 SadTalker。
 
 ## Windows GPU 数字人服务（SadTalker）
 

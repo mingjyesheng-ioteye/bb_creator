@@ -280,6 +280,40 @@ export function createCreatorPreflight(input: {
               executionMode: 'local'
             });
           }
+        } else if (backend === 'minimax_lipsync') {
+          const status = await unslothVideoStatus(config.video.localSd.baseUrl, config.video.localSd.apiKey);
+          const engines = await talkingHeadEngines(process.env.OPENCREATOR_TALKING_HEAD_URL?.trim() ?? '');
+          if (!status.reachable) {
+            add('blocked', {
+              id: 'minimax-lipsync', title: 'Unsloth Studio is not running',
+              message: 'The presenter engine is MiniMax + Wav2Lip, but Unsloth Studio does not answer on the video URL. Start it before rendering.',
+              executionMode: 'local'
+            }, { label: 'Open local component settings', deepLink: '#/settings?tab=local-components' });
+          } else if (status.loadedVideo === undefined) {
+            add('warning', {
+              id: 'minimax-lipsync', title: 'No video model loaded',
+              message: 'Unsloth answers but no video model is loaded. Load MiniMax-H3 (or enable Model auto-switch) or the presenter stage will fail.',
+              executionMode: 'local'
+            });
+          } else if (engines === undefined) {
+            add('blocked', {
+              id: 'minimax-lipsync', title: 'Talking-head service is not running',
+              message: 'MiniMax + Wav2Lip needs the avatar service for the lip-sync pass. Start it on the GPU host.',
+              executionMode: 'local'
+            }, { label: 'Open local component settings', deepLink: '#/settings?tab=local-components' });
+          } else if (!engines.includes('wav2lip')) {
+            add('blocked', {
+              id: 'minimax-lipsync', title: 'Wav2Lip is not installed',
+              message: 'The avatar service does not advertise the wav2lip engine, so the lip-sync pass cannot run.',
+              executionMode: 'local'
+            }, { label: 'Open local component settings', deepLink: '#/settings?tab=local-components' });
+          } else {
+            add('warning', {
+              id: 'minimax-lipsync', title: 'MiniMax + Wav2Lip is slow',
+              message: `Presenter clips are animated by ${status.loadedVideo} and then lip-synced with Wav2Lip. Expect ~45 minutes per MiniMax clip plus ~1-2 minutes of Wav2Lip; use it for a few hero slides, and leave the page running in the background.`,
+              executionMode: 'local'
+            });
+          }
         } else if (backend === 'wav2lip') {
           const url = process.env.OPENCREATOR_TALKING_HEAD_URL?.trim() ?? '';
           const engines = await talkingHeadEngines(url);

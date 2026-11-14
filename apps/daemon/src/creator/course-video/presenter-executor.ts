@@ -62,6 +62,8 @@ export function createCoursePresenterExecutor(input: {
   generateMotionClip?: GeneratePresenterClip;
   /** Real lip-sync talking head (MuseTalk on the Windows GPU, over HTTP). */
   generateTalkingClip?: GeneratePresenterClip;
+  /** MiniMax motion clip + Wav2Lip pass (lip-synced, slow). */
+  generateLipsyncClip?: GeneratePresenterClip;
   /**
    * Optional reachability probe for the model backend. `auto` only uses the
    * video model when this resolves true, so a host without Unsloth keeps
@@ -99,6 +101,7 @@ export function createCoursePresenterExecutor(input: {
         commandClip: input.generateClip,
         modelClip: input.generateModelClip,
         talkingClip: input.generateTalkingClip,
+        lipsyncClip: input.generateLipsyncClip,
         motionClip: input.generateMotionClip,
         canUseModelClip: input.canUseModelClip,
         canUseTalkingClip: input.canUseTalkingClip
@@ -133,6 +136,7 @@ export function createCoursePresenterExecutor(input: {
         // run one clip at a time. ffmpeg motion clips can fan out on the CPU.
         const concurrency = generateClip === input.generateModelClip
           || generateClip === input.generateTalkingClip
+          || generateClip === input.generateLipsyncClip
           ? 1
           : resolvePresenterConcurrency(input.concurrency);
         // Long clips report provider progress so the stage shows more than 0%.
@@ -192,7 +196,9 @@ export function createCoursePresenterExecutor(input: {
               ? 'none'
               : generateClip === input.generateModelClip
                 ? 'minimax'
-                : generateClip === input.generateTalkingClip
+                : generateClip === input.generateLipsyncClip
+                  ? 'minimax_lipsync'
+                  : generateClip === input.generateTalkingClip
                   ? (engine ?? 'talkinghead')
                   : generateClip === input.generateMotionClip ? 'motion' : 'command',
             ...(model ? { presenterModel: model } : {}),
@@ -288,7 +294,8 @@ export type CoursePresenterBackend =
   | 'locmodel'
   | 'minimax'
   | 'talkinghead'
-  | 'wav2lip';
+  | 'wav2lip'
+  | 'minimax_lipsync';
 
 function readBackend(value: unknown): CoursePresenterBackend {
   // `locmodel` is the pre-Unsloth name for the video-model backend; old jobs and
@@ -298,6 +305,7 @@ function readBackend(value: unknown): CoursePresenterBackend {
     || value === 'minimax'
     || value === 'talkinghead'
     || value === 'wav2lip'
+    || value === 'minimax_lipsync'
     ? value
     : 'auto';
 }
@@ -314,6 +322,7 @@ async function resolveClipGenerator(input: {
   commandClip: GeneratePresenterClip | undefined;
   modelClip: GeneratePresenterClip | undefined;
   talkingClip: GeneratePresenterClip | undefined;
+  lipsyncClip: GeneratePresenterClip | undefined;
   motionClip: GeneratePresenterClip | undefined;
   canUseModelClip: (() => Promise<boolean>) | undefined;
   canUseTalkingClip: (() => Promise<boolean>) | undefined;
@@ -348,6 +357,27 @@ async function resolveClipGenerator(input: {
       );
     }
     return input.talkingClip;
+  }
+  if (input.backend === 'minimax_lipsync') {
+    if (input.lipsyncClip === undefined) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'The MiniMax + Wav2Lip presenter is not available. Start Unsloth Studio and the avatar service on the GPU host.'
+      );
+    }
+    if (input.canUseModelClip !== undefined && !(await input.canUseModelClip())) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'Unsloth Studio has no video model available. Load MiniMax-H3 (or enable Model auto-switch), then retry.'
+      );
+    }
+    if (input.canUseTalkingClip !== undefined && !(await input.canUseTalkingClip())) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'The talking-head service is not reachable, so the Wav2Lip pass cannot run. Start it on the GPU host.'
+      );
+    }
+    return input.lipsyncClip;
   }
   if (input.backend === 'talkinghead') {
     if (input.talkingClip === undefined) {

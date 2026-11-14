@@ -277,6 +277,32 @@ describe('course video presenter executor', () => {
     })).rejects.toThrow(/not reachable/);
   });
 
+  it('uses the MiniMax + Wav2Lip runner for minimax_lipsync', async () => {
+    const { workdir, lessonPath } = setup();
+    const lipsync = clipMock();
+    const model = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateModelClip: model,
+      generateLipsyncClip: lipsync,
+      canUseModelClip: async () => true,
+      canUseTalkingClip: async () => true
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'minimax_lipsync' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(lipsync).toHaveBeenCalledTimes(2);
+    expect(model).not.toHaveBeenCalled();
+    expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'minimax_lipsync' });
+  });
+
   it('reports clip progress into the stage percentage', async () => {
     const { workdir, lessonPath } = setup();
     const reportProgress = vi.fn();

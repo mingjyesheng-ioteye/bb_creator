@@ -38,7 +38,7 @@ const courseVideoVoices = [
   'ko-KR-SunHiNeural'
 ];
 
-type PresenterBackend = 'auto' | 'command' | 'locmodel' | 'minimax' | 'talkinghead' | 'wav2lip';
+type PresenterBackend = 'auto' | 'command' | 'locmodel' | 'minimax' | 'talkinghead' | 'wav2lip' | 'minimax_lipsync';
 
 export default function CourseVideoWorkspace(props: {
   onBack(): void;
@@ -120,7 +120,7 @@ export default function CourseVideoWorkspace(props: {
   const services = props.creatorServicesService;
   useEffect(() => {
     if (services === null || services === undefined) return undefined;
-    if (!presenterEnabled || presenterBackend !== 'minimax') return undefined;
+    if (!presenterEnabled || (presenterBackend !== 'minimax' && presenterBackend !== 'minimax_lipsync')) return undefined;
     let active = true;
     setLocalModelsLoading(true);
     setLocalModelHint('');
@@ -478,6 +478,7 @@ export default function CourseVideoWorkspace(props: {
                       <option value="wav2lip">{l('Wav2Lip 快速口型（GPU）', 'Wav2Lip fast lip-sync (GPU)')}</option>
                       <option value="command">{l('口型同步命令（CPU）', 'Lip-sync command (CPU)')}</option>
                       <option value="minimax">{l('MiniMax-H3 人像动画（无口型）', 'MiniMax-H3 portrait animation (no lip-sync)')}</option>
+                      <option value="minimax_lipsync">{l('MiniMax-H3 + Wav2Lip（有口型，慢）', 'MiniMax-H3 + Wav2Lip (lip-synced, slow)')}</option>
                     </NativeSelect>
                     {presenterBackend === 'auto' ? (
                       <small>
@@ -504,6 +505,14 @@ export default function CourseVideoWorkspace(props: {
                       )}
                     </p>
                   ) : null}
+                  {presenterBackend === 'minimax_lipsync' ? (
+                    <p className="creator-tool-notice" role="status">
+                      {l(
+                        '先用 MiniMax-H3 生成头部动作/眨眼，再让 GPU 主机上的 Wav2Lip 按旁白重绘嘴部：有真实口型，但每条片段约 45 分钟 + 1–2 分钟。适合少数重点 slide。',
+                        'MiniMax-H3 animates head motion and blinks, then Wav2Lip on the GPU host redraws the mouth from the narration: real lip-sync, but ~45 min + 1-2 min per clip. Best for a few hero slides.'
+                      )}
+                    </p>
+                  ) : null}
                   {presenterBackend === 'command' ? (
                     <p className="creator-tool-notice" role="status">
                       {l(
@@ -512,7 +521,7 @@ export default function CourseVideoWorkspace(props: {
                       )}
                     </p>
                   ) : null}
-                  {presenterBackend === 'minimax' ? (
+                  {presenterBackend === 'minimax' || presenterBackend === 'minimax_lipsync' ? (
                     <>
                       <label className="creator-tool-field">
                         <span>
@@ -539,10 +548,15 @@ export default function CourseVideoWorkspace(props: {
                         />
                       </label>
                       <p className="creator-tool-notice" role="status">
-                        {localModelHint || l(
-                          'MiniMax-H3 会让肖像产生头部动作与表情，但不读取旁白音频、不做口型同步；旁白仍使用课程旁白音轨，每条 slide 需要数分钟。',
-                          'MiniMax-H3 animates the portrait (head motion, blinks, gestures) but does not read the narration or lip-sync; the lesson keeps its own narration track. Expect several minutes per slide.'
-                        )}
+                        {localModelHint || (presenterBackend === 'minimax_lipsync'
+                          ? l(
+                            'MiniMax-H3 生成头部动作，随后 Wav2Lip 按旁白重绘嘴部：有真实口型，但每条片段约 45 分钟 + 1–2 分钟。',
+                            'MiniMax-H3 animates the head, then Wav2Lip redraws the mouth from the narration: real lip-sync, but ~45 min + 1-2 min per clip.'
+                          )
+                          : l(
+                            'MiniMax-H3 会让肖像产生头部动作与表情，但不读取旁白音频、不做口型同步；旁白仍使用课程旁白音轨，每条 slide 需要数分钟。',
+                            'MiniMax-H3 animates the portrait (head motion, blinks, gestures) but does not read the narration or lip-sync; the lesson keeps its own narration track. Expect several minutes per slide.'
+                          ))}
                       </p>
                     </>
                   ) : null}
@@ -722,7 +736,7 @@ function readBackend(value: CreatorJson | undefined): PresenterBackend {
   // `locmodel` is the old name for the video-model presenter.
   if (value === 'locmodel') return 'minimax';
   return value === 'command' || value === 'minimax' || value === 'talkinghead'
-    || value === 'wav2lip'
+    || value === 'wav2lip' || value === 'minimax_lipsync'
     ? value
     : 'auto';
 }

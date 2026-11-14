@@ -19,7 +19,7 @@ const courseVideoInputSchema = z.object({
    * Presenter engine: `auto` uses the lip-sync command when configured and the
    * local video model otherwise; `command` and `minimax` force one backend.
    */
-  presenterBackend: z.enum(['auto', 'command', 'locmodel', 'minimax', 'talkinghead', 'wav2lip']).default('auto'),
+  presenterBackend: z.enum(['auto', 'command', 'locmodel', 'minimax', 'talkinghead', 'wav2lip', 'minimax_lipsync']).default('auto'),
   /** Local video model id (e.g. `unsloth/MiniMax-H3-GGUF`). */
   presenterModel: z.string().trim().default(''),
   /** Motion prompt for the video model; blank uses the built-in presenter prompt. */

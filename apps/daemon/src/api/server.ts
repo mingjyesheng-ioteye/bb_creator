@@ -79,6 +79,7 @@ import {
   createCommandPresenterClipRunner
 } from '../creator/course-video/presenter-executor.js';
 import { createMinimaxPresenterClipRunner } from '../creator/course-video/minimax-presenter.js';
+import { createMinimaxLipsyncPresenterClipRunner } from '../creator/course-video/minimax-lipsync-presenter.js';
 import { createPortraitMotionClipRunner } from '../creator/course-video/motion-presenter.js';
 import {
   createTalkingHeadClipRunner,
@@ -1039,6 +1040,14 @@ export async function buildServer(input: BuildServerInput) {
         generateModelClip: createMinimaxPresenterClipRunner({
           service: videoGenerationService,
           ...(creatorFfmpegPath === undefined ? {} : { ffmpegPath: creatorFfmpegPath })
+        }),
+        // MiniMax motion + Wav2Lip lips: MiniMax animates the portrait, then the
+        // Windows avatar service redraws the mouth from the narration.
+        ...(talkingHeadUrl.length === 0 ? {} : {
+          generateLipsyncClip: createMinimaxLipsyncPresenterClipRunner({
+            service: videoGenerationService,
+            avatarBaseUrl: talkingHeadUrl
+          })
         }),
         // Auto fallback: gentle Ken Burns over the portrait (seconds, CPU only).
         ...(creatorFfmpegPath === undefined ? {} : {
