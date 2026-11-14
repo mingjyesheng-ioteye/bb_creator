@@ -992,10 +992,16 @@ export const courseVideoPanelAdapter: CreatorPanelAdapter = {
     if (active && progress.phase === 'generating_presenter') {
       const done = progress.completed ?? 0;
       const total = progress.total ?? 0;
-      message = localize(
-        `正在生成数字人片段${total > 0 ? `（${done}/${total}）` : ''}：SadTalker 约 1–3 分钟/片段，Wav2Lip 约 10–30 秒，MiniMax-H3 约 45 分钟/片段。可以离开页面，任务会在后台继续。`,
-        `Generating presenter clips${total > 0 ? ` (${done}/${total})` : ''}: SadTalker ~1-3 min/clip, Wav2Lip ~10-30 s, MiniMax-H3 ~45 min/clip. You can leave this page; the task continues in the background.`
+      const guidance = localize(
+        `SadTalker 约 1–3 分钟/片段，Wav2Lip 约 10–30 秒，MiniMax-H3 约 45 分钟/片段；可以离开页面，任务会在后台继续。`,
+        `SadTalker ~1-3 min/clip, Wav2Lip ~10-30 s, MiniMax-H3 ~45 min/clip. You can leave this page; the task continues in the background.`
       );
+      message = progress.message === null
+        ? localize(
+            `正在生成数字人片段${total > 0 ? `（${done}/${total}）` : ''}：${guidance}`,
+            `Generating presenter clips${total > 0 ? ` (${done}/${total})` : ''}: ${guidance}`
+          )
+        : `${progress.message} · ${guidance}`;
     }
     return {
       ...progress,
