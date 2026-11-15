@@ -130,13 +130,26 @@ export async function createCreatorArtifactObjectUrl(
   session: CreatorClientFailureSession,
   artifactId: string,
   operation: string,
-  fallbackMessage: string
+  fallbackMessage: string,
+  jobId?: string
 ): Promise<string> {
-  const response = await session.openArtifact(artifactId);
-  return captureCreatorClientFailure(session, operation, fallbackMessage, async () => {
-    if (!response.ok) throw new Error(`Creator artifact request failed: ${response.status}`);
-    return URL.createObjectURL(await response.blob());
-  });
+  // Large videos (a 5-minute course is ~35 MB) can fail to blob through the
+  // runtime proxy, e.g. on a slow tunnel or while the file is still being
+  // written. Fall back to streaming the artifact URL directly so the <video>
+  // element still gets a playable source.
+  const directUrl = jobId === undefined
+    ? undefined
+    : `${window.location.origin}/.opencreator/runtime/creator/jobs/${encodeURIComponent(jobId)}/artifacts/${encodeURIComponent(artifactId)}/content`;
+  try {
+    const response = await session.openArtifact(artifactId);
+    return await captureCreatorClientFailure(session, operation, fallbackMessage, async () => {
+      if (!response.ok) throw new Error(`Creator artifact request failed: ${response.status}`);
+      return URL.createObjectURL(await response.blob());
+    });
+  } catch (error) {
+    if (directUrl !== undefined) return directUrl;
+    throw error;
+  }
 }
 
 export type CreatorSessionError = {

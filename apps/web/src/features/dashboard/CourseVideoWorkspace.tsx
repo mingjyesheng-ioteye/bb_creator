@@ -309,7 +309,13 @@ export default function CourseVideoWorkspace(props: {
       'course-video.download',
       l('视频下载失败，请稍后重试。', 'The video download failed. Try again later.'),
       async () => {
-        const url = await createCreatorArtifactObjectUrl(session, result.id, 'course-video.download', l('视频下载失败', 'Video download failed'));
+        const url = await createCreatorArtifactObjectUrl(
+          session,
+          result.id,
+          'course-video.download',
+          l('视频下载失败', 'Video download failed'),
+          session.job.id
+        );
         const link = document.createElement('a');
         link.href = url;
         link.download = readString(result.metadata.fileName) || 'course-lesson.mp4';
@@ -704,7 +710,8 @@ function useArtifactUrl(artifactId?: string): string {
       sessionRef.current,
       artifactId,
       'course-video.load-preview',
-      'Could not load the video preview. Try again later.'
+      'Could not load the video preview. Try again later.',
+      jobId
     ).then(url => {
       if (canceled) {
         URL.revokeObjectURL(url);
