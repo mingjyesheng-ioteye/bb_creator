@@ -1074,20 +1074,30 @@ export async function buildServer(input: BuildServerInput) {
           try {
             const config = await creatorServicesConfigStore.read();
             const settings = config.video.localSd;
-            const baseUrl = settings.baseUrl.trim().replace(/\/+$/, '');
+            const baseUrl = settings.baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/i, '');
             if (!baseUrl) return false;
             const headers: Record<string, string> = { Accept: 'application/json' };
             if (settings.apiKey.trim()) headers.Authorization = `Bearer ${settings.apiKey.trim()}`;
-            const endpoint = `${/\/v1$/i.test(baseUrl) ? baseUrl : `${baseUrl}/v1`}/models`;
-            const response = await fetch(endpoint, {
+            // Unsloth does not list video models in /v1/models, so ask the video
+            // engine what is resident.
+            const statusResponse = await fetch(`${baseUrl}/api/inference/video/status`, {
+              headers,
+              signal: AbortSignal.timeout(3_000)
+            });
+            if (statusResponse.ok) {
+              const status = await statusResponse.json().catch(() => undefined) as {
+                loaded?: unknown;
+              } | undefined;
+              return status?.loaded === true;
+            }
+            const response = await fetch(`${baseUrl}/v1/models`, {
               headers,
               signal: AbortSignal.timeout(3_000)
             });
             if (!response.ok) return false;
             const payload = await response.json().catch(() => undefined) as {
-              data?: Array<{ id?: unknown; loaded?: unknown }>;
+              data?: Array<{ loaded?: unknown }>;
             } | undefined;
-            // Unsloth answers "No model loaded" (503) until a video model is resident.
             return Array.isArray(payload?.data) && payload.data.some(entry => entry?.loaded === true);
           } catch {
             return false;

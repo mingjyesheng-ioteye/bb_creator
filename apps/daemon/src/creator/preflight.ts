@@ -719,13 +719,29 @@ async function unslothVideoStatus(
   baseUrl: string,
   apiKey: string
 ): Promise<{ reachable: boolean; loadedVideo?: string }> {
-  const base = baseUrl.trim().replace(/\/+$/, '');
+  const base = baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/i, '');
   if (base.length === 0) return { reachable: false };
-  const endpoint = `${/\/v1$/i.test(base) ? base : `${base}/v1`}/models`;
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (apiKey.trim().length > 0) headers.Authorization = `Bearer ${apiKey.trim()}`;
   try {
-    const response = await fetch(endpoint, {
+    // Video models are absent from /v1/models; the engine reports what is resident.
+    const statusResponse = await fetch(`${base}/api/inference/video/status`, {
+      headers,
+      signal: AbortSignal.timeout(2_500)
+    });
+    if (statusResponse.ok) {
+      const status = await statusResponse.json().catch(() => undefined) as {
+        loaded?: unknown;
+        repo_id?: unknown;
+        display_repo_id?: unknown;
+      } | undefined;
+      if (status?.loaded !== true) return { reachable: true };
+      const id = typeof status.display_repo_id === 'string' && status.display_repo_id
+        ? status.display_repo_id
+        : typeof status.repo_id === 'string' ? status.repo_id : 'the loaded video model';
+      return { reachable: true, loadedVideo: id };
+    }
+    const response = await fetch(`${base}/v1/models`, {
       headers,
       signal: AbortSignal.timeout(2_500)
     });
