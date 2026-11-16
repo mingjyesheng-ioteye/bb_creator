@@ -24,6 +24,8 @@ export type GeneratePresenterClip = (request: {
   index: number;
   /** Narration length of the slide, in seconds (0 when the slide is silent). */
   durationSeconds: number;
+  /** Spoken narration text (H3 uses it to anchor the lip sync). */
+  text?: string;
   /** Optional video model id (MiniMax-H3) and motion prompt from the job state. */
   model?: string;
   prompt?: string;
@@ -64,6 +66,8 @@ export function createCoursePresenterExecutor(input: {
   generateTalkingClip?: GeneratePresenterClip;
   /** MiniMax motion clip + Wav2Lip pass (lip-synced, slow). */
   generateLipsyncClip?: GeneratePresenterClip;
+  /** MiniMax-H3 R2V on ComfyUI (native lip sync, Windows GPU). */
+  generateComfyClip?: GeneratePresenterClip;
   /**
    * Optional reachability probe for the model backend. `auto` only uses the
    * video model when this resolves true, so a host without Unsloth keeps
@@ -72,6 +76,8 @@ export function createCoursePresenterExecutor(input: {
   canUseModelClip?(): Promise<boolean>;
   /** Reachability probe for the talking-head service. */
   canUseTalkingClip?(): Promise<boolean>;
+  /** Reachability probe for the ComfyUI H3 worker. */
+  canUseComfyClip?(): Promise<boolean>;
   /** Max clips generated in parallel. Defaults to OPENCREATOR_PRESENTER_CONCURRENCY or a CPU-based value. */
   concurrency?: number;
 }): CreatorExecutor {
@@ -102,13 +108,15 @@ export function createCoursePresenterExecutor(input: {
         modelClip: input.generateModelClip,
         talkingClip: input.generateTalkingClip,
         lipsyncClip: input.generateLipsyncClip,
+        comfyClip: input.generateComfyClip,
         motionClip: input.generateMotionClip,
         canUseModelClip: input.canUseModelClip,
-        canUseTalkingClip: input.canUseTalkingClip
+        canUseTalkingClip: input.canUseTalkingClip,
+        canUseComfyClip: input.canUseComfyClip
       });
 
       if (portraitPath && generateClip !== undefined) {
-        const targets: Array<{ index: number; slideId: string; audioPath: string; durationSeconds: number }> = [];
+        const targets: Array<{ index: number; slideId: string; audioPath: string; durationSeconds: number; text?: string }> = [];
         for (let index = 0; index < total; index += 1) {
           const slide = lesson.slides[index]!;
           if (!slide.audioSrc) continue;
@@ -117,7 +125,8 @@ export function createCoursePresenterExecutor(input: {
             index,
             slideId: slide.id,
             audioPath: slide.audioSrc,
-            durationSeconds: (slide.durationInFrames ?? 0) / COURSE_VIDEO_FPS
+            durationSeconds: (slide.durationInFrames ?? 0) / COURSE_VIDEO_FPS,
+            ...(slide.narration ? { text: slide.narration } : {})
           });
         }
         const generated: Array<CourseAvatarClip | undefined> = new Array(targets.length);
@@ -137,6 +146,7 @@ export function createCoursePresenterExecutor(input: {
         const concurrency = generateClip === input.generateModelClip
           || generateClip === input.generateTalkingClip
           || generateClip === input.generateLipsyncClip
+          || generateClip === input.generateComfyClip
           ? 1
           : resolvePresenterConcurrency(input.concurrency);
         // Long clips report provider progress so the stage shows more than 0%.
@@ -166,6 +176,7 @@ export function createCoursePresenterExecutor(input: {
             ...(engine ? { engine } : {}),
             ...(model ? { model } : {}),
             ...(prompt ? { prompt } : {}),
+            ...(target.text ? { text: target.text } : {}),
             onProgress: reportClipProgress,
             signal: stage.signal
           });
@@ -198,7 +209,9 @@ export function createCoursePresenterExecutor(input: {
                 ? 'minimax'
                 : generateClip === input.generateLipsyncClip
                   ? 'minimax_lipsync'
-                  : generateClip === input.generateTalkingClip
+                  : generateClip === input.generateComfyClip
+                    ? 'comfy_h3'
+                    : generateClip === input.generateTalkingClip
                   ? (engine ?? 'talkinghead')
                   : generateClip === input.generateMotionClip ? 'motion' : 'command',
             ...(model ? { presenterModel: model } : {}),
@@ -295,7 +308,8 @@ export type CoursePresenterBackend =
   | 'minimax'
   | 'talkinghead'
   | 'wav2lip'
-  | 'minimax_lipsync';
+  | 'minimax_lipsync'
+  | 'comfy_h3';
 
 function readBackend(value: unknown): CoursePresenterBackend {
   // `locmodel` is the pre-Unsloth name for the video-model backend; old jobs and
@@ -306,6 +320,7 @@ function readBackend(value: unknown): CoursePresenterBackend {
     || value === 'talkinghead'
     || value === 'wav2lip'
     || value === 'minimax_lipsync'
+    || value === 'comfy_h3'
     ? value
     : 'auto';
 }
@@ -323,9 +338,11 @@ async function resolveClipGenerator(input: {
   modelClip: GeneratePresenterClip | undefined;
   talkingClip: GeneratePresenterClip | undefined;
   lipsyncClip: GeneratePresenterClip | undefined;
+  comfyClip: GeneratePresenterClip | undefined;
   motionClip: GeneratePresenterClip | undefined;
   canUseModelClip: (() => Promise<boolean>) | undefined;
   canUseTalkingClip: (() => Promise<boolean>) | undefined;
+  canUseComfyClip: (() => Promise<boolean>) | undefined;
 }): Promise<GeneratePresenterClip | undefined> {
   if (input.backend === 'command') return input.commandClip;
   if (input.backend === 'minimax') {
@@ -378,6 +395,21 @@ async function resolveClipGenerator(input: {
       );
     }
     return input.lipsyncClip;
+  }
+  if (input.backend === 'comfy_h3') {
+    if (input.comfyClip === undefined) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'The ComfyUI H3 presenter is not configured. Start ComfyUI on the GPU host (task "ComfyUI (manual)" or the OpenMontage GPU worker panel) and retry.'
+      );
+    }
+    if (input.canUseComfyClip !== undefined && !(await input.canUseComfyClip())) {
+      throw new CreatorExecutorError(
+        'course_presenter_unavailable',
+        'ComfyUI is not reachable. Start the Windows ComfyUI worker (127.0.0.1:8188), then retry the presenter stage.'
+      );
+    }
+    return input.comfyClip;
   }
   if (input.backend === 'talkinghead') {
     if (input.talkingClip === undefined) {

@@ -80,6 +80,7 @@ import {
 } from '../creator/course-video/presenter-executor.js';
 import { createMinimaxPresenterClipRunner } from '../creator/course-video/minimax-presenter.js';
 import { createMinimaxLipsyncPresenterClipRunner } from '../creator/course-video/minimax-lipsync-presenter.js';
+import { createComfyH3PresenterClipRunner } from '../creator/course-video/comfy-h3-presenter.js';
 import { createPortraitMotionClipRunner } from '../creator/course-video/motion-presenter.js';
 import {
   createTalkingHeadClipRunner,
@@ -1025,6 +1026,13 @@ export async function buildServer(input: BuildServerInput) {
       const value = Number(process.env.OPENCREATOR_MINIMAX_STEPS ?? '10');
       return Number.isFinite(value) && value >= 1 ? Math.round(value) : 10;
     })();
+    // MiniMax-H3 R2V on the Windows ComfyUI worker. Four steps is the turbo
+    // LoRA's native count; ~6 min per 5.9 s clip at 864x480.
+    const comfyUrl = process.env.COMFYUI_URL?.trim() || 'http://127.0.0.1:8188';
+    const comfySteps = (() => {
+      const value = Number(process.env.OPENCREATOR_COMFY_STEPS ?? '4');
+      return Number.isFinite(value) && value >= 1 ? Math.round(value) : 4;
+    })();
     creatorExecutors.push(
       createCourseNarrationExecutor({
         synthesizeSlide: createEdgeTtsSlideSynthesizer({
@@ -1057,6 +1065,14 @@ export async function buildServer(input: BuildServerInput) {
             steps: minimaxSteps
           })
         }),
+        // MiniMax-H3 R2V on the Windows ComfyUI worker: native motion + lip
+        // sync from the narration audio, ~6 min per 5.9 s clip.
+        generateComfyClip: createComfyH3PresenterClipRunner({
+          baseUrl: comfyUrl,
+          steps: comfySteps,
+          ...(creatorFfmpegPath === undefined ? {} : { ffmpegPath: creatorFfmpegPath })
+        }),
+        canUseComfyClip: () => comfyuiReachable(comfyUrl),
         // Auto fallback: gentle Ken Burns over the portrait (seconds, CPU only).
         ...(creatorFfmpegPath === undefined ? {} : {
           generateMotionClip: createPortraitMotionClipRunner({ ffmpegPath: creatorFfmpegPath })
@@ -1908,6 +1924,21 @@ async function readAllCodexHistory(
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Is the Windows ComfyUI worker answering? */
+async function comfyuiReachable(baseUrl: string): Promise<boolean> {
+  const base = baseUrl.trim().replace(/\/+$/, '');
+  if (base.length === 0) return false;
+  try {
+    const response = await fetch(`${base}/system_stats`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(2_500)
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 function parseNonNegativeInteger(value: string | undefined): number | undefined {

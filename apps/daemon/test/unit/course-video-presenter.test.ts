@@ -5,6 +5,7 @@ import type { CreatorArtifact, CreatorJob, CreatorStageRun } from '@opencreator/
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createCoursePresenterExecutor } from '../../src/creator/course-video/presenter-executor.js';
 import type { GeneratePresenterClip } from '../../src/creator/course-video/presenter-executor.js';
+import { alignFrames } from '../../src/creator/course-video/comfy-h3-presenter.js';
 import { applyAvatarClips } from '../../src/creator/course-video/render-executor.js';
 
 let tempDir = '';
@@ -69,6 +70,13 @@ function setup() {
 function clipMock() {
   return vi.fn(async (_request: Parameters<GeneratePresenterClip>[0]) => undefined);
 }
+
+describe('comfy h3 frame alignment', () => {
+  it('snaps durations to the 5-mod-17 frame lattice', () => {
+    expect(alignFrames(5.04 + 0.5)).toBe(141);
+    expect(alignFrames(14.375)).toBe(345);
+  });
+});
 
 describe('course video presenter executor', () => {
   it('generates one talking-head clip per slide with narration', async () => {
@@ -301,6 +309,47 @@ describe('course video presenter executor', () => {
     expect(lipsync).toHaveBeenCalledTimes(2);
     expect(model).not.toHaveBeenCalled();
     expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'minimax_lipsync' });
+  });
+
+  it('uses the ComfyUI H3 runner for comfy_h3', async () => {
+    const { workdir, lessonPath } = setup();
+    const comfy = clipMock();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateComfyClip: comfy,
+      canUseComfyClip: async () => true
+    });
+
+    const result = await executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'comfy_h3' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    });
+
+    expect(comfy).toHaveBeenCalledTimes(2);
+    expect(comfy).toHaveBeenCalledWith(expect.objectContaining({ text: 'Intro' }));
+    expect(result.outputs[0]!.metadata).toMatchObject({ presenterBackend: 'comfy_h3' });
+  });
+
+  it('fails loudly when ComfyUI is down for comfy_h3', async () => {
+    const { workdir, lessonPath } = setup();
+    const executor = createCoursePresenterExecutor({
+      resolvePortrait: async () => '/portraits/instructor.png',
+      generateComfyClip: clipMock(),
+      canUseComfyClip: async () => false
+    });
+
+    await expect(executor.run({
+      stageRun: stageRun(),
+      job: job({ presenterBackend: 'comfy_h3' }),
+      inputArtifacts: [artifact('course-narrated-lesson', lessonPath)],
+      workdir,
+      signal: new AbortController().signal,
+      reportProgress: vi.fn()
+    })).rejects.toThrow(/ComfyUI is not reachable/);
   });
 
   it('reports clip progress into the stage percentage', async () => {

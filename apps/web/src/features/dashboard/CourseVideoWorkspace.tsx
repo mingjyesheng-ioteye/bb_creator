@@ -38,7 +38,7 @@ const courseVideoVoices = [
   'ko-KR-SunHiNeural'
 ];
 
-type PresenterBackend = 'auto' | 'command' | 'locmodel' | 'minimax' | 'talkinghead' | 'wav2lip' | 'minimax_lipsync';
+type PresenterBackend = 'auto' | 'command' | 'locmodel' | 'minimax' | 'talkinghead' | 'wav2lip' | 'minimax_lipsync' | 'comfy_h3';
 
 export default function CourseVideoWorkspace(props: {
   onBack(): void;
@@ -485,6 +485,7 @@ export default function CourseVideoWorkspace(props: {
                       <option value="command">{l('口型同步命令（CPU）', 'Lip-sync command (CPU)')}</option>
                       <option value="minimax">{l('MiniMax-H3 人像动画（无口型）', 'MiniMax-H3 portrait animation (no lip-sync)')}</option>
                       <option value="minimax_lipsync">{l('MiniMax-H3 + Wav2Lip（有口型，慢）', 'MiniMax-H3 + Wav2Lip (lip-synced, slow)')}</option>
+                      <option value="comfy_h3">{l('MiniMax-H3 R2V（ComfyUI，原生口型）', 'MiniMax-H3 R2V (ComfyUI, native lip-sync)')}</option>
                     </NativeSelect>
                     {presenterBackend === 'auto' ? (
                       <small>
@@ -518,6 +519,25 @@ export default function CourseVideoWorkspace(props: {
                         'MiniMax-H3 animates head motion and blinks, then Wav2Lip on the GPU host redraws the mouth from the narration: real lip-sync, but ~45 min + 1-2 min per clip. Best for a few hero slides.'
                       )}
                     </p>
+                  ) : null}
+                  {presenterBackend === 'comfy_h3' ? (
+                    <>
+                      <p className="creator-tool-notice" role="status">
+                        {l(
+                          'ComfyUI 原生 H3 ref2va：一次生成头部动作和口型（无需 Wav2Lip），864x480 / 4 步，每 5.9 秒约 6 分钟；旁白超过约 13.8 秒的 slide 请改用 SadTalker。',
+                          'ComfyUI native H3 ref2va: motion and lip-sync in one pass (no Wav2Lip), 864x480 / 4 steps, ~6 min per 5.9 s clip. Use SadTalker for narration longer than ~13.8 s.'
+                        )}
+                      </p>
+                      <label className="creator-tool-field">
+                        <span>{l('表演提示（可选）', 'Performance prompt (optional)')}</span>
+                        <input
+                          value={presenterPrompt}
+                          maxLength={300}
+                          onChange={event => setPresenterPrompt(event.target.value)}
+                          placeholder={l('自然地看着镜头说话，轻微点头与眨眼', 'Speaks naturally to the camera, subtle nods and blinks')}
+                        />
+                      </label>
+                    </>
                   ) : null}
                   {presenterBackend === 'command' ? (
                     <p className="creator-tool-notice" role="status">
@@ -743,7 +763,7 @@ function readBackend(value: CreatorJson | undefined): PresenterBackend {
   // `locmodel` is the old name for the video-model presenter.
   if (value === 'locmodel') return 'minimax';
   return value === 'command' || value === 'minimax' || value === 'talkinghead'
-    || value === 'wav2lip' || value === 'minimax_lipsync'
+    || value === 'wav2lip' || value === 'minimax_lipsync' || value === 'comfy_h3'
     ? value
     : 'auto';
 }

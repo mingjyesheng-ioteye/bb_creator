@@ -107,6 +107,7 @@ SADTALKER_PREPROCESS=crop
 | `sadtalker` | `talkinghead` | 约 1.5–2.5 分钟（10 s 片段约 4 分钟） | 头部运动 + 眨眼 + 口型，长片段自动分片 |
 | `wav2lip` | `wav2lip` | 5 s 片段实测 10 s（冷启动约 20 s） | 只重绘嘴部，最快，适合整门课 |
 | MiniMax+Wav2Lip | `minimax_lipsync` | 每条 ~45 分钟 + 1–2 分钟 | MiniMax 做头部动作，Wav2Lip 按旁白重绘嘴部（真口型），适合重点 slide |
+| ComfyUI H3 R2V | `comfy_h3` | 5.9 s 片段实测 ~6 分钟（含模型加载） | 原生动作 + 口型，无需 Wav2Lip；旁白上限 ~13.8 s |
 | `latentsync` | 暂不开放 | 256² 约 9 分钟 / 3 秒；512² 24 分钟未完成 | 本机实测输出损坏或过慢，暂不作为选项 |
 | `musetalk` | 未开放 | 约 6 分钟 | 在这块 ROCm iGPU 上嘴部输出噪点，暂不可用 |
 
@@ -119,6 +120,24 @@ Wav2Lip 需要 `wav2lip_gan.pth` + s3fd，装在 `D:\ai\avatar\repos\Wav2Lip`
 （`bin\wav2lip_infer_cpuface.py` 强制人脸检测走 CPU，避免 gfx1151 的 MIOpen 首次卷积变慢）。
 LatentSync 用 `D:\ai\avatar\repos\LatentSync` 和 `venvs\latentsync`（继承系统 ROCm torch），
 模型来自 WSL 里已有的 checkpoint 副本。
+
+## ComfyUI MiniMax-H3 R2V（原生口型）
+
+`presenterBackend=comfy_h3` 直接调用 Windows 上的 ComfyUI（`COMFYUI_URL`，默认
+`http://127.0.0.1:8188`），不再经过 Unsloth 的视频接口：
+
+1. 用 ffmpeg 给旁白加 0.5 s 前导并补齐到 H3 的帧格；
+2. 上传肖像和旁白，提交 `MiniMaxH3ReferenceToVideo` 图
+   （ref2va pruned INT8 + 4 步 turbo LoRA + nvfp4 文本编码器 + 视频/音频 VAE）；
+3. 轮询 `/history`，从 `/view` 下载，再裁掉 0.5 s 前导、对齐 slide 旁白时长。
+
+H3 的 ref2va 会把旁白 `fully_copy` 为最终音轨并据此驱动口型，所以**不需要
+Wav2Lip**；实测生成音轨与输入旁白的波形相关度 0.967。864×480 / 4 步 / 5.9 s
+约 6 分钟（含首次模型加载），之后同一进程内更快。
+
+限制：H3 单次最多 345 帧（~14.4 s），因此旁白超过 ~13.8 s 的 slide 会被拒绝，
+请改用 SadTalker/Wav2Lip 或先拆分旁白。ComfyUI 建议用计划任务
+`ComfyUI (manual)` 启动（由任务计划程序托管，比临时进程稳定）。
 
 ## MiniMax + Wav2Lip（有口型）
 

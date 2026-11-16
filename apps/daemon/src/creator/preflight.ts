@@ -314,6 +314,21 @@ export function createCreatorPreflight(input: {
               executionMode: 'local'
             });
           }
+        } else if (backend === 'comfy_h3') {
+          const url = process.env.COMFYUI_URL?.trim() || 'http://127.0.0.1:8188';
+          if (!(await comfyuiReachable(url))) {
+            add('blocked', {
+              id: 'comfy-h3', title: 'ComfyUI is not running',
+              message: `The presenter engine is MiniMax-H3 R2V on ComfyUI, but ${url} does not answer. Start the Windows ComfyUI worker (task "ComfyUI (manual)") before rendering.`,
+              executionMode: 'local'
+            }, { label: 'Open local component settings', deepLink: '#/settings?tab=local-components' });
+          } else {
+            add('warning', {
+              id: 'comfy-h3', title: 'MiniMax-H3 R2V on ComfyUI',
+              message: 'H3 renders motion and lip sync natively at 864x480 / 4 steps (~6 minutes per 5.9 s clip, including model load). Slides whose narration is longer than ~13.8 s are rejected; use SadTalker for those.',
+              executionMode: 'local'
+            });
+          }
         } else if (backend === 'wav2lip') {
           const url = process.env.OPENCREATOR_TALKING_HEAD_URL?.trim() ?? '';
           const engines = await talkingHeadEngines(url);
@@ -711,6 +726,21 @@ async function talkingHeadEngines(baseUrl: string): Promise<string[] | undefined
       : [];
   } catch {
     return undefined;
+  }
+}
+
+/** Is the Windows ComfyUI worker answering? */
+async function comfyuiReachable(baseUrl: string): Promise<boolean> {
+  const base = baseUrl.trim().replace(/\/+$/, '');
+  if (base.length === 0) return false;
+  try {
+    const response = await fetch(`${base}/system_stats`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(2_500)
+    });
+    return response.ok;
+  } catch {
+    return false;
   }
 }
 
