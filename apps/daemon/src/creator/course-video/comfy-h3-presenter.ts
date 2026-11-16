@@ -9,9 +9,10 @@ import type { GeneratePresenterClip } from './presenter-executor.js';
 const FPS = 24;
 /** Head start before the first word, so the mouth is already moving. */
 const LEAD_SECONDS = 0.5;
-/** 345 frames is H3's cap (~14.4 s); narration must fit inside it. */
-const MAX_NARRATION_SECONDS = 13.8;
+/** 345 frames is H3's cap (~14.4 s); chunk long narration below it. */
 const MAX_FRAMES = 345;
+const CHUNK_TARGET_SECONDS = 10.5;
+const CHUNK_MAX_SECONDS = 12.5;
 const DEFAULT_TIMEOUT_MS = 60 * 60_000;
 const POLL_INTERVAL_MS = 4_000;
 const MAX_POLL_FAILURES = 10;
@@ -43,8 +44,8 @@ type ComfyHistoryEntry = {
  * A 5.9 s clip at 864x480 / 4 steps takes ~6 minutes including model load. The
  * clip is rendered with a 0.5 s lead (the mouth starts before the first word)
  * and then trimmed back to the slide duration, because the lesson track keeps
- * its own narration audio. Narration longer than ~13.8 s is rejected: H3 caps
- * one generation at 345 frames.
+ * its own narration audio. Long narration is split into ~10.5 s pieces (H3
+ * caps one generation at 345 frames), rendered one at a time and concatenated.
  */
 export function createComfyH3PresenterClipRunner(input: {
   baseUrl: string;
@@ -72,66 +73,70 @@ export function createComfyH3PresenterClipRunner(input: {
       );
     }
     const duration = request.durationSeconds > 0.5 ? request.durationSeconds : 4;
-    if (duration > MAX_NARRATION_SECONDS) {
-      throw new CreatorExecutorError(
-        'course_presenter_failed',
-        `ComfyUI H3 handles narration up to ${MAX_NARRATION_SECONDS}s per clip; this slide is ${duration.toFixed(1)}s. Shorten the slide narration or use SadTalker for it.`
-      );
-    }
-    const length = alignFrames(duration + LEAD_SECONDS);
-    if (length > MAX_FRAMES) {
-      throw new CreatorExecutorError(
-        'course_presenter_failed',
-        `The H3 graph needs ${length} frames, above its ${MAX_FRAMES}-frame cap. Shorten the narration.`
-      );
-    }
-    const seconds = length / FPS;
     const work = await mkdtemp(join(tmpdir(), 'bb-comfy-h3-'));
     try {
-      const padded = join(work, 'narration.wav');
-      await runFfmpeg(ffmpeg, [
-        '-y', '-loglevel', 'error', '-i', request.audioPath,
-        '-af', `adelay=${Math.round(LEAD_SECONDS * 1000)}|${Math.round(LEAD_SECONDS * 1000)},apad`,
-        '-t', seconds.toFixed(3), '-ar', '32000', '-ac', '1', padded
-      ], request.signal);
-
+      const silences = await probeSilences(ffmpeg, request.audioPath, request.signal);
+      const chunks = planChunks(duration, silences);
       request.onProgress?.({
-        message: `ComfyUI H3: ${width}x${height}, ${length} frames, ${steps} steps`
+        message: `ComfyUI H3: ${duration.toFixed(1)}s narration -> ${chunks.length} chunk(s), ${width}x${height}, ${steps} steps`
       });
-      const [portraitName, audioName] = await Promise.all([
-        upload(base, request.portraitPath, 'bbh3_portrait', request.signal),
-        upload(base, padded, 'bbh3_voice', request.signal)
-      ]);
-      const promptId = await submit(base, {
-        graph: buildGraph({
-          portraitName,
-          audioName,
-          prompt: buildPrompt(request.text ?? '', request.prompt ?? ''),
-          width,
-          height,
-          length,
-          steps,
-          seed: Math.floor(Math.random() * 2 ** 31),
-          prefix: `bbh3/avatar_${randomUUID().slice(0, 8)}`
-        }),
-        signal: request.signal
-      });
-      request.onProgress?.({ message: `ComfyUI H3 job ${promptId}` });
-      const entry = await waitForHistory(base, promptId, {
-        timeoutMs,
-        pollIntervalMs,
-        signal: request.signal,
-        ...(request.onProgress === undefined ? {} : { onProgress: request.onProgress })
-      });
-      const rendered = join(work, 'rendered.mp4');
-      await download(base, entry, rendered, request.signal);
-      await runFfmpeg(ffmpeg, [
-        '-y', '-loglevel', 'error',
-        '-ss', LEAD_SECONDS.toFixed(3), '-i', rendered,
-        '-t', duration.toFixed(3), '-an',
-        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-r', String(FPS),
-        '-movflags', '+faststart', request.outputPath
-      ], request.signal);
+      const portraitName = await upload(base, request.portraitPath, 'bbh3_portrait', request.signal);
+      const seed = Math.floor(Math.random() * 2 ** 31);
+      const clips: string[] = [];
+      for (let index = 0; index < chunks.length; index += 1) {
+        const chunk = chunks[index]!;
+        const length = alignFrames(chunk.length + LEAD_SECONDS);
+        if (length > MAX_FRAMES) {
+          throw new CreatorExecutorError(
+            'course_presenter_failed',
+            `H3 chunk ${index + 1} needs ${length} frames, above its ${MAX_FRAMES}-frame cap`
+          );
+        }
+        const seconds = length / FPS;
+        const chunkWav = join(work, `chunk_${index}.wav`);
+        const padded = join(work, `chunk_${index}_padded.wav`);
+        await extractChunk(ffmpeg, request.audioPath, chunk.start, chunk.length, chunkWav, request.signal);
+        await runFfmpeg(ffmpeg, [
+          '-y', '-loglevel', 'error', '-i', chunkWav,
+          '-af', `adelay=${Math.round(LEAD_SECONDS * 1000)}|${Math.round(LEAD_SECONDS * 1000)},apad`,
+          '-t', seconds.toFixed(3), '-ar', '32000', '-ac', '1', padded
+        ], request.signal);
+        request.onProgress?.({
+          message: `ComfyUI H3 chunk ${index + 1}/${chunks.length}: ${chunk.start.toFixed(1)}-${(chunk.start + chunk.length).toFixed(1)}s (${length} frames)`
+        });
+        const audioName = await upload(base, padded, 'bbh3_voice', request.signal);
+        const promptId = await submit(base, {
+          graph: buildGraph({
+            portraitName,
+            audioName,
+            prompt: buildPrompt(
+              wordSlice(request.text ?? '', chunk.start, chunk.length, duration),
+              request.prompt ?? ''
+            ),
+            width,
+            height,
+            length,
+            steps,
+            seed,
+            prefix: `bbh3/avatar_${randomUUID().slice(0, 8)}`
+          }),
+          signal: request.signal
+        });
+        const entry = await waitForHistory(base, promptId, {
+          timeoutMs,
+          pollIntervalMs,
+          signal: request.signal,
+          ...(request.onProgress === undefined ? {} : { onProgress: request.onProgress })
+        });
+        const rendered = join(work, `chunk_${index}_raw.mp4`);
+        await download(base, entry, rendered, request.signal);
+        const trimmed = chunks.length === 1 ? request.outputPath : join(work, `chunk_${index}.mp4`);
+        await trimChunk(ffmpeg, rendered, chunk.length, trimmed, request.signal);
+        clips.push(trimmed);
+      }
+      if (clips.length > 1) {
+        await concatChunks(ffmpeg, clips, request.outputPath, work, request.signal);
+      }
       const written = await stat(request.outputPath).catch(() => undefined);
       if (written === undefined || written.size === 0) {
         throw new CreatorExecutorError('course_presenter_failed', 'ComfyUI H3 produced an empty clip');
@@ -147,6 +152,123 @@ export function alignFrames(seconds: number): number {
   const frames = Math.max(5, Math.round(Math.max(0.2, seconds) * FPS));
   const remainder = (((5 - (frames % 17)) % 17) + 17) % 17;
   return frames + remainder;
+}
+
+type Chunk = { start: number; length: number };
+
+function planChunks(duration: number, silences: Array<[number, number]>): Chunk[] {
+  const chunks: Chunk[] = [];
+  let start = 0;
+  while (duration - start > CHUNK_MAX_SECONDS) {
+    const regionStart = start + 3;
+    const regionEnd = Math.min(duration, start + CHUNK_MAX_SECONDS);
+    const target = start + CHUNK_TARGET_SECONDS;
+    const candidates: number[] = [];
+    for (const [silenceStart, silenceEnd] of silences) {
+      const left = Math.max(silenceStart, regionStart);
+      const right = Math.min(silenceEnd, regionEnd);
+      if (right - left >= 0.15) candidates.push((left + right) / 2);
+    }
+    let cut = candidates.length > 0
+      ? candidates.reduce((best, value) => (Math.abs(value - target) < Math.abs(best - target) ? value : best))
+      : target;
+    cut = Math.max(start + 3, Math.min(cut, start + CHUNK_MAX_SECONDS));
+    chunks.push({ start, length: cut - start });
+    start = cut;
+  }
+  if (duration - start > 0.05) chunks.push({ start, length: duration - start });
+  if (chunks.length > 1 && chunks[chunks.length - 1]!.length < 3) {
+    const tail = chunks.pop()!;
+    const previous = chunks[chunks.length - 1]!;
+    previous.length += tail.length;
+  }
+  return chunks;
+}
+
+function wordSlice(text: string, start: number, length: number, duration: number): string {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0 || duration <= 0) return '';
+  const left = Math.max(0, Math.min(words.length, Math.round(words.length * start / duration)));
+  const right = Math.max(left, Math.min(words.length, Math.round(words.length * (start + length) / duration)));
+  return words.slice(left, right).join(' ');
+}
+
+async function probeSilences(
+  ffmpeg: string,
+  audio: string,
+  signal: AbortSignal
+): Promise<Array<[number, number]>> {
+  try {
+    const { stderr } = await runCapture(ffmpeg, [
+      '-hide_banner', '-i', audio, '-af', 'silencedetect=noise=-35dB:d=0.25', '-f', 'null', '-'
+    ], signal);
+    const starts = [...stderr.matchAll(/silence_start:\s*([0-9.]+)/g)].map(match => Number(match[1]));
+    const ends = [...stderr.matchAll(/silence_end:\s*([0-9.]+)/g)].map(match => Number(match[1]));
+    return starts.map((at, index) => [at, ends[index] ?? at + 0.25] as [number, number]);
+  } catch {
+    return [];
+  }
+}
+
+async function extractChunk(
+  ffmpeg: string,
+  audio: string,
+  start: number,
+  length: number,
+  out: string,
+  signal: AbortSignal
+): Promise<void> {
+  await runFfmpeg(ffmpeg, [
+    '-y', '-loglevel', 'error', '-ss', start.toFixed(3), '-t', length.toFixed(3),
+    '-i', audio, '-ar', '32000', '-ac', '1', out
+  ], signal);
+}
+
+async function trimChunk(
+  ffmpeg: string,
+  raw: string,
+  length: number,
+  out: string,
+  signal: AbortSignal
+): Promise<void> {
+  await runFfmpeg(ffmpeg, [
+    '-y', '-loglevel', 'error', '-ss', LEAD_SECONDS.toFixed(3), '-i', raw,
+    '-t', length.toFixed(3), '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+    '-r', String(FPS), '-movflags', '+faststart', out
+  ], signal);
+}
+
+async function concatChunks(
+  ffmpeg: string,
+  clips: string[],
+  out: string,
+  work: string,
+  signal: AbortSignal
+): Promise<void> {
+  const listing = join(work, 'concat.txt');
+  await writeFile(listing, clips.map(clip => `file '${clip.replace(/'/g, "'\\''")}'`).join('\n') + '\n');
+  try {
+    await runFfmpeg(ffmpeg, [
+      '-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', listing, '-c', 'copy', out
+    ], signal);
+  } catch {
+    await runFfmpeg(ffmpeg, [
+      '-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', listing,
+      '-c:v', 'libx264', '-crf', '18', '-pix_fmt', 'yuv420p', '-r', String(FPS), out
+    ], signal);
+  }
+}
+
+function runCapture(exe: string, args: string[], signal: AbortSignal): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    execFile(exe, args, { signal, timeout: 120_000, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new CreatorExecutorError('course_presenter_failed', `ffmpeg probe failed: ${error.message}`));
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
 }
 
 function buildGraph(input: {
