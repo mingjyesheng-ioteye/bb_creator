@@ -113,6 +113,9 @@ import { createStickmanDeliveryExecutor } from '../creator/stickman/delivery-exe
 import { CreatorProviderRequestLedger } from '../creator/provider-requests.js';
 import { createCreatorProjectCoverService } from '../creator/project-cover.js';
 import { createVideoGenerationService } from '../video-generation/service.js';
+import { resolveStudioEnvironment } from '../studio/environment.js';
+import { createStudioService } from '../studio/service.js';
+import { probeUnslothVideo } from '../studio/worker.js';
 import { createImageGenerationService } from '../image-generation/service.js';
 import { inspectCodexImageRuntime } from '../image-generation/codex-runtime.js';
 import {
@@ -272,6 +275,7 @@ import { registerCreatorRuntimeRoutes } from './routes.creator-runtime.js';
 import { registerDiagnosticsRoutes } from './routes.diagnostics.js';
 import { registerImageGenerationRoutes } from './routes.image-generation.js';
 import { registerVideoGenerationRoutes } from './routes.video-generation.js';
+import { registerStudioRoutes } from './routes.studio.js';
 import { registerMcpRoutes } from './routes.mcp.js';
 import { registerMemoryRoutes } from './routes.memory.js';
 import { registerNotificationRoutes } from './routes.notifications.js';
@@ -1754,6 +1758,19 @@ export async function buildServer(input: BuildServerInput) {
   });
   await registerImageGenerationRoutes(server, imageGenerationService);
   await registerVideoGenerationRoutes(server, videoGenerationService);
+  const studioService = createStudioService({
+    env: resolveStudioEnvironment({
+      dataDir,
+      ...(creatorFfmpegPath === undefined ? {} : { ffmpegPath: creatorFfmpegPath }),
+      ...(creatorFfprobePath === undefined ? {} : { ffprobePath: creatorFfprobePath })
+    }),
+    videoGeneration: videoGenerationService,
+    unslothVideo: async () => {
+      const settings = (await creatorServicesConfigStore.read()).video.localSd;
+      return await probeUnslothVideo(settings.baseUrl, settings.apiKey);
+    }
+  });
+  await registerStudioRoutes(server, studioService);
   await registerCreatorRoutes(server, creatorService, creatorEvents, {
     sseHeartbeatMs: input.sseHeartbeatMs,
     jobsRoot: creatorJobsRoot,

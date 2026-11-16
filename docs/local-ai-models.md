@@ -46,7 +46,7 @@ API Key 在 Unsloth Studio 的 **设置 → API** 里创建，与其他本机客
   本机 Vulkan 显存能稳定跑的最小档）。
 - MiniMax-H3 是 14B / 21 GB 的 Q8 模型；如果 Vulkan 报 out of memory，在 Unsloth 的
   视频页把 **Memory mode** 设为 **Low VRAM**，或换更小的量化；再不行就用 ComfyUI 的
-  Wan 2.2（视频页/OpenMontage 面板）出片。
+  Wan 2.2（视频页/媒体工坊 Studio 页面）出片。
 - 单次生成只支持 4/5/6/8/10 秒（OpenAI `seconds` 字段）；更长的镜头请分段或换 Wan/ComfyUI。
 - 生成前必须**已加载对应模型**，否则接口返回 `No model loaded`（503）。
 

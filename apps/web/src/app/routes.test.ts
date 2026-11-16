@@ -83,6 +83,7 @@ describe('app routes', () => {
     expect(parseRoute('#/workbench?tool=unknown&jobId=creator_job_1')).toEqual({ view: 'workbench' });
     expect(parseRoute('#/schedules')).toEqual({ view: 'schedules' });
     expect(parseRoute('#/tasks')).toEqual({ view: 'tasks' });
+    expect(parseRoute('#/studio')).toEqual({ view: 'studio' });
     expect(parseRoute('#/plugins')).toEqual({ view: 'plugins' });
     expect(parseRoute('#/connections')).toEqual({ view: 'plugins', tab: 'connections' });
     expect(parseRoute('#/settings')).toEqual({ view: 'settings' });
@@ -175,6 +176,7 @@ describe('app routes', () => {
     expect(formatRoute({ view: 'search' })).toBe('#/search');
     expect(formatRoute({ view: 'schedules' })).toBe('#/schedules');
     expect(formatRoute({ view: 'tasks' })).toBe('#/tasks');
+    expect(formatRoute({ view: 'studio' })).toBe('#/studio');
     expect(formatRoute({ view: 'plugins' })).toBe('#/plugins');
     expect(formatRoute({ view: 'plugins', tab: 'connections' })).toBe('#/plugins?tab=connections');
     expect(formatRoute({ view: 'settings' })).toBe('#/settings');

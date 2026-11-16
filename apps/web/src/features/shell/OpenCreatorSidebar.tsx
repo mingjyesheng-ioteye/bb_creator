@@ -19,6 +19,7 @@ import {
   PanelLeftOpen,
   PanelsTopLeft,
   PauseCircle,
+  Clapperboard,
   Pin,
   PinOff,
   Settings2,
@@ -158,6 +159,12 @@ export function OpenCreatorSidebar(props: {
       icon: SlidersHorizontal,
       current: props.activeView === 'settings',
       onClick: props.onOpenSettings
+    },
+    {
+      label: t('nav.studio'),
+      icon: Clapperboard,
+      current: props.activeView === 'studio',
+      onClick: () => props.onOpenView('studio')
     }
   ];
   if (props.projectNavigationMode === 'tree') {

@@ -17,6 +17,7 @@ export type AppRoute =
   | { view: 'search' }
   | { view: 'schedules'; scheduleId?: string }
   | { view: 'tasks' }
+  | { view: 'studio' }
   | { view: 'dashboard' }
   | { view: 'account'; billingOrderId?: string }
   | { view: 'subscription' }
@@ -78,6 +79,7 @@ export function parseRoute(hash: string): AppRoute {
     };
   }
   if (path === '#/tasks') return { view: 'tasks' };
+  if (path === '#/studio') return { view: 'studio' };
   if (path === '#/dashboard') return { view: 'dashboard' };
   if (path === '#/account') {
     const params = new URLSearchParams(query);
@@ -162,6 +164,8 @@ export function formatRoute(route: AppRoute): string {
     }
     case 'tasks':
       return '#/tasks';
+    case 'studio':
+      return '#/studio';
     case 'dashboard':
       return '#/dashboard';
     case 'account':

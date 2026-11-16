@@ -187,7 +187,9 @@ describe('OpenCreatorSidebar', () => {
       .querySelector('.lucide-folder-kanban')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '设置' })
       .querySelector('.lucide-sliders-horizontal')).toBeInTheDocument();
-    expect(view.container.querySelectorAll('.sidebar-nav-icon')).toHaveLength(5);
+    expect(screen.getByRole('button', { name: '媒体工坊' })
+      .querySelector('.lucide-clapperboard')).toBeInTheDocument();
+    expect(view.container.querySelectorAll('.sidebar-nav-icon')).toHaveLength(6);
   });
 
   it('renders global navigation in the selected display language', () => {

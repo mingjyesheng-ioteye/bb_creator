@@ -16,5 +16,6 @@ export * from './video-metadata.js';
 export * from './wechat-article.js';
 export * from './stickman.js';
 export * from './course-video.js';
+export * from './studio.js';
 export * from './gateway-account.js';
 export * from './platform-connections.js';

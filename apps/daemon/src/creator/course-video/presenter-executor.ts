@@ -400,7 +400,7 @@ async function resolveClipGenerator(input: {
     if (input.comfyClip === undefined) {
       throw new CreatorExecutorError(
         'course_presenter_unavailable',
-        'The ComfyUI H3 presenter is not configured. Start ComfyUI on the GPU host (task "ComfyUI (manual)" or the OpenMontage GPU worker panel) and retry.'
+        'The ComfyUI H3 presenter is not configured. Start ComfyUI on the GPU host (task "ComfyUI (manual)" or the GPU worker controls on the Studio page) and retry.'
       );
     }
     if (input.canUseComfyClip !== undefined && !(await input.canUseComfyClip())) {

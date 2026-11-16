@@ -44,6 +44,7 @@ import type { CreatorSkill } from '../features/conversation/CreatorDashboard.js'
 import { getCreatorSkillPromptHint } from '../features/conversation/creator-skill-prompt-hint.js';
 import {
   creatorWorkspaceForTemplate,
+  isCreatorWorkspace,
   type CreatorSkillLaunch
 } from '../features/dashboard/creator-workspace.js';
 import { ConversationHeader } from '../features/conversation/ConversationHeader.js';
@@ -158,6 +159,7 @@ import { createRuntimeDependencyService } from '../services/runtime-dependency-s
 import { createScheduleService } from '../services/schedule-service.js';
 import { createSearchService } from '../services/search-service.js';
 import { createSkillMarketService } from '../services/skill-market-service.js';
+import { createStudioService } from '../services/studio-service.js';
 import { createTaskService } from '../services/task-service.js';
 import { createThreadService } from '../services/thread-service.js';
 import { createVideoMetadataService } from '../services/video-metadata-service.js';
@@ -276,6 +278,7 @@ const StartupAgentSetup = lazy(async () => {
 });
 const PersonalCenterPage = lazy(() => import('../features/account/PersonalCenterPage.js'));
 const TaskCenterPage = lazy(() => import('../features/tasks/TaskCenterPage.js'));
+const StudioPage = lazy(() => import('../features/studio/StudioPage.js'));
 const DetailPanel = lazy(async () => {
   const module = await import('../features/details/DetailPanel.js');
   return { default: module.DetailPanel };
@@ -697,6 +700,10 @@ export function AppController(props: AppControllerProps) {
   );
   const workspaceFileService = useMemo(
     () => runtimeClient === null ? null : createWorkspaceFileService(runtimeClient),
+    [runtimeClient]
+  );
+  const studioService = useMemo(
+    () => runtimeClient === null ? null : createStudioService(runtimeClient),
     [runtimeClient]
   );
   const taskService = useMemo(
@@ -2983,6 +2990,7 @@ export function AppController(props: AppControllerProps) {
       case 'projects':
       case 'schedules':
       case 'tasks':
+      case 'studio':
       case 'dashboard':
       case 'plugins':
       case 'settings':
@@ -4711,6 +4719,11 @@ export function AppController(props: AppControllerProps) {
       onScheduleChanged={handleScheduleChanged}
       onScheduleDeleted={handleScheduleDeleted}
     />
+  ) : state.activeView === 'studio' ? (
+    <StudioPage
+      service={studioService}
+      onOpenTemplate={template => navigateToRoute(isCreatorWorkspace(template) ? { view: 'workbench', tool: template } : { view: 'dashboard' })}
+    />
   ) : state.activeView === 'tasks' ? (
     <TaskCenterPage
       service={taskService}
@@ -5251,6 +5264,7 @@ function createInitialState(
     case 'projects':
     case 'schedules':
     case 'tasks':
+    case 'studio':
     case 'dashboard':
     case 'plugins':
     case 'settings':
@@ -5287,6 +5301,8 @@ function routeForActiveView(activeView: ActiveView, selectedThreadId?: string): 
       return { view: 'schedules' };
     case 'tasks':
       return { view: 'tasks' };
+    case 'studio':
+      return { view: 'studio' };
     case 'dashboard':
       return { view: 'dashboard' };
     case 'plugins':

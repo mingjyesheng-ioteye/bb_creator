@@ -1,0 +1,43 @@
+.studio { height: 100%; min-height: 0; overflow: auto; background: var(--bg); color: var(--text); }
+.studio__inner { width: min(1280px, 100%); margin: 0 auto; padding: var(--page-title-inset) 30px 44px; display: grid; gap: 16px; align-content: start; }
+.studio__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+.studio__header h1 { margin: 0 0 4px; font-family: var(--font-display); font-size: 28px; }
+.studio__muted { margin: 0; color: var(--muted); font-size: 13px; }
+.studio__warn { margin: 0; color: var(--warning); font-size: 13px; }
+.studio__alert { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 8px; background: var(--destructive-soft); font-size: 13px; }
+.studio__worker { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-size: 13px; }
+.studio__worker-title { font-weight: 600; }
+.studio__worker-actions { margin-left: auto; display: flex; gap: 6px; }
+.studio__chip { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.studio__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-disconnected); display: inline-block; }
+.studio__dot--on { background: var(--status-connected); }
+.studio__layout { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .studio__layout { grid-template-columns: minmax(0, 1fr); } }
+.studio__catalog { display: grid; gap: 14px; }
+.studio__group { display: grid; gap: 6px; }
+.studio__group h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--subtle); }
+.studio__card { display: grid; gap: 4px; text-align: left; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: inherit; cursor: pointer; }
+.studio__card[aria-pressed='true'] { border-color: var(--border-strong); background: var(--accent-soft); }
+.studio__card-title { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; }
+.studio__work { display: grid; gap: 20px; min-width: 0; }
+.studio__form { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.studio__form h2, .studio__jobs h2 { margin: 0; font-size: 18px; }
+.studio__field { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.studio__field textarea, .studio__field input, .studio__field select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-input); color: var(--text); font: inherit; }
+.studio__actions { display: flex; gap: 8px; }
+.studio__button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-input); color: var(--text); font-size: 13px; cursor: pointer; text-decoration: none; }
+.studio__button:disabled { opacity: .5; cursor: not-allowed; }
+.studio__button--primary { background: var(--accent-strong); color: var(--on-accent); border-color: transparent; }
+.studio__jobs { display: grid; gap: 10px; }
+.studio__job { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.studio__job header, .studio__job footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.studio__job footer { justify-content: flex-start; }
+.studio__prompt { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.studio__progress { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.studio__progress progress { flex: 1; }
+.studio__video { width: 100%; max-height: 420px; border-radius: 8px; background: #000; }
+.studio__status { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); }
+.studio__status--done { background: var(--status-connected-soft); }
+.studio__status--error { background: var(--destructive-soft); }
+.studio__spin { animation: studio-spin 1s linear infinite; }
+@keyframes studio-spin { to { transform: rotate(360deg); } }
