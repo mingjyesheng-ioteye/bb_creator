@@ -132,7 +132,7 @@ describe('capability catalog', () => {
   it('has unique ids and a runner for each', () => {
     const ids = capabilityDefinitions.map(entry => entry.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(expect.arrayContaining(['cinematic', 'minimax', 'motion', 'documentary', 'captions', 'narrate', 'upscale', 'course']));
+    expect(ids).toEqual(expect.arrayContaining(['cinematic', 'minimax', 'motion', 'documentary', 'captions', 'narrate', 'upscale']));
   });
 
   it('applies defaults, rejects bad values and checks voices', () => {

@@ -14,7 +14,6 @@ Studio 是 bb_creator 内置的媒体能力页面（`/#/studio`），由 Daemon 
 | | `3d-worlds` | 由提示词确定性生成 Three.js 世界，HyperFrames 逐帧渲染 | Node（npx）、Chrome |
 | | `motion` | 动态字幕 HTML，HyperFrames 渲染 | 同上 |
 | | `documentary` | 从 Archive.org / NASA / Wikimedia（免 key）取素材，ffmpeg 交叉淡化剪辑 | 网络、ffmpeg |
-| Courses | `course` | 跳转到 Course Video 模板 | — |
 | Edit and repurpose | `tighten` `vertical` | 精确裁剪、横转竖/方/宽银幕（可设水平焦点） | ffmpeg |
 | | `captions` | faster-whisper 词级时间轴 → SRT → 烧录 | ffmpeg、faster-whisper |
 | Change the look | `grade` | 7 种预设调色，可按强度混合 | ffmpeg |

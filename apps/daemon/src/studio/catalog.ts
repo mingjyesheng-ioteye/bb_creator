@@ -101,12 +101,6 @@ export const capabilityDefinitions: CapabilityDefinition[] = [
     promptHint: 'A clear explanation of how neural networks learn, friendly and simple.'
   },
   {
-    ...base, id: 'course', group: 'Courses', title: 'Course video (PDF / bb_exam)',
-    blurb: 'Build a narrated lesson video from a PDF or a published bb_exam course with the Course Video template.',
-    runner: 'course', needs: 'Course Video template', promptRequired: false, template: 'course-video',
-    promptHint: ''
-  },
-  {
     ...base, id: 'tighten', group: 'Edit and repurpose', title: 'Tighten your videos',
     blurb: 'Precision cut of an uploaded clip (trim in/out).',
     runner: 'trim', input: 'video', inputRequired: true, promptRequired: false, needs: 'ffmpeg',

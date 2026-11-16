@@ -74,8 +74,6 @@ export async function runStudioCapability(ctx: StudioRunContext): Promise<void> 
     case 'captions': return await runCaptions(ctx);
     case 'speech': return await runSpeech(ctx);
     case 'upscale': return await runUpscale(ctx);
-    case 'course':
-      throw new StudioValidationError('Course videos are built with the Course Video template');
   }
 }
 

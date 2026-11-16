@@ -43,11 +43,11 @@ describe('studio service', () => {
     expect(byId.cinematic!.reason).toMatch(/offline/i);
     expect(byId.minimax).toMatchObject({ runnable: false, reason: 'no model' });
     expect(byId.narrate!.runnable).toBe(false);
-    expect(byId.course).toMatchObject({ runnable: true, template: 'course-video' });
+    expect(byId.course).toBeUndefined();
     expect(components.find(entry => entry.id === 'comfyui')?.available).toBe(false);
   });
 
-  it('rejects unknown capabilities, missing prompts and template-owned capabilities', async () => {
+  it('rejects unknown capabilities and missing prompts', async () => {
     const service = setup();
     await expect(service.createJob({ capability: 'nope' })).rejects.toMatchObject({ statusCode: 400 });
     await expect(service.createJob({ capability: 'cinematic', prompt: '  ' })).rejects.toMatchObject({ statusCode: 400 });

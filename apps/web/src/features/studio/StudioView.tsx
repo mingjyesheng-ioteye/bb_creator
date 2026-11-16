@@ -12,8 +12,6 @@ import './studio.css';
 
 export type StudioViewProps = {
   service: StudioService | null;
-  /** Opens a Creator template workspace (used by capabilities owned by a template). */
-  onOpenTemplate(template: string): void;
 };
 
 const ACTIVE = new Set<StudioJob['status']>(['queued', 'running']);
@@ -125,7 +123,7 @@ export function StudioView(props: StudioViewProps) {
   }
 
   const needsFile = selected !== undefined && selected.input !== 'none';
-  const canRun = selected !== undefined && selected.runnable && selected.template === undefined
+  const canRun = selected !== undefined && selected.runnable
     && (!selected.promptRequired || prompt.trim().length > 0)
     && (!selected.inputRequired || file !== undefined) && !submitting;
 
@@ -197,65 +195,55 @@ export function StudioView(props: StudioViewProps) {
                 <h2>{selected.title}</h2>
                 <p className="studio__muted">{selected.blurb}</p>
                 {selected.runnable ? null : <p className="studio__warn">{selected.reason}</p>}
-                {selected.template === undefined ? (
-                  <>
-                    {selected.promptRequired || selected.promptHint !== '' ? (
-                      <label className="studio__field">
-                        <span>{selected.id === 'documentary' ? l('搜索词（逗号分隔）', 'Search phrases (comma separated)') : l('提示词', 'Prompt')}</span>
-                        <textarea
-                          rows={4}
-                          value={prompt}
-                          placeholder={selected.promptHint}
-                          maxLength={4000}
-                          onChange={event => setPrompt(event.target.value)}
-                        />
-                      </label>
-                    ) : null}
-                    {needsFile ? (
-                      <label className="studio__field">
-                        <span>{selected.input === 'image' ? l('参考图片', 'Reference image') : l('输入视频', 'Input video')}{selected.inputRequired ? ' *' : ''}</span>
-                        <input
-                          type="file"
-                          accept={selected.input === 'image' ? 'image/*' : 'video/*'}
-                          onChange={event => setFile(event.target.files?.[0])}
-                        />
-                      </label>
-                    ) : null}
-                    {selected.params.map(param => (
-                      <label key={param.name} className="studio__field">
-                        <span>{param.label}</span>
-                        {param.type === 'select' ? (
-                          <select
-                            value={values[param.name] ?? String(param.default ?? '')}
-                            onChange={event => setValues(current => ({ ...current, [param.name]: event.target.value }))}
-                          >
-                            {(param.options ?? []).map(option => <option key={option} value={option}>{option}</option>)}
-                          </select>
-                        ) : (
-                          <input
-                            type="number"
-                            step="any"
-                            {...(param.min === undefined ? {} : { min: param.min })}
-                            {...(param.max === undefined ? {} : { max: param.max })}
-                            value={values[param.name] ?? (param.default === undefined ? '' : String(param.default))}
-                            onChange={event => setValues(current => ({ ...current, [param.name]: event.target.value }))}
-                          />
-                        )}
-                      </label>
-                    ))}
-                    <div className="studio__actions">
-                      <button type="submit" className="studio__button studio__button--primary" disabled={!canRun}>
-                        {submitting ? <LoaderCircle className="studio__spin" size={14} /> : <Play size={14} />} {l('开始生成', 'Run')}
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="studio__actions">
-                    <button type="button" className="studio__button studio__button--primary" onClick={() => props.onOpenTemplate(selected.template!)}>
-                      {l('打开课程视频模板', 'Open the Course Video template')}
-                    </button>
-                  </div>
-                )}
+                {selected.promptRequired || selected.promptHint !== '' ? (
+                  <label className="studio__field">
+                    <span>{selected.id === 'documentary' ? l('搜索词（逗号分隔）', 'Search phrases (comma separated)') : l('提示词', 'Prompt')}</span>
+                    <textarea
+                      rows={4}
+                      value={prompt}
+                      placeholder={selected.promptHint}
+                      maxLength={4000}
+                      onChange={event => setPrompt(event.target.value)}
+                    />
+                  </label>
+                ) : null}
+                {needsFile ? (
+                  <label className="studio__field">
+                    <span>{selected.input === 'image' ? l('参考图片', 'Reference image') : l('输入视频', 'Input video')}{selected.inputRequired ? ' *' : ''}</span>
+                    <input
+                      type="file"
+                      accept={selected.input === 'image' ? 'image/*' : 'video/*'}
+                      onChange={event => setFile(event.target.files?.[0])}
+                    />
+                  </label>
+                ) : null}
+                {selected.params.map(param => (
+                  <label key={param.name} className="studio__field">
+                    <span>{param.label}</span>
+                    {param.type === 'select' ? (
+                      <select
+                        value={values[param.name] ?? String(param.default ?? '')}
+                        onChange={event => setValues(current => ({ ...current, [param.name]: event.target.value }))}
+                      >
+                        {(param.options ?? []).map(option => <option key={option} value={option}>{option}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        type="number"
+                        step="any"
+                        {...(param.min === undefined ? {} : { min: param.min })}
+                        {...(param.max === undefined ? {} : { max: param.max })}
+                        value={values[param.name] ?? (param.default === undefined ? '' : String(param.default))}
+                        onChange={event => setValues(current => ({ ...current, [param.name]: event.target.value }))}
+                      />
+                    )}
+                  </label>
+                ))}
+                <div className="studio__actions">
+                  <button type="submit" className="studio__button studio__button--primary" disabled={!canRun}>
+                    {submitting ? <LoaderCircle className="studio__spin" size={14} /> : <Play size={14} />} {l('开始生成', 'Run')}
+                  </button>
+                </div>
               </form>
             )}
 

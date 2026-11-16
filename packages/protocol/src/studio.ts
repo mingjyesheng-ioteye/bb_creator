@@ -18,14 +18,12 @@ export const studioRunnerIds = [
   'grade',
   'captions',
   'speech',
-  'upscale',
-  'course'
+  'upscale'
 ] as const;
 export type StudioRunnerId = typeof studioRunnerIds[number];
 
 export const studioCapabilityGroups = [
   'Make something new',
-  'Courses',
   'Edit and repurpose',
   'Change the look',
   'Sound and music',
@@ -67,8 +65,6 @@ export type StudioCapability = {
   runnable: boolean;
   /** Why the capability cannot run right now; empty when runnable. */
   reason: string;
-  /** Creator template that owns this capability, when it is not a Studio job. */
-  template?: string;
 };
 
 export type StudioCapabilitiesResponse = {

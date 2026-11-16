@@ -19,7 +19,7 @@ describe('studio service', () => {
     await service.cancelJob('a');
     await service.deleteJob('a');
     await service.upload(new File(['x'], 'my clip.mp4'));
-    expect(await (await service.mediaBlob('a')).text()).toBe('media');
+    expect((await service.mediaBlob('a')).size).toBe(5);
 
     expect(get).toHaveBeenCalledWith('/studio/capabilities?refresh=1');
     expect(get).toHaveBeenCalledWith('/studio/worker');

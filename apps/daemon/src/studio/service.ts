@@ -143,8 +143,7 @@ export function createStudioService(input: {
       grade: ffmpeg ? '' : 'ffmpeg is not installed',
       captions: !ffmpeg ? 'ffmpeg is not installed' : whisper ? '' : 'faster-whisper is not installed (run pnpm studio:setup)',
       speech: piper ? '' : 'Piper voices are not installed (run pnpm studio:setup)',
-      upscale: ffmpeg ? '' : 'ffmpeg is not installed',
-      course: ''
+      upscale: ffmpeg ? '' : 'ffmpeg is not installed'
     };
     const components: StudioComponentStatus[] = [
       { id: 'ffmpeg', label: 'ffmpeg', available: ffmpeg && ffprobe, detail: env.ffmpeg ?? 'not found' },
@@ -311,9 +310,6 @@ export function createStudioService(input: {
     await startup();
     const definition = findCapability(request.capability);
     if (definition === undefined) throw new StudioError('VALIDATION_FAILED', `Unknown capability "${request.capability}"`, 400);
-    if (definition.template !== undefined) {
-      throw new StudioError('VALIDATION_FAILED', `${definition.title} is built with the ${definition.template} template`, 400);
-    }
     const prompt = (request.prompt ?? '').trim().slice(0, 4_000);
     if (definition.promptRequired && prompt.length === 0) throw new StudioError('VALIDATION_FAILED', 'A prompt is required', 400);
     let inputPath: string | undefined;

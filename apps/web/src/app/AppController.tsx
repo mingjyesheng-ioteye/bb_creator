@@ -44,7 +44,6 @@ import type { CreatorSkill } from '../features/conversation/CreatorDashboard.js'
 import { getCreatorSkillPromptHint } from '../features/conversation/creator-skill-prompt-hint.js';
 import {
   creatorWorkspaceForTemplate,
-  isCreatorWorkspace,
   type CreatorSkillLaunch
 } from '../features/dashboard/creator-workspace.js';
 import { ConversationHeader } from '../features/conversation/ConversationHeader.js';
@@ -4720,15 +4719,7 @@ export function AppController(props: AppControllerProps) {
       onScheduleDeleted={handleScheduleDeleted}
     />
   ) : state.activeView === 'studio' ? (
-    <StudioPage
-      service={studioService}
-      onOpenTemplate={template => {
-        // Same launch as a Dashboard card: switch the view first, then open the workspace.
-        closeMobileSidebar();
-        dispatch({ type: 'set_active_view', activeView: 'dashboard' });
-        navigateToRoute(isCreatorWorkspace(template) ? { view: 'workbench', tool: template } : { view: 'dashboard' });
-      }}
-    />
+    <StudioPage service={studioService} />
   ) : state.activeView === 'tasks' ? (
     <TaskCenterPage
       service={taskService}

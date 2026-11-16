@@ -37,8 +37,8 @@ function fakeService(capabilities: StudioCapability[], jobs: StudioJob[] = []) {
   return { service: service as unknown as StudioService, createJob };
 }
 
-function renderView(service: StudioService | null, onOpenTemplate = vi.fn()) {
-  return render(<LanguageProvider><StudioView service={service} onOpenTemplate={onOpenTemplate} /></LanguageProvider>);
+function renderView(service: StudioService | null) {
+  return render(<LanguageProvider><StudioView service={service} /></LanguageProvider>);
 }
 
 describe('StudioView', () => {
@@ -60,15 +60,6 @@ describe('StudioView', () => {
     expect(await screen.findByText('GPU worker offline')).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('hint'), { target: { value: 'a fox' } });
     expect(screen.getByRole('button', { name: /开始生成|Run/ })).toBeDisabled();
-  });
-
-  it('hands template-owned capabilities to the template workspace', async () => {
-    const onOpenTemplate = vi.fn();
-    const { service } = fakeService([capability({ id: 'course', title: 'Course video', template: 'course-video', promptRequired: false, promptHint: '' })]);
-    renderView(service, onOpenTemplate);
-    fireEvent.click((await screen.findAllByRole('button', { name: /Course video/ }))[0]!);
-    fireEvent.click(await screen.findByRole('button', { name: /Course Video template|课程视频模板/ }));
-    expect(onOpenTemplate).toHaveBeenCalledWith('course-video');
   });
 
   it('asks for a Runtime connection when there is no service', () => {
