@@ -4645,6 +4645,7 @@ export function AppController(props: AppControllerProps) {
       creatorService={creatorService}
       runtimeDependencies={runtimeDependencies}
       creatorServicesService={creatorServicesService}
+      studioService={studioService}
       gatewayState={gatewayAccountState ?? (gatewayAccountService ? null : undefined)}
       videoMetadataService={videoMetadataService}
       workspace={props.route.view === 'workbench' ? props.route.tool : undefined}

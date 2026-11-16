@@ -5,12 +5,6 @@
 .studio__muted { margin: 0; color: var(--muted); font-size: 13px; }
 .studio__warn { margin: 0; color: var(--warning); font-size: 13px; }
 .studio__alert { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 8px; background: var(--destructive-soft); font-size: 13px; }
-.studio__worker { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-size: 13px; }
-.studio__worker-title { font-weight: 600; }
-.studio__worker-actions { margin-left: auto; display: flex; gap: 6px; }
-.studio__chip { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
-.studio__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-disconnected); display: inline-block; }
-.studio__dot--on { background: var(--status-connected); }
 .studio__layout { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 860px) { .studio__layout { grid-template-columns: minmax(0, 1fr); } }
 .studio__catalog { display: grid; gap: 14px; }
@@ -25,8 +19,6 @@
 .studio__field { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
 .studio__field textarea, .studio__field input, .studio__field select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-input); color: var(--text); font: inherit; }
 .studio__actions { display: flex; gap: 8px; }
-.studio__button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-input); color: var(--text); font-size: 13px; cursor: pointer; text-decoration: none; }
-.studio__button:disabled { opacity: .5; cursor: not-allowed; }
 .studio__button--primary { background: var(--accent-strong); color: var(--on-accent); border-color: transparent; }
 .studio__jobs { display: grid; gap: 10px; }
 .studio__job { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }

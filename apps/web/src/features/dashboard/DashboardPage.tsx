@@ -55,6 +55,7 @@ import {
 } from './creator-workspace.js';
 import type { VideoMetadataService } from '../../services/video-metadata-service.js';
 import type { CreatorServicesSettingsService } from '../../services/creator-services-service.js';
+import type { StudioService } from '../../services/studio-service.js';
 import { CreateProjectDropdown } from '../projects/CreateProjectDropdown.js';
 import type { CreatorProjectType } from '../projects/project-types.js';
 import { IssueList } from '../issues/IssuePresenter.js';
@@ -235,6 +236,7 @@ export default function DashboardPage(props: {
   onWorkspaceModeChange?(active: boolean): void;
   skillLaunch?: CreatorSkillLaunch;
   creatorServicesService?: CreatorServicesSettingsService | null;
+  studioService?: StudioService | null;
   gatewayState?: GatewayAccountState | null;
   videoMetadataService?: VideoMetadataService;
   workspace?: CreatorWorkspace;
@@ -491,6 +493,7 @@ export default function DashboardPage(props: {
         promptHint={activePromptHint}
         onBack={closeWorkspace}
         creatorServicesService={props.creatorServicesService}
+        studioService={props.studioService}
       />
     ));
   }

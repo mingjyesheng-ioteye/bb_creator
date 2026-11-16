@@ -9,6 +9,8 @@ import { Download, Film, ImagePlus, LoaderCircle, RotateCcw, Sparkles } from 'lu
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalizedCopy } from '../../i18n/useLocalizedCopy.js';
 import type { CreatorServicesSettingsService } from '../../services/creator-services-service.js';
+import type { StudioService } from '../../services/studio-service.js';
+import { GpuWorkerBar } from '../studio/GpuWorkerBar.js';
 import NativeSelect from '../../components/forms/NativeSelect.js';
 import CreatorToolShell from './CreatorToolShell.js';
 import {
@@ -44,6 +46,7 @@ export default function CourseVideoWorkspace(props: {
   onBack(): void;
   promptHint?: string;
   creatorServicesService?: CreatorServicesSettingsService | null;
+  studioService?: StudioService | null;
 }) {
   const l = useLocalizedCopy();
   const session = useOptionalCreatorSession();
@@ -351,6 +354,7 @@ export default function CourseVideoWorkspace(props: {
       pageClassName="course-video-workspace-page"
     >
       <div className="creator-tool-stack course-video-stack">
+        <GpuWorkerBar service={props.studioService ?? null} />
         <section className="creator-tool-panel" aria-labelledby="course-video-settings-title">
           <div className="creator-tool-panel-heading">
             <div>

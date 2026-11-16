@@ -1,13 +1,13 @@
 import type {
   StudioCapabilitiesResponse,
-  StudioJob,
-  StudioWorkerStatus
+  StudioJob
 } from '@opencreator/protocol';
 import { studioCapabilityGroups } from '@opencreator/protocol';
 import { CircleAlert, LoaderCircle, Play, RefreshCw, Square, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalizedCopy } from '../../i18n/useLocalizedCopy.js';
 import type { StudioService } from '../../services/studio-service.js';
+import { GpuWorkerBar } from './GpuWorkerBar.js';
 import './studio.css';
 
 export type StudioViewProps = {
@@ -24,7 +24,6 @@ export function StudioView(props: StudioViewProps) {
   const l = useLocalizedCopy();
   const { service } = props;
   const [catalog, setCatalog] = useState<StudioCapabilitiesResponse>();
-  const [worker, setWorker] = useState<StudioWorkerStatus>();
   const [jobs, setJobs] = useState<StudioJob[]>([]);
   const [selectedId, setSelectedId] = useState('cinematic');
   const [prompt, setPrompt] = useState('');
@@ -32,7 +31,7 @@ export function StudioView(props: StudioViewProps) {
   const [file, setFile] = useState<File>();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
-  const [workerBusy, setWorkerBusy] = useState(false);
+  const [workerRefresh, setWorkerRefresh] = useState(0);
 
   const selected = useMemo(
     () => catalog?.capabilities.find(entry => entry.id === selectedId),
@@ -42,11 +41,10 @@ export function StudioView(props: StudioViewProps) {
   const refresh = useCallback(async (force = false) => {
     if (service === null) return;
     try {
-      const [nextCatalog, nextWorker, nextJobs] = await Promise.all([
-        service.capabilities(force), service.worker(force), service.listJobs()
+      const [nextCatalog, nextJobs] = await Promise.all([
+        service.capabilities(force), service.listJobs()
       ]);
       setCatalog(nextCatalog);
-      setWorker(nextWorker);
       setJobs(nextJobs);
       setError(undefined);
     } catch (cause) {
@@ -96,22 +94,6 @@ export function StudioView(props: StudioViewProps) {
     }
   }
 
-  async function controlWorker(action: 'start' | 'stop') {
-    if (service === null) return;
-    setWorkerBusy(true);
-    try {
-      const result = action === 'start' ? await service.startWorker() : await service.stopWorker();
-      if (!result.ok) {
-        setError(Object.values(result.steps).filter(step => !step.ok).map(step => step.detail).join('; '));
-      }
-      window.setTimeout(() => void refresh(true), action === 'start' ? 8_000 : 1_500);
-    } catch (cause) {
-      setError(messageOf(cause));
-    } finally {
-      setWorkerBusy(false);
-    }
-  }
-
   if (service === null) {
     return (
       <section className="studio">
@@ -137,7 +119,7 @@ export function StudioView(props: StudioViewProps) {
               {l('本地生成、剪辑、配音与再创作，全部在本机运行。', 'Generate, edit, narrate and repurpose media. Everything runs on this machine.')}
             </p>
           </div>
-          <button type="button" className="studio__button" onClick={() => void refresh(true)}>
+          <button type="button" className="studio__button" onClick={() => { void refresh(true); setWorkerRefresh(value => value + 1); }}>
             <RefreshCw size={14} /> {l('刷新', 'Refresh')}
           </button>
         </header>
@@ -146,12 +128,7 @@ export function StudioView(props: StudioViewProps) {
           <div className="studio__alert" role="alert"><CircleAlert size={14} /> {error}</div>
         )}
 
-        <WorkerBar
-          worker={worker}
-          busy={workerBusy}
-          onStart={() => void controlWorker('start')}
-          onStop={() => void controlWorker('stop')}
-        />
+        <GpuWorkerBar service={service} refreshSignal={workerRefresh} onWorkerChange={refresh} />
 
         <div className="studio__layout">
           <nav className="studio__catalog" aria-label={l('能力', 'Capabilities')}>
@@ -268,40 +245,6 @@ export function StudioView(props: StudioViewProps) {
         </div>
       </div>
     </section>
-  );
-}
-
-function WorkerBar(props: {
-  worker: StudioWorkerStatus | undefined;
-  busy: boolean;
-  onStart(): void;
-  onStop(): void;
-}) {
-  const l = useLocalizedCopy();
-  const { worker } = props;
-  if (worker === undefined) return null;
-  const chips: Array<[string, boolean]> = [
-    ['ComfyUI', worker.comfyui.online],
-    [l('本地视频模型', 'Local video model'), worker.unslothVideo.online],
-    [l('数字人服务', 'Avatar service'), worker.avatar.online],
-    [l('本地 LLM', 'Local LLM'), worker.llm.online]
-  ];
-  return (
-    <div className="studio__worker">
-      <span className="studio__worker-title">{l('GPU 工作站', 'GPU worker')}</span>
-      {chips.map(([label, online]) => (
-        <span key={label} className="studio__chip">
-          <span className={online ? 'studio__dot studio__dot--on' : 'studio__dot'} /> {label}
-          {label === 'ComfyUI' && worker.comfyui.vramFreeGb !== undefined ? ` · ${worker.comfyui.vramFreeGb} GB` : ''}
-        </span>
-      ))}
-      {worker.canControl ? (
-        <span className="studio__worker-actions">
-          <button type="button" className="studio__button" disabled={props.busy || worker.comfyui.online} onClick={props.onStart}>{l('启动', 'Start')}</button>
-          <button type="button" className="studio__button" disabled={props.busy || !worker.comfyui.online} onClick={props.onStop}>{l('停止', 'Stop')}</button>
-        </span>
-      ) : null}
-    </div>
   );
 }
 

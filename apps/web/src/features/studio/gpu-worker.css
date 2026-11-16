@@ -1,0 +1,10 @@
+.studio__worker { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-size: 13px; }
+.studio__worker-title { font-weight: 600; }
+.studio__worker-actions { margin-left: auto; display: flex; gap: 6px; }
+.studio__chip { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.studio__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-disconnected); display: inline-block; }
+.studio__dot--on { background: var(--status-connected); }
+.studio__button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-input); color: var(--text); font-size: 13px; cursor: pointer; text-decoration: none; }
+.studio__button:disabled { opacity: .5; cursor: not-allowed; }
+.gpu-worker__message { flex-basis: 100%; }
+.gpu-worker__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

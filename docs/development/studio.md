@@ -53,7 +53,7 @@ pnpm studio:setup --voices en_US-lessac-medium   # 只下载指定语音
 | `OPENCREATOR_STUDIO_COMFY_TASK` / `_AVATAR_TASK` / `_COMFY_STOP` | `ComfyUI (manual)` / `Avatar service (SadTalker)` / `C:\ComfyUI\stop-comfyui.cmd` | GPU worker 启停所用的计划任务与脚本 |
 | `OPENCREATOR_STUDIO_LLM_URL` | `http://127.0.0.1:8888` | 仅用于 GPU worker 状态探测 |
 
-GPU worker 的启停按钮仅在主机能调用 `powershell.exe`（WSL）时显示（`canControl`）。
+Studio 和 Dashboard 的 Course Video 都提供 GPU worker 状态与控制。启停按钮仅在主机能调用 `powershell.exe`（WSL）时显示（`canControl`）。停止只关闭 ComfyUI，不会停止 LLM 或数字人服务。
 
 ## API
 

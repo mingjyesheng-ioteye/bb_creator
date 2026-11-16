@@ -2,10 +2,27 @@ import type { CreatorActionRequest, CreatorArtifact, CreatorJob } from '@opencre
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '../../i18n/LanguageProvider.js';
+import type { StudioService } from '../../services/studio-service.js';
 import CourseVideoWorkspace from './CourseVideoWorkspace.js';
 import { CreatorSessionProvider } from './creator-session-store.js';
 
 describe('CourseVideoWorkspace', () => {
+  it('shows the shared GPU controls in Course Video', async () => {
+    const service = {
+      worker: vi.fn(async () => ({
+        mode: 'idle', comfyui: { online: false }, avatar: { online: false },
+        llm: { online: false }, unslothVideo: { online: false, reason: '' },
+        canControl: true, checkedAt: ''
+      })),
+      startWorker: vi.fn(async () => ({ ok: false, steps: { start: { ok: false, detail: 'Worker denied' } } })),
+      stopWorker: vi.fn()
+    } as unknown as StudioService;
+    render(<LanguageProvider initialPreference="en-US"><CourseVideoWorkspace onBack={vi.fn()} studioService={service} /></LanguageProvider>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
+    expect(await screen.findByText('Worker denied')).toBeInTheDocument();
+    expect(service.startWorker).toHaveBeenCalledOnce();
+  });
+
   it('requires a course slug before starting the pipeline', () => {
     const applyAction = vi.fn();
     render(
