@@ -4722,7 +4722,12 @@ export function AppController(props: AppControllerProps) {
   ) : state.activeView === 'studio' ? (
     <StudioPage
       service={studioService}
-      onOpenTemplate={template => navigateToRoute(isCreatorWorkspace(template) ? { view: 'workbench', tool: template } : { view: 'dashboard' })}
+      onOpenTemplate={template => {
+        // Same launch as a Dashboard card: switch the view first, then open the workspace.
+        closeMobileSidebar();
+        dispatch({ type: 'set_active_view', activeView: 'dashboard' });
+        navigateToRoute(isCreatorWorkspace(template) ? { view: 'workbench', tool: template } : { view: 'dashboard' });
+      }}
     />
   ) : state.activeView === 'tasks' ? (
     <TaskCenterPage
