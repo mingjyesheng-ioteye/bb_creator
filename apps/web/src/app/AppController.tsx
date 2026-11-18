@@ -4720,7 +4720,7 @@ export function AppController(props: AppControllerProps) {
       onScheduleDeleted={handleScheduleDeleted}
     />
   ) : state.activeView === 'studio' ? (
-    <StudioPage service={studioService} />
+    <StudioPage service={studioService} courseService={creatorService} />
   ) : state.activeView === 'tasks' ? (
     <TaskCenterPage
       service={taskService}

@@ -6,12 +6,15 @@ import { studioCapabilityGroups } from '@opencreator/protocol';
 import { CircleAlert, LoaderCircle, Play, RefreshCw, Square, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalizedCopy } from '../../i18n/useLocalizedCopy.js';
+import type { CreatorWebService } from '../../services/creator-service.js';
 import type { StudioService } from '../../services/studio-service.js';
 import { GpuWorkerBar } from './GpuWorkerBar.js';
+import { InstructorView } from './InstructorView.js';
 import './studio.css';
 
 export type StudioViewProps = {
   service: StudioService | null;
+  courseService?: Pick<CreatorWebService, 'listCourseVideoCourses' | 'getCourseVideoCourse'> | null;
 };
 
 const ACTIVE = new Set<StudioJob['status']>(['queued', 'running']);
@@ -23,6 +26,7 @@ function messageOf(cause: unknown): string {
 export function StudioView(props: StudioViewProps) {
   const l = useLocalizedCopy();
   const { service } = props;
+  const [tab, setTab] = useState<'media' | 'instructor'>('media');
   const [catalog, setCatalog] = useState<StudioCapabilitiesResponse>();
   const [jobs, setJobs] = useState<StudioJob[]>([]);
   const [selectedId, setSelectedId] = useState('cinematic');
@@ -94,16 +98,6 @@ export function StudioView(props: StudioViewProps) {
     }
   }
 
-  if (service === null) {
-    return (
-      <section className="studio">
-        <div className="studio__inner">
-          <p className="studio__muted">{l('本机 Runtime 就绪后可使用媒体工坊', 'Connect the local Runtime to use the Studio')}</p>
-        </div>
-      </section>
-    );
-  }
-
   const needsFile = selected !== undefined && selected.input !== 'none';
   const canRun = selected !== undefined && selected.runnable
     && (!selected.promptRequired || prompt.trim().length > 0)
@@ -116,21 +110,53 @@ export function StudioView(props: StudioViewProps) {
           <div>
             <h1>{l('媒体工坊', 'Studio')}</h1>
             <p className="studio__muted">
-              {l('本地生成、剪辑、配音与再创作，全部在本机运行。', 'Generate, edit, narrate and repurpose media. Everything runs on this machine.')}
+              {tab === 'instructor'
+                ? l('小班课堂控制台：出勤、进度与计时。', 'Instructor-led classroom console: attendance, progress and timing.')
+                : l('本地生成、剪辑、配音与再创作，全部在本机运行。', 'Generate, edit, narrate and repurpose media. Everything runs on this machine.')}
             </p>
           </div>
-          <button type="button" className="studio__button" onClick={() => { void refresh(true); setWorkerRefresh(value => value + 1); }}>
-            <RefreshCw size={14} /> {l('刷新', 'Refresh')}
-          </button>
+          <div className="studio__header-actions">
+            <div className="studio__tabs" role="tablist" aria-label={l('工坊模式', 'Studio mode')}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'media'}
+                className={tab === 'media' ? 'studio__tab studio__tab--active' : 'studio__tab'}
+                onClick={() => setTab('media')}
+              >
+                {l('媒体', 'Media')}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'instructor'}
+                className={tab === 'instructor' ? 'studio__tab studio__tab--active' : 'studio__tab'}
+                onClick={() => setTab('instructor')}
+              >
+                {l('课堂', 'Instructor')}
+              </button>
+            </div>
+            {tab === 'media' ? (
+              <button type="button" className="studio__button" onClick={() => { void refresh(true); setWorkerRefresh(value => value + 1); }}>
+                <RefreshCw size={14} /> {l('刷新', 'Refresh')}
+              </button>
+            ) : null}
+          </div>
         </header>
 
-        {error === undefined ? null : (
-          <div className="studio__alert" role="alert"><CircleAlert size={14} /> {error}</div>
-        )}
+        {tab === 'instructor' ? (
+          <InstructorView courseService={props.courseService} />
+        ) : service === null ? (
+          <p className="studio__muted">{l('本机 Runtime 就绪后可使用媒体工坊', 'Connect the local Runtime to use the Studio')}</p>
+        ) : (
+          <>
+            {error === undefined ? null : (
+              <div className="studio__alert" role="alert"><CircleAlert size={14} /> {error}</div>
+            )}
 
-        <GpuWorkerBar service={service} refreshSignal={workerRefresh} onWorkerChange={refresh} />
+            <GpuWorkerBar service={service} refreshSignal={workerRefresh} onWorkerChange={refresh} />
 
-        <div className="studio__layout">
+            <div className="studio__layout">
           <nav className="studio__catalog" aria-label={l('能力', 'Capabilities')}>
             {studioCapabilityGroups.map(group => {
               const entries = catalog?.capabilities.filter(entry => entry.group === group) ?? [];
@@ -243,6 +269,8 @@ export function StudioView(props: StudioViewProps) {
             </section>
           </div>
         </div>
+          </>
+        )}
       </div>
     </section>
   );

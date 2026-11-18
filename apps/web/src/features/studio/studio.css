@@ -33,3 +33,45 @@
 .studio__status--error { background: var(--destructive-soft); }
 .studio__spin { animation: studio-spin 1s linear infinite; }
 @keyframes studio-spin { to { transform: rotate(360deg); } }
+
+.studio__header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.studio__tabs { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-input); }
+.studio__tab { border: 0; border-radius: 7px; padding: 6px 12px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.studio__tab--active { background: var(--accent-soft); color: var(--text); }
+
+.instructor { display: grid; gap: 16px; }
+.instructor__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.instructor__header h2 { margin: 0 0 4px; font-size: 20px; }
+.instructor__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .instructor__grid { grid-template-columns: minmax(0, 1fr); } }
+.instructor__panel { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.instructor__panel h3 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 15px; }
+.instructor__panel h3 small { color: var(--subtle); font-size: 12px; font-weight: 450; }
+.instructor__fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.instructor__field-wide { grid-column: 1 / -1; }
+@media (max-width: 640px) { .instructor__fields { grid-template-columns: minmax(0, 1fr); } }
+.instructor__session { align-content: start; }
+.instructor__timer { font-family: var(--font-display); font-size: 38px; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.instructor__session-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.instructor__counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.instructor__count { padding: 3px 8px; border-radius: 999px; font-size: 12px; background: var(--accent-soft); }
+.instructor__count--present { background: var(--status-connected-soft); }
+.instructor__count--late { background: var(--warning-soft, var(--accent-soft)); }
+.instructor__count--absent { background: var(--destructive-soft); }
+.instructor__roster-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.instructor__roster-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.instructor__roster { display: grid; gap: 6px; }
+.instructor__roster-row { display: grid; grid-template-columns: 28px minmax(120px, 1.1fr) minmax(150px, 1.3fr) 96px minmax(120px, 1fr) 32px; gap: 8px; align-items: center; }
+.instructor__roster-row--head { color: var(--subtle); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.instructor__roster-row input, .instructor__roster-row select { min-width: 0; width: 100%; box-sizing: border-box; padding: 7px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-input); color: var(--text); font: inherit; font-size: 13px; }
+.instructor__roster-row--present { border-left: 3px solid var(--status-connected, var(--accent-strong)); padding-left: 5px; }
+.instructor__roster-row--late { border-left: 3px solid var(--warning, var(--accent-strong)); padding-left: 5px; }
+.instructor__roster-row--absent { border-left: 3px solid var(--destructive, var(--accent-strong)); padding-left: 5px; }
+.instructor__index { color: var(--subtle); font-size: 12px; text-align: center; }
+.instructor__remove { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-input); color: var(--muted); cursor: pointer; }
+.instructor__remove:hover { color: var(--text); }
+.instructor__notes { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-input); color: var(--text); font: inherit; font-size: 13px; resize: vertical; }
+@media (max-width: 760px) {
+  .instructor__roster-row { grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) 90px 32px; }
+  .instructor__roster-row > :nth-child(5) { display: none; }
+}
