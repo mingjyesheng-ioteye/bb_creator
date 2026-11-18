@@ -198,7 +198,7 @@ function dashboardVisualAssetCatalog() {
 function completeSmartDubbingStage(current: CreatorJob): CreatorJob {
   const now = new Date().toISOString();
   const version = current.artifacts.filter(artifact => artifact.kind === 'dubbed_audio').length + 1;
-  const fileName = `OpenCreator-dubbing-V${version}.mp3`;
+  const fileName = `BrainBook-Creator-dubbing-V${version}.mp3`;
   const artifact: CreatorArtifact = {
     id: `smart_dubbing_audio_v${version}`,
     jobId: current.id,
@@ -311,7 +311,7 @@ function createTtsServices(options?: {
 }
 
 const defaultTranslationCues: CreatorJson[] = [
-  { id: 1, start: '00:00:00,000', end: '00:00:02,000', text: 'Welcome to OpenCreator.' },
+  { id: 1, start: '00:00:00,000', end: '00:00:02,000', text: 'Welcome to BrainBook Creator.' },
   { id: 2, start: '00:00:02,000', end: '00:00:04,000', text: 'Create once, publish everywhere.' },
   { id: 3, start: '00:00:04,000', end: '00:00:06,000', text: 'Your translated video is ready.' }
 ];
@@ -994,7 +994,7 @@ describe('DashboardPage', () => {
     openBlankWorkspace('视频翻译', '空白视频翻译');
 
     expect(screen.getByRole('heading', { name: '视频翻译配音' })).toBeInTheDocument();
-    expect(screen.getByRole('complementary', { name: 'OpenCreator' })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'BrainBook Creator' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '拖放视频到这里' })).toBeInTheDocument();
     expect(screen.getByRole('list', { name: '支持的平台' }).querySelectorAll('li')).toHaveLength(10);
     fireEvent.change(screen.getByRole('textbox', { name: '视频链接' }), {
@@ -1034,7 +1034,7 @@ describe('DashboardPage', () => {
     expect(screen.getByLabelText('任务摘要')).toHaveClass('video-translation-summary', 'creator-task-summary');
     expect(screen.getByLabelText('任务摘要').parentElement).toHaveClass('creator-collaboration-task-summary');
     expect(screen.getByRole('region', { name: '视频翻译操作区' })).not.toContainElement(screen.getByLabelText('任务摘要'));
-    expect(screen.getByRole('complementary', { name: 'OpenCreator' })).toContainElement(screen.getByLabelText('任务摘要'));
+    expect(screen.getByRole('complementary', { name: 'BrainBook Creator' })).toContainElement(screen.getByLabelText('任务摘要'));
     await startVideoTranslation();
 
     expect(onSelectPrompt).not.toHaveBeenCalled();
@@ -1360,9 +1360,9 @@ describe('DashboardPage', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: '字幕' }));
     fireEvent.change(screen.getByRole('textbox', { name: '横屏字幕 2' }), {
-      target: { value: 'Welcome back to OpenCreator.' }
+      target: { value: 'Welcome back to BrainBook Creator.' }
     });
-    expect(screen.getByRole('textbox', { name: '横屏字幕 2' })).toHaveValue('Welcome back to OpenCreator.');
+    expect(screen.getByRole('textbox', { name: '横屏字幕 2' })).toHaveValue('Welcome back to BrainBook Creator.');
     expect(screen.getByLabelText('有未保存的字幕修改')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '保存并生成 V2' }));
@@ -1375,7 +1375,7 @@ describe('DashboardPage', () => {
     expect(versionTrigger).toHaveAttribute('aria-haspopup', 'menu');
     expect(versionTrigger.querySelector('.video-result-version-chevron')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: '字幕' }));
-    expect(screen.getByRole('textbox', { name: '横屏字幕 2' })).toHaveValue('Welcome back to OpenCreator.');
+    expect(screen.getByRole('textbox', { name: '横屏字幕 2' })).toHaveValue('Welcome back to BrainBook Creator.');
   });
 
   it('saves manual subtitle edits while generating a new version', async () => {
@@ -1510,7 +1510,7 @@ describe('DashboardPage', () => {
     expect(settings).not.toBeNull();
     expect(within(settings as HTMLElement).getByText('简体中文')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: '字幕' }));
-    expect(screen.getByRole('textbox', { name: '横屏字幕 1' })).toHaveValue('Welcome to OpenCreator.');
+    expect(screen.getByRole('textbox', { name: '横屏字幕 1' })).toHaveValue('Welcome to BrainBook Creator.');
   });
 
   it('reuses completed subtitles when video composition is enabled for a new version', async () => {
@@ -1988,7 +1988,7 @@ describe('DashboardPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '开始生成' }));
 
     expect(await screen.findByLabelText('智能配音试听')).toHaveAttribute('src', 'blob:smart-dubbing');
-    expect(screen.getByText('OpenCreator-dubbing-V1.mp3')).toBeInTheDocument();
+    expect(screen.getByText('BrainBook-Creator-dubbing-V1.mp3')).toBeInTheDocument();
     expect(screen.queryByText('Creator Runtime 未连接，Agent 不会生成替代回复。')).not.toBeInTheDocument();
     expect(applyAction).toHaveBeenCalledWith(
       expect.stringMatching(/^creator_test_job_/),
@@ -2034,7 +2034,7 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText('请先在设置的配音服务中配置当前服务商的 API Key'))
       .toBeInTheDocument();
-    expect(screen.getByRole('complementary', { name: 'OpenCreator' })).toHaveTextContent('请先在设置的配音服务中配置当前服务商的 API Key');
+    expect(screen.getByRole('complementary', { name: 'BrainBook Creator' })).toHaveTextContent('请先在设置的配音服务中配置当前服务商的 API Key');
   });
 
   it('generates image assets through the Creator Runtime', async () => {
@@ -2294,7 +2294,7 @@ describe('DashboardPage', () => {
             videoSize: '720x1280',
             requestedDuration: 8,
             duration: 8,
-            fileName: 'OpenCreator-video.mp4',
+            fileName: 'BrainBook-Creator-video.mp4',
             mimeType: 'video/mp4',
             bytes: 4096,
             resultVersion: version

@@ -21,14 +21,14 @@ export class TrayManager {
     });
     if (process.platform === 'darwin') icon.setTemplateImage(true);
     const tray = new Tray(icon);
-    tray.setToolTip('OpenCreator');
+    tray.setToolTip('BrainBook Creator');
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Open OpenCreator', click: input.open },
+      { label: 'Open BrainBook Creator', click: input.open },
       { type: 'separator' },
       { label: 'New task', click: () => input.navigate('#/') },
       { label: 'View running tasks', click: () => input.navigate('#/tasks') },
       { type: 'separator' },
-      { label: 'Quit OpenCreator', click: input.quit }
+      { label: 'Quit BrainBook Creator', click: input.quit }
     ]));
     tray.on('click', input.open);
     this.tray = tray;

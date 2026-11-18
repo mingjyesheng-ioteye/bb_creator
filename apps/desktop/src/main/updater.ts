@@ -124,8 +124,8 @@ export function startUpdater(input: {
       try {
         const choice = await showMessageBox({
           type: 'info',
-          title: 'OpenCreator update',
-          message: `OpenCreator ${info.version} is available`,
+          title: 'BrainBook Creator update',
+          message: `BrainBook Creator ${info.version} is available`,
           detail: 'The update can download in the background without interrupting your current tasks.',
           buttons: ['Download update', 'Later'],
           defaultId: 0,
@@ -149,7 +149,7 @@ export function startUpdater(input: {
         const choice = await showMessageBox({
           type: 'info',
           title: 'Update downloaded',
-          message: `OpenCreator ${info.version} is ready to install`,
+          message: `BrainBook Creator ${info.version} is ready to install`,
           detail: 'Quitting to install will stop the local Runtime. Make sure no tasks need to keep running.',
           buttons: ['Quit and install', 'Later'],
           defaultId: 1,

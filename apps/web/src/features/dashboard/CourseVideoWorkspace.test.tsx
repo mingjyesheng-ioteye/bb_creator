@@ -1,6 +1,11 @@
 import type { CreatorActionRequest, CreatorArtifact, CreatorJob } from '@opencreator/protocol';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+beforeAll(() => {
+  URL.createObjectURL = vi.fn(() => 'blob:course-video-preview');
+  URL.revokeObjectURL = vi.fn();
+});
 import { LanguageProvider } from '../../i18n/LanguageProvider.js';
 import type { StudioService } from '../../services/studio-service.js';
 import CourseVideoWorkspace from './CourseVideoWorkspace.js';

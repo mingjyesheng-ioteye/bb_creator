@@ -59,7 +59,7 @@ describe('video download link batches', () => {
     const created = harness.service.createJob.mock.calls.map(([request]) => request);
     expect(created.every(request => request.state?.[DOWNLOAD_BATCH_PARENT] === 'root')).toBe(true);
     expect(await screen.findByRole('heading', { name: 'Video third' })).toBeInTheDocument();
-    expect(screen.getAllByRole('complementary', { name: 'OpenCreator' })).toHaveLength(1);
+    expect(screen.getAllByRole('complementary', { name: 'BrainBook Creator' })).toHaveLength(1);
     await addLinks('https://youtu.be/first?t=20');
     expect(harness.service.createJob).toHaveBeenCalledTimes(2);
     expect(harness.probes()).toHaveLength(2);

@@ -68,7 +68,7 @@ describe('VideoTranslationAgentPanel', () => {
     expect(screen.getByText('请检查当前设置')).toBeInTheDocument();
     expect(screen.getByText('更新了创作设置')).toBeInTheDocument();
     expect(screen.getByText('工作台')).toBeInTheDocument();
-    expect(screen.queryByText(/OpenCreator Context Projection/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/BrainBook Creator Context Projection/)).not.toBeInTheDocument();
     expect(screen.queryByText(/internal prompt/)).not.toBeInTheDocument();
     expect(screen.queryByText('确认项目状态')).not.toBeInTheDocument();
     expect(screen.queryByText('执行记录')).not.toBeInTheDocument();
@@ -855,7 +855,7 @@ function timeline(): CreatorAgentTimelineResponse {
         runtimeItemId: 'runtime_reasoning_1',
         kind: 'reasoning' as const,
         status: 'completed' as const,
-        text: 'OpenCreator Context Projection: internal prompt',
+        text: 'BrainBook Creator Context Projection: internal prompt',
         data: { private: true },
         sequence: 1,
         createdAt: '2026-08-21T00:00:02.000Z',

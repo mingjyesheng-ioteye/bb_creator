@@ -341,7 +341,7 @@ export default function AutoClipWorkspace(props: {
     if (!url) return;
     const link = document.createElement('a');
     link.href = url;
-    link.download = artifactFileName(artifact) || `OpenCreator-video-clip-${artifact.version}.mp4`;
+    link.download = artifactFileName(artifact) || `BrainBook-Creator-video-clip-${artifact.version}.mp4`;
     link.click();
     setNotice(l('视频切片已开始下载', 'The video clip download has started'));
   }

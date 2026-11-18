@@ -152,8 +152,8 @@ describe('App', () => {
     };
 
     render(<App hostBridge={hostBridge} runtimeFetch={runtimeFetch} />);
-    expect(await screen.findByRole('heading', { name: 'OpenCreator' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('OpenCreator navigation')).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'BrainBook Creator' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('BrainBook Creator 导航')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '稍后配置，进入本地模式' }));
     expect(await screen.findByText('Agent 尚未配置，暂时无法发送任务。')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '配置 Agent' }));
@@ -170,7 +170,7 @@ describe('App', () => {
     await user.type(screen.getByLabelText('API Key'), 'secret');
     await user.click(screen.getByRole('button', { name: '保存并开始使用' }));
     await waitFor(() => {
-      expect(screen.queryByRole('heading', { name: 'OpenCreator' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'BrainBook Creator' })).not.toBeInTheDocument();
       expect(window.location.hash).toBe('#/new');
     });
     expect(screen.queryByText('Agent 尚未配置，暂时无法发送任务。')).not.toBeInTheDocument();
@@ -179,9 +179,9 @@ describe('App', () => {
     render(<App hostBridge={hostBridge} runtimeFetch={runtimeFetch} />);
     await waitFor(() => {
       expect(screen.queryByText('正在检查 Agent 配置…')).not.toBeInTheDocument();
-      expect(screen.getByLabelText('OpenCreator navigation')).toBeInTheDocument();
+      expect(screen.getByLabelText('BrainBook Creator 导航')).toBeInTheDocument();
     });
-    expect(screen.queryByRole('heading', { name: 'OpenCreator' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'BrainBook Creator' })).not.toBeInTheDocument();
     }
   );
 
@@ -211,11 +211,11 @@ describe('App', () => {
     };
     render(<App hostBridge={hostBridge} runtimeFetch={runtimeFetch}/>);
     await user.click(await screen.findByRole('button', { name: '登录模式' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: '登录 OpenCreator' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: '登录 BrainBook Creator' })).toBeEnabled());
     expect(screen.queryByLabelText('Base URL')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('API Key')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '登录 OpenCreator' }));
-    await waitFor(() => expect(screen.getByLabelText('OpenCreator navigation')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: '登录 BrainBook Creator' }));
+    await waitFor(() => expect(screen.getByLabelText('BrainBook Creator 导航')).toBeInTheDocument());
     expect(screen.queryByRole('region', { name: '开始使用 Agent' })).not.toBeInTheDocument();
     expect(screen.queryByText('Agent 尚未配置，暂时无法发送任务。')).not.toBeInTheDocument();
     if (activationState === 'ready') {
@@ -262,19 +262,19 @@ describe('App', () => {
     render(<App hostBridge={hostBridge} runtimeFetch={runtimeFetch} />);
     await user.click(await screen.findByRole('button', { name: '本地模式' }));
     expect(await screen.findByText('已找到本机 Codex')).toBeInTheDocument();
-    expect(screen.queryByLabelText('OpenCreator navigation')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('BrainBook Creator 导航')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '使用本机 Codex，继续' }));
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'OpenCreator' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'BrainBook Creator' })).not.toBeInTheDocument());
 
     cleanup();
     render(<App hostBridge={hostBridge} runtimeFetch={runtimeFetch} />);
-    await waitFor(() => expect(screen.getByLabelText('OpenCreator navigation')).toBeInTheDocument());
-    expect(screen.queryByRole('heading', { name: 'OpenCreator' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('BrainBook Creator 导航')).toBeInTheDocument());
+    expect(screen.queryByRole('heading', { name: 'BrainBook Creator' })).not.toBeInTheDocument();
 
     cleanup();
     signedIn = false;
     render(<App hostBridge={hostBridge} runtimeFetch={runtimeFetch} />);
-    expect(await screen.findByRole('heading', { name: 'OpenCreator' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'BrainBook Creator' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '本地模式' }));
     expect(screen.getByRole('combobox', { name: '供应商' })).toBeInTheDocument();
   });
@@ -837,7 +837,7 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const navigation = await screen.findByLabelText('OpenCreator navigation');
+    const navigation = await screen.findByLabelText('BrainBook Creator 导航');
     await user.click(screen.getByRole('button', { name: 'Open navigation' }));
     expect(navigation).toHaveAttribute('data-mobile-open', 'true');
 
@@ -877,7 +877,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Close navigation' }));
 
     expect(back).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText('OpenCreator navigation')).toHaveAttribute('data-mobile-open', 'false');
+    expect(screen.getByLabelText('BrainBook Creator 导航')).toHaveAttribute('data-mobile-open', 'false');
   });
 
   it('replaces the temporary mobile drawer entry when navigating from the drawer', async () => {
@@ -902,7 +902,7 @@ describe('App', () => {
     await waitFor(() => expect(window.location.hash).toBe('#/dashboard'));
     expect(back).not.toHaveBeenCalled();
     expect(window.history.state?.opencreatorMobileNavigation).not.toBe(true);
-    expect(screen.getByLabelText('OpenCreator navigation')).toHaveAttribute('data-mobile-open', 'false');
+    expect(screen.getByLabelText('BrainBook Creator 导航')).toHaveAttribute('data-mobile-open', 'false');
   });
 
   afterEach(() => {
@@ -969,7 +969,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /^视频翻译/ }));
 
     expect(await screen.findByRole('heading', { name: '视频翻译配音' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('OpenCreator navigation')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('BrainBook Creator 导航')).not.toBeInTheDocument();
     const agentInput = screen.getByRole('textbox', { name: '告诉 Agent 你的要求' });
     expect(agentInput).toHaveAttribute(
       'placeholder',
@@ -979,7 +979,7 @@ describe('App', () => {
     await user.click(within(
       screen.getByRole('region', { name: '视频翻译操作区' })
     ).getByRole('button', { name: '返回' }));
-    expect(await screen.findByLabelText('OpenCreator navigation')).toBeInTheDocument();
+    expect(await screen.findByLabelText('BrainBook Creator 导航')).toBeInTheDocument();
     await waitFor(() => expect(window.location.hash).toBe('#/workbench'));
   });
 
@@ -1689,7 +1689,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '定时任务' }));
 
     expect(await screen.findByRole('heading', { name: '每日总结' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'OpenCreator：已安排' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'BrainBook Creator：已安排' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'View last run' }));
 
@@ -1958,7 +1958,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /^Create$/ }));
     expect(screen.getByRole('dialog', { name: 'Create scheduled task' })).toBeInTheDocument();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-    expect(screen.queryByText('使用 OpenCreator 创建')).not.toBeInTheDocument();
+    expect(screen.queryByText('使用 BrainBook Creator 创建')).not.toBeInTheDocument();
     expect(findPostCall(fetchCalls, '/threads')).toBeUndefined();
     expect(findPostCall(fetchCalls, '/runs')).toBeUndefined();
   });
@@ -3105,7 +3105,7 @@ describe('App', () => {
         />
       );
 
-      expect(await screen.findByLabelText('OpenCreator navigation')).toBeInTheDocument();
+      expect(await screen.findByLabelText('BrainBook Creator 导航')).toBeInTheDocument();
       expect(screen.queryByText('登录即可享受云端协作')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Sign in to' })).not.toBeInTheDocument();
     }
@@ -3189,7 +3189,7 @@ describe('App', () => {
 
     navigateToTestRoute('#/plugins');
     await waitFor(() => expect(recordRequests).toBe(1));
-    expect(screen.queryByRole('heading', { name: 'OpenCreator：插件' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'BrainBook Creator：插件' })).not.toBeInTheDocument();
     expect(await screen.findByRole('region', { name: '技能目录' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByTestId('skill-market-card')).toHaveLength(12));
     await showSkillMarketCard(user, 'frontend-slides');
@@ -3903,7 +3903,7 @@ describe('App', () => {
     expect(screen.queryByText(/当前动态/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '设置' }));
-    await user.click(await screen.findByRole('button', { name: '关于 OpenCreator' }));
+    await user.click(await screen.findByRole('button', { name: '关于 BrainBook Creator' }));
 
     expect(await screen.findByText('高级信息')).toBeInTheDocument();
     expect(screen.getAllByText('codex-cli test').length).toBeGreaterThan(0);
@@ -4001,7 +4001,7 @@ describe('App', () => {
     await user.type(screen.getByRole('textbox', { name: '输入任务' }), prompt);
     await user.click(screen.getByRole('button', { name: '发送' }));
 
-    expect(await screen.findByText('Allow OpenCreator to run this command?')).toBeInTheDocument();
+    expect(await screen.findByText('Allow BrainBook Creator to run this command?')).toBeInTheDocument();
     expect(document.querySelector('.composer-approval-overlay')).toBeInTheDocument();
     await user.click(screen.getByText('View operation details'));
     expect(screen.getByText('rm -rf build')).toBeInTheDocument();
@@ -4271,7 +4271,7 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: '停止任务' })).not.toBeInTheDocument();
   });
 
-  it('renders Codex process agent messages as folded process text and only the final agent message as OpenCreator reply', async () => {
+  it('renders Codex process agent messages as folded process text and only the final agent message as BrainBook Creator reply', async () => {
     const user = userEvent.setup();
     const prompt = '检查当前目录并总结';
     const hostBridge = createHostBridge();
@@ -6691,7 +6691,7 @@ describe('App', () => {
     );
 
     expect(await screen.findByRole('status', { name: 'The local Runtime is ready' })).toBeInTheDocument();
-    const navigation = screen.getByLabelText('OpenCreator navigation');
+    const navigation = screen.getByLabelText('BrainBook Creator 导航');
     expect(navigation).toHaveAttribute('data-collapsed', 'false');
     await user.click(await screen.findByRole('button', { name: /真实文件会话/ }));
     await user.click(screen.getByRole('button', { name: 'Files' }));
@@ -7894,7 +7894,7 @@ describe('App', () => {
 
     render(<App fileService={createFileService()} hostBridge={hostBridge} />);
     await user.click(await screen.findByRole('button', { name: '设置' }));
-    await user.click(screen.getByRole('button', { name: '关于 OpenCreator' }));
+    await user.click(screen.getByRole('button', { name: '关于 BrainBook Creator' }));
 
     expect(await screen.findByText('3.2.1')).toBeInTheDocument();
     expect(hostBridge.readAppVersion).toHaveBeenCalledOnce();
@@ -8852,7 +8852,7 @@ function handleDefaultCreatorApiRequest(
             sourceArtifactIds: [],
             metadata: {
               cues: [
-                { id: 1, start: '00:00:00,000', end: '00:00:03,200', text: 'Welcome to OpenCreator.' }
+                { id: 1, start: '00:00:00,000', end: '00:00:03,200', text: 'Welcome to BrainBook Creator.' }
               ],
               settingsSnapshot: { ...previous.state, ...patch }
             },

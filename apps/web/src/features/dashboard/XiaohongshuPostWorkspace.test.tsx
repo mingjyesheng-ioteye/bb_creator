@@ -282,13 +282,13 @@ function completedJob(job: CreatorJob): CreatorJob {
     kind: 'xiaohongshu_post',
     version: 1,
     status: 'completed',
-    path: '/tmp/OpenCreator-xiaohongshu-post.md',
+    path: '/tmp/BrainBook-Creator-xiaohongshu-post.md',
     scopeKey: null,
     inputFingerprint: null,
     sha256: null,
     sourceArtifactIds: [],
     metadata: {
-      fileName: 'OpenCreator-xiaohongshu-post.md',
+      fileName: 'BrainBook-Creator-xiaohongshu-post.md',
       title: '第一次参与开源项目',
       resultVersion: 1
     },

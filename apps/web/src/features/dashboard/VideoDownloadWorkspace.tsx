@@ -1565,7 +1565,7 @@ function audioLanguageLabel(
 
 function artifactFileName(artifact: CreatorArtifact): string {
   return readString(artifact.metadata.fileName)
-    ?? `OpenCreator-${artifact.kind}-${artifact.version}`;
+    ?? `BrainBook-Creator-${artifact.kind}-${artifact.version}`;
 }
 
 function formatDimensions(

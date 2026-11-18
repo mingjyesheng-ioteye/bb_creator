@@ -90,7 +90,7 @@ it('ignores a previous account balance response after switching accounts', async
 });
 it('shows unavailable login without an enabled action', () => {
   render(page(null));
-  expect(within(screen.getByRole('region', { name: 'OpenCreator 账户' })).getByText('登录服务暂不可用')).toBeInTheDocument();
+  expect(within(screen.getByRole('region', { name: 'BrainBook Creator 账户' })).getByText('登录服务暂不可用')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '登录 / 注册' })).toBeDisabled();
 });
 it('keeps model availability separate from sign-in and opens model settings', async () => {

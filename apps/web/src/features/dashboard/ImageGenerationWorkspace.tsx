@@ -906,7 +906,7 @@ function artifactFileName(artifact: CreatorArtifact, version: number, candidate:
     : artifact.metadata.mimeType === 'image/webp'
       ? 'webp'
       : 'png';
-  return `OpenCreator-image-V${version}-${candidate}.${extension}`;
+  return `BrainBook-Creator-image-V${version}-${candidate}.${extension}`;
 }
 
 function formatBytes(size: number) {

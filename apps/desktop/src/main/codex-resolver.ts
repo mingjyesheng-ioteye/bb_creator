@@ -145,7 +145,7 @@ function resolveBundled(input: {
   diagnostics: CodexResolutionDiagnostics;
 }): ResolvedCodexEnvironment {
   if (input.runtimeRoot === undefined) {
-    throw failure('codex_runtime_missing', 'The bundled OpenCreator Codex Runtime path was not provided', input.diagnostics);
+    throw failure('codex_runtime_missing', 'The bundled BrainBook Creator Codex Runtime path was not provided', input.diagnostics);
   }
   const runtimeRoot = resolve(input.runtimeRoot);
   const manifestPath = join(runtimeRoot, 'manifest.json');
@@ -163,7 +163,7 @@ function resolveBundled(input: {
   ) {
     throw failure(
       'codex_runtime_version_mismatch',
-      `The bundled Codex Runtime is incompatible with OpenCreator (requires ${BUNDLED_VERSION})`,
+      `The bundled Codex Runtime is incompatible with BrainBook Creator (requires ${BUNDLED_VERSION})`,
       input.diagnostics
     );
   }

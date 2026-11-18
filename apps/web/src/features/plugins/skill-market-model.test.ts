@@ -344,7 +344,7 @@ function createEntry(
     platforms: ['Web'],
     tasks: ['课程课件'],
     creator: {
-      name: 'OpenCreator',
+      name: 'BrainBook Creator',
       avatarUrl: 'https://example.com/avatar.png',
     },
     examples: [],

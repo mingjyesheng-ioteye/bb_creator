@@ -1210,7 +1210,7 @@ function readNeedsInputDeepLink(value: CreatorJson | undefined): string {
 
 function artifactFileName(artifact: CreatorArtifact, version: number): string {
   return readArtifactString(artifact, 'fileName')
-    ?? `OpenCreator-video-V${version}.mp4`;
+    ?? `BrainBook-Creator-video-V${version}.mp4`;
 }
 
 function formatBytes(size: number) {

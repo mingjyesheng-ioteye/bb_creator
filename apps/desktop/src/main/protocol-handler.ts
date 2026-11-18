@@ -48,7 +48,7 @@ export async function installProtocolHandler(input: {
     const url = new URL(request.url);
     if (isRuntimeRequestUrl(url)) {
       if (runtimeSuspended) {
-        return jsonError(503, 'RUNTIME_SHUTTING_DOWN', 'OpenCreator Runtime is stopping');
+        return jsonError(503, 'RUNTIME_SHUTTING_DOWN', 'BrainBook Creator Runtime is stopping');
       }
       const controller = new AbortController();
       activeRequests.add(controller);
@@ -97,7 +97,7 @@ async function proxyRuntimeRequest(
       method: request.method,
       path: url.pathname
     }, 5_000);
-    return jsonError(503, 'RUNTIME_UNAVAILABLE', 'OpenCreator Runtime is not ready');
+    return jsonError(503, 'RUNTIME_UNAVAILABLE', 'BrainBook Creator Runtime is not ready');
   }
   const startedAt = performance.now();
   let phase = 'target';

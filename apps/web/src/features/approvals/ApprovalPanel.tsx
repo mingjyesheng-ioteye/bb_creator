@@ -84,11 +84,11 @@ function getApprovalCopy(l: LocalizeCopy, kind: RuntimeApproval['kind']): {
 } {
   switch (kind) {
     case 'command_execution':
-      return { source: l("终端", "terminal"), question: l("允许 OpenCreator 执行这条命令？", "Allow OpenCreator to execute this command?"), icon: SquareTerminal };
+      return { source: l("终端", "terminal"), question: l("允许 BrainBook Creator 执行这条命令？", "Allow BrainBook Creator to execute this command?"), icon: SquareTerminal };
     case 'file_change':
-      return { source: l("文件", "Files"), question: l("允许 OpenCreator 修改项目文件？", "Allow OpenCreator to modify project files?"), icon: FilePenLine };
+      return { source: l("文件", "Files"), question: l("允许 BrainBook Creator 修改项目文件？", "Allow BrainBook Creator to modify project files?"), icon: FilePenLine };
     case 'permissions':
-      return { source: l("权限", "Permissions"), question: l("允许 OpenCreator 获取这项权限？", "Allow OpenCreator to obtain this permission?"), icon: ShieldCheck };
+      return { source: l("权限", "Permissions"), question: l("允许 BrainBook Creator 获取这项权限？", "Allow BrainBook Creator to obtain this permission?"), icon: ShieldCheck };
   }
 }
 

@@ -156,7 +156,7 @@ export function OpenCreatorSettingsView(props: OpenCreatorSettingsViewProps) {
     <div className={`gateway-account ai-services-mode${officialMode ? ' ai-services-mode--official' : ''}`}>
       <span className="ai-services-mode__label">{l('使用模式', 'Usage mode')}</span>
       <strong>{officialMode ? l('官方服务', 'Official service') : l('自定义配置', 'Custom configuration')}</strong>
-      {!officialMode && props.onOpenPersonalCenter ? <button type="button" onClick={props.onOpenPersonalCenter}><UserRound size={15} aria-hidden="true"/>{l('登录 OpenCreator', 'Sign in to OpenCreator')}</button> : null}
+      {!officialMode && props.onOpenPersonalCenter ? <button type="button" onClick={props.onOpenPersonalCenter}><UserRound size={15} aria-hidden="true"/>{l('登录 BrainBook Creator', 'Sign in to BrainBook Creator')}</button> : null}
     </div>
   ) : null;
 

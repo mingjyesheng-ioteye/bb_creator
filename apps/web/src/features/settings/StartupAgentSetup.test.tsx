@@ -205,10 +205,10 @@ describe('StartupAgentSetup', () => {
 
   it('offers both modes and never exposes provider fields in sign-in mode', async () => {
     mount(createService());
-    expect(screen.getByRole('heading', { name: 'OpenCreator' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'BrainBook Creator' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '本地模式' })).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: '登录模式' }));
-    expect(screen.getByRole('button', { name: '登录 OpenCreator' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '登录 BrainBook Creator' })).toBeDisabled();
     expect(screen.queryByLabelText('Base URL')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('API Key')).not.toBeInTheDocument();
   });
@@ -224,8 +224,8 @@ describe('StartupAgentSetup', () => {
     render(<LanguageProvider initialPreference="zh-CN"><StartupAgentSetup service={createService()} gatewayService={gateway} onReady={vi.fn()} onSkip={vi.fn()}/></LanguageProvider>);
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: '登录模式' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: '登录 OpenCreator' })).toBeEnabled());
-    await user.click(screen.getByRole('button', { name: '登录 OpenCreator' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: '登录 BrainBook Creator' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: '登录 BrainBook Creator' }));
     expect(await screen.findByText('请在浏览器中完成登录')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '返回' }));
     expect(gateway.cancel).toHaveBeenCalledOnce();

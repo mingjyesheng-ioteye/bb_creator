@@ -86,7 +86,7 @@ describe('Timeline', () => {
     );
 
     expect(container.querySelector('.timeline-approval-overlay')).not.toBeInTheDocument();
-    expect(screen.queryByText('允许 OpenCreator 执行这条命令？')).not.toBeInTheDocument();
+    expect(screen.queryByText('允许 BrainBook Creator 执行这条命令？')).not.toBeInTheDocument();
     expect(container.querySelector('.timeline-approval')).not.toBeInTheDocument();
     expect(screen.getByTestId('virtuoso-scroller').scrollTop).toBe(0);
   });
@@ -487,7 +487,7 @@ describe('Timeline', () => {
 
     expect(screen.getByText('please inspect the run')).toBeInTheDocument();
     expect(screen.getByText('I am checking the logs')).toBeInTheDocument();
-    expect(screen.queryByText('OpenCreator')).not.toBeInTheDocument();
+    expect(screen.queryByText('BrainBook Creator')).not.toBeInTheDocument();
     expect(container.querySelector('.timeline-user_message .timeline-item-header')).not.toBeInTheDocument();
     expect(container.querySelector('.timeline-assistant_message .timeline-item-header')).not.toBeInTheDocument();
     expect(container.querySelector('.timeline-assistant_message .timeline-avatar-logo')).not.toBeInTheDocument();
@@ -563,7 +563,7 @@ describe('Timeline', () => {
 
     expect(container.querySelector('.timeline-process')).toBeInTheDocument();
     expect(screen.getByText('正在思考')).toBeInTheDocument();
-    expect(screen.queryByText(/等待 OpenCreator 返回过程/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/等待 BrainBook Creator 返回过程/)).not.toBeInTheDocument();
     expect(screen.queryByText(/当前动态/)).not.toBeInTheDocument();
     expect(screen.queryByText('运行详情')).not.toBeInTheDocument();
     expect(container.querySelector('.process-detail')).not.toBeInTheDocument();
@@ -1290,7 +1290,7 @@ describe('Timeline', () => {
     expect(container.querySelectorAll('.process-milestone-icon')).toHaveLength(1);
   });
 
-  it('folds intermediate Codex agent messages into the run process and leaves only the final answer as OpenCreator reply', async () => {
+  it('folds intermediate Codex agent messages into the run process and leaves only the final answer as BrainBook Creator reply', async () => {
     const user = userEvent.setup();
     const items: TimelineItem[] = [
       {
@@ -1720,11 +1720,11 @@ describe('Timeline', () => {
     expect(screen.queryByRole('button', { name: '有新内容' })).not.toBeInTheDocument();
   });
 
-  it('renders the OpenCreator empty state', () => {
+  it('renders the BrainBook Creator empty state', () => {
     render(<Timeline items={[]} />);
 
     expect(screen.getByText('暂无任务记录')).toBeInTheDocument();
-    expect(screen.getByText('发送任务后，OpenCreator 会在这里展示处理过程和结果。')).toBeInTheDocument();
+    expect(screen.getByText('发送任务后，BrainBook Creator 会在这里展示处理过程和结果。')).toBeInTheDocument();
   });
 
   it('keeps long histories virtualized and exposes older-page loading', async () => {

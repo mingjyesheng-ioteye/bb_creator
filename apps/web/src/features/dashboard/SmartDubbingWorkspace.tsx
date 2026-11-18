@@ -546,7 +546,7 @@ function readLatestResult(artifacts: CreatorArtifact[]): DubbingResult | undefin
   const provider = readProvider(metadata.provider);
   return {
     artifact,
-    fileName: readString(metadata.fileName) || `OpenCreator-dubbing.${readFormat(metadata.format)}`,
+    fileName: readString(metadata.fileName) || `BrainBook-Creator-dubbing.${readFormat(metadata.format)}`,
     size: readNonNegativeNumber(metadata.bytes),
     provider: provider === 'aliyun' || provider === 'minimax' || provider === 'volcengine' ? provider : 'openai',
     model: readString(metadata.model),

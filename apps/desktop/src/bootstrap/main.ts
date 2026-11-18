@@ -25,7 +25,7 @@ declare global {
 }
 
 const api = window.opencreatorDesktop;
-if (api === undefined) throw new Error('OpenCreator Desktop bridge is unavailable');
+if (api === undefined) throw new Error('BrainBook Creator Desktop bridge is unavailable');
 if (
   api.windowChrome?.integratedTitleBar === true
   && typeof api.windowChrome.titleBarHeight === 'number'
@@ -68,14 +68,14 @@ const selectCodex = element('select-codex');
 let currentState: BootstrapState | undefined;
 
 const labels: Record<BootstrapState['phase'], [string, string]> = {
-  idle: ['Preparing OpenCreator', 'Initializing the desktop environment'],
+  idle: ['Preparing BrainBook Creator', 'Initializing the desktop environment'],
   resolving_codex: ['Locating Codex', 'Reading the shell environment and saved paths'],
-  starting_daemon: ['Starting the local Runtime', 'Creating an isolated OpenCreator Runtime'],
+  starting_daemon: ['Starting the local Runtime', 'Creating an isolated BrainBook Creator Runtime'],
   probing_codex: ['Checking Codex availability', 'Checking the local Codex process'],
-  starting_runtime: ['Opening OpenCreator', 'Loading local data and Codex capabilities'],
-  ready: ['Opening OpenCreator', 'The local Runtime is ready'],
+  starting_runtime: ['Opening BrainBook Creator', 'Loading local data and Codex capabilities'],
+  ready: ['Opening BrainBook Creator', 'The local Runtime is ready'],
   workspace_failed: ['Dashboard failed to load', 'The local Runtime is still running. Reload the Dashboard or restart the Runtime.'],
-  failed: ['Codex CLI is unavailable', 'OpenCreator did not receive a valid response. Check diagnostics and try again.']
+  failed: ['Codex CLI is unavailable', 'BrainBook Creator did not receive a valid response. Check diagnostics and try again.']
 };
 
 api.subscribeBootstrapState(render);
@@ -138,7 +138,7 @@ function failureLabel(state: BootstrapState): [string, string] {
   }
   if (state.error?.code === 'RUNTIME_DATA_IN_USE') {
     return [
-      'OpenCreator Runtime is already running',
+      'BrainBook Creator Runtime is already running',
       'Another instance is using the same data directory. Close the other window for this version and try again.'
     ];
   }

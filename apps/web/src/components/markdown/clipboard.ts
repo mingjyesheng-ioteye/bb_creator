@@ -102,7 +102,7 @@ async function serializeRichContent(root: HTMLElement): Promise<string> {
     image.style.setProperty('object-fit', 'contain');
   });
 
-  return `<!-- OpenCreator rich article -->${clone.outerHTML}`;
+  return `<!-- BrainBook Creator rich article -->${clone.outerHTML}`;
 }
 
 function copyVisibleBackground(computed: CSSStyleDeclaration, target: HTMLElement): void {

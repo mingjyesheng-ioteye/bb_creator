@@ -425,7 +425,7 @@ function readLatestResult(artifacts: CreatorArtifact[]): {
   if (artifact === undefined) return undefined;
   return {
     artifact,
-    fileName: readString(artifact.metadata.fileName) || 'OpenCreator-xiaohongshu-post.md',
+    fileName: readString(artifact.metadata.fileName) || 'BrainBook-Creator-xiaohongshu-post.md',
     title: readString(artifact.metadata.title) || 'Xiaohongshu post'
   };
 }

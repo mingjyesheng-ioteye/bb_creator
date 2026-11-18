@@ -214,7 +214,7 @@ describe('VideoDownloadWorkspace', () => {
     expect(screen.queryByRole('tab', { name: '视频信息' })).not.toBeInTheDocument();
     expect(screen.getByText('Creator Download')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '更换链接' })).toBeInTheDocument();
-    const panel = screen.getByRole('complementary', { name: 'OpenCreator' });
+    const panel = screen.getByRole('complementary', { name: 'BrainBook Creator' });
     const summary = within(panel).getByRole('complementary', { name: '任务摘要' });
     expect(screen.getAllByRole('complementary', { name: '任务摘要' })).toHaveLength(1);
     expect(summary.querySelector('details')).not.toHaveAttribute('open');
@@ -227,7 +227,7 @@ describe('VideoDownloadWorkspace', () => {
     expect(screen.getByLabelText('已完成 1080p')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '下载 1080p' }))
       .not.toBeInTheDocument();
-    expect(screen.queryByText('OpenCreator 视频示例')).not.toBeInTheDocument();
+    expect(screen.queryByText('BrainBook Creator 视频示例')).not.toBeInTheDocument();
     expect(screen.queryByText(/Vimeo/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: '作品' }));
@@ -455,7 +455,7 @@ describe('VideoDownloadWorkspace', () => {
 
     expect(await screen.findByText('可重新加载预览或保存到本机'))
       .toBeInTheDocument();
-    expect(screen.getByRole('complementary', { name: 'OpenCreator' }).querySelector('.creator-collaboration-issue')).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'BrainBook Creator' }).querySelector('.creator-collaboration-issue')).toBeInTheDocument();
     expect(screen.queryByText(/诊断编号：OC-/)).not.toBeInTheDocument();
     expect(screen.queryByText('preview unavailable')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '重新加载' }));
@@ -973,7 +973,7 @@ function probeArtifact(): CreatorArtifact {
       requestedUrl: 'https://www.youtube.com/watch?v=demo',
       url: 'https://www.youtube.com/watch?v=demo',
       platform: 'youtube',
-      uploader: 'OpenCreator',
+      uploader: 'BrainBook Creator',
       thumbnailUrl: 'https://i.ytimg.com/vi/demo/hqdefault.jpg',
       duration: 120,
       width: 1920,

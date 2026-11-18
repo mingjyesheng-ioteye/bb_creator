@@ -102,8 +102,8 @@ export function CodexRuntimeSettingsView(props: {
           <div>
             <h1 id="settings-codex-title">Codex Agent</h1>
             <p>{l(
-              '配置 OpenCreator Agent 使用的模型服务。',
-              'Configure the model provider used by OpenCreator Agent.'
+              '配置 BrainBook Creator Agent 使用的模型服务。',
+              'Configure the model provider used by BrainBook Creator Agent.'
             )}</p>
           </div>
         </header>
@@ -123,8 +123,8 @@ export function CodexRuntimeSettingsView(props: {
         <div>
           <h1 id="settings-codex-title">Codex Agent</h1>
           <p>{l(
-            '配置 OpenCreator Agent 使用的模型服务。',
-            'Configure the model provider used by OpenCreator Agent.'
+            '配置 BrainBook Creator Agent 使用的模型服务。',
+            'Configure the model provider used by BrainBook Creator Agent.'
           )}</p>
         </div>
       </header>

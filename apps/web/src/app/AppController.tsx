@@ -4567,7 +4567,7 @@ export function AppController(props: AppControllerProps) {
               {gatewayAccountState?.source === 'gateway'
                 ? gatewayAccountState.authState === 'signed_in'
                   ? gatewayAccountState.activationState === 'loading' ? l('已登录，正在连接模型服务…', 'Signed in; connecting to model service…') : l('已登录，模型服务暂不可用。', 'Signed in; model service is unavailable.')
-                  : l('请登录 OpenCreator 后继续创作。', 'Sign in to OpenCreator to continue creating.')
+                  : l('请登录 BrainBook Creator 后继续创作。', 'Sign in to BrainBook Creator to continue creating.')
                 : l('Agent 尚未配置，暂时无法发送任务。', 'Agent is not configured; you cannot send tasks yet.')}
               <button type="button" onClick={() => gatewayAccountState?.source === 'gateway' ? openPrimaryView('account') : setAgentSetup('needed')}>
                 {gatewayAccountState?.source === 'gateway' ? l('账户', 'Account') : l('配置 Agent', 'Set up Agent')}
@@ -5418,7 +5418,7 @@ function readDroppedDirectory(dataTransfer: DataTransfer): File | undefined {
 function PlaceholderView(props: { label: string }) {
   return (
     <section className="placeholder-page" aria-labelledby="placeholder-title">
-      <h1 id="placeholder-title">OpenCreator：{props.label}</h1>
+      <h1 id="placeholder-title">BrainBook Creator：{props.label}</h1>
     </section>
   );
 }

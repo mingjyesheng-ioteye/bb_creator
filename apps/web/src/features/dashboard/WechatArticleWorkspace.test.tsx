@@ -709,7 +709,7 @@ describe('WechatArticleWorkspace', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(350);
     });
-    const agent = screen.getByRole('complementary', { name: 'OpenCreator' });
+    const agent = screen.getByRole('complementary', { name: 'BrainBook Creator' });
     expect(agent).toHaveTextContent('文章模板状态已更新，请刷新页面后重新选择');
     expect(screen.queryByText(/invalid_enum_value/)).not.toBeInTheDocument();
     expect(screen.queryByText(/诊断编号：OC-/)).not.toBeInTheDocument();
@@ -771,7 +771,7 @@ describe('WechatArticleWorkspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '解析灵感并继续' }));
 
-    await waitFor(() => expect(screen.getByRole('complementary', { name: 'OpenCreator' })).toHaveTextContent('没有找到可用的视频字幕：youtube.com'));
+    await waitFor(() => expect(screen.getByRole('complementary', { name: 'BrainBook Creator' })).toHaveTextContent('没有找到可用的视频字幕：youtube.com'));
     expect(screen.getByRole('heading', { name: '添加内容灵感' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '写作要求' })).not.toBeInTheDocument();
   });
@@ -792,7 +792,7 @@ describe('WechatArticleWorkspace', () => {
       </LanguageProvider>
     );
 
-    const agent = screen.getByRole('complementary', { name: 'OpenCreator' });
+    const agent = screen.getByRole('complementary', { name: 'BrainBook Creator' });
     expect(agent).toHaveTextContent('没有找到可用的视频字幕：youtube.com');
     await act(async () => {
       await vi.advanceTimersByTimeAsync(4_000);
@@ -825,7 +825,7 @@ describe('WechatArticleWorkspace', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('complementary', { name: 'OpenCreator' }).querySelector('.creator-collaboration-issue')).toBeInTheDocument();
+      expect(screen.getByRole('complementary', { name: 'BrainBook Creator' }).querySelector('.creator-collaboration-issue')).toBeInTheDocument();
       expect(container.querySelector('.wechat-article-toast')).not.toBeInTheDocument();
       expect(container.querySelector('.creator-tool-error')).not.toBeInTheDocument();
     });
@@ -864,7 +864,7 @@ describe('WechatArticleWorkspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '添加' }));
 
-    expect(screen.getByRole('complementary', { name: 'OpenCreator' })).toHaveTextContent('请输入有效的网页或视频链接');
+    expect(screen.getByRole('complementary', { name: 'BrainBook Creator' })).toHaveTextContent('请输入有效的网页或视频链接');
     expect(container.querySelector('.wechat-article-toast')).not.toBeInTheDocument();
     expect(container.querySelector('.creator-tool-error')).not.toBeInTheDocument();
   });
@@ -902,7 +902,7 @@ describe('WechatArticleWorkspace', () => {
       </LanguageProvider>
     );
 
-    expect(screen.getByRole('complementary', { name: 'OpenCreator' })).toHaveTextContent('请先配置图像生成服务');
+    expect(screen.getByRole('complementary', { name: 'BrainBook Creator' })).toHaveTextContent('请先配置图像生成服务');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(container.querySelector('.wechat-article-toast')).not.toBeInTheDocument();
     expect(container.querySelector('.wechat-article-footer-stack > .wechat-article-actions')).toBeInTheDocument();

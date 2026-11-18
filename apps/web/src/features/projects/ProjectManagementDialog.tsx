@@ -253,7 +253,7 @@ export function ProjectManagementDialog(props: {
         title={l('移除项目', 'Remove project')}
         description={projectPendingRemoval === undefined
           ? l('项目目录和文件不会被删除。', 'The project folder and files will not be deleted.')
-          : l(`确认从 OpenCreator 中移除“${projectPendingRemoval.name}”？项目目录和文件不会被删除。`, `Remove "${projectPendingRemoval.name}" from OpenCreator? Its folder and files will not be deleted.`)}
+          : l(`确认从 BrainBook Creator 中移除“${projectPendingRemoval.name}”？项目目录和文件不会被删除。`, `Remove "${projectPendingRemoval.name}" from BrainBook Creator? Its folder and files will not be deleted.`)}
         confirmLabel={l('移除项目', 'Remove project')}
         destructive
         busy={removingProjectId !== undefined}
@@ -332,8 +332,8 @@ function ProjectEditForm(props: {
               && !await confirm({
                 title: l('开启完全访问权限', 'Enable full access'),
                 description: l(
-                  '完全访问权限允许 OpenCreator 访问本机文件并执行本地操作。仅为可信项目开启。',
-                  'Full access allows OpenCreator to access local files and perform local operations. Enable it only for trusted projects.'
+                  '完全访问权限允许 BrainBook Creator 访问本机文件并执行本地操作。仅为可信项目开启。',
+                  'Full access allows BrainBook Creator to access local files and perform local operations. Enable it only for trusted projects.'
                 ),
                 confirmLabel: l('开启', 'Enable')
               })

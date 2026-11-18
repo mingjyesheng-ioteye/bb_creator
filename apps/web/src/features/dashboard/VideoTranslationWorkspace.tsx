@@ -3115,7 +3115,7 @@ export default function VideoTranslationWorkspace(props: {
         );
         const link = document.createElement('a');
         link.href = url;
-        link.download = artifactFileName(artifact) ?? `OpenCreator-${artifact.kind}-V${resultVersion}`;
+        link.download = artifactFileName(artifact) ?? `BrainBook-Creator-${artifact.kind}-V${resultVersion}`;
         link.click();
         window.setTimeout(() => URL.revokeObjectURL(url), 0);
         setResultNotice(l('产物文件已开始下载', 'Artifact download started'));

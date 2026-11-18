@@ -261,7 +261,7 @@ export function OpenCreatorSidebar(props: {
   }, [taskMenuId]);
 
   return (
-    <nav className="opencreator-sidebar" aria-label="OpenCreator" data-collapsed={collapsed ? 'true' : 'false'}>
+    <nav className="opencreator-sidebar" aria-label="BrainBook Creator" data-collapsed={collapsed ? 'true' : 'false'}>
       <div className="sidebar-brand">
         {collapsed ? (
           <button
@@ -282,7 +282,7 @@ export function OpenCreatorSidebar(props: {
         ) : (
           <>
             <div className="sidebar-logo-lockup">
-              <span className="sidebar-logo-word">OpenCreator</span>
+              <span className="sidebar-logo-word">BrainBook Creator</span>
             </div>
             <div className="sidebar-brand-actions">
               <button
@@ -871,7 +871,7 @@ export function OpenCreatorSidebar(props: {
         title={l("移除项目", "Remove project")}
         description={projectPendingRemoval === undefined
           ? l("项目目录和文件不会被删除。", "Project directories and files will not be deleted.")
-          : l(`确认从 OpenCreator 中移除“${projectPendingRemoval.name}”？项目目录和文件不会被删除。`, `Are you sure you want to remove \"${projectPendingRemoval.name}\" from OpenCreator? Project directories and files will not be deleted.`)}
+          : l(`确认从 BrainBook Creator 中移除“${projectPendingRemoval.name}”？项目目录和文件不会被删除。`, `Are you sure you want to remove \"${projectPendingRemoval.name}\" from BrainBook Creator? Project directories and files will not be deleted.`)}
         confirmLabel={l("移除项目", "Remove project")}
         destructive
         onCancel={() => setProjectPendingRemoval(undefined)}

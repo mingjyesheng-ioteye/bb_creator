@@ -118,13 +118,13 @@ export function GatewayAccountSettingsView(props: {
       : state.activationState === 'loading' ? l('已登录，正在连接模型服务…', 'Signed in; connecting to model service…')
       : l('已登录，模型服务暂不可用', 'Signed in; model service is unavailable')
     : l('未登录', 'Signed out')}</p>;
-  return <section className={`gateway-account${compact ? ' gateway-account--login' : profile ? ' gateway-account--profile' : ''}`} aria-label={l('OpenCreator 账户', 'OpenCreator Account')}>
+  return <section className={`gateway-account${compact ? ' gateway-account--login' : profile ? ' gateway-account--profile' : ''}`} aria-label={l('BrainBook Creator 账户', 'BrainBook Creator Account')}>
     {!compact && !profile ? <div className="gateway-account__heading">
-      <h2>{l('OpenCreator 账户', 'OpenCreator Account')}</h2>
+      <h2>{l('BrainBook Creator 账户', 'BrainBook Creator Account')}</h2>
       <button type="button" className="gateway-account__icon" title={l('刷新账户', 'Refresh account')} aria-label={l('刷新账户', 'Refresh account')} disabled={busy || !service} onClick={() => void action(refresh)}><RefreshCw size={16}/></button>
     </div> : null}
     {state?.account && !profile ? <p className="gateway-account__email">{state.account.email}</p> : null}
-    {profile ? <div className="gateway-account__identity"><h2>{signedIn ? state.account?.email ?? l('OpenCreator 账户', 'OpenCreator Account') : l('OpenCreator 账户', 'OpenCreator Account')}</h2>{status}</div> : status}
+    {profile ? <div className="gateway-account__identity"><h2>{signedIn ? state.account?.email ?? l('BrainBook Creator 账户', 'BrainBook Creator Account') : l('BrainBook Creator 账户', 'BrainBook Creator Account')}</h2>{status}</div> : status}
     {state?.activationError && (!profile || !signedIn) ? <p role="alert">{state.activationError.code === 'device_expired' ? l('登录授权已过期，请重新登录。', 'Authorization expired. Please sign in again.')
       : !signedIn ? l('登录未完成，请重新登录。', 'Sign-in did not complete. Please try again.')
       : state.activationError.code === 'active_tasks' ? l('请等待当前任务结束后再连接官方服务。', 'Wait for the current tasks to finish before connecting official services.') : l('模型服务暂不可用，请重新连接。', 'Model service is unavailable. Please reconnect.')}</p> : null}
@@ -134,7 +134,7 @@ export function GatewayAccountSettingsView(props: {
       {props.onOpenSubscription ? <button type="button" onClick={props.onOpenSubscription}><CreditCard size={16}/>{l('积分与充值', 'Credits')}</button> : null}
       <button type="button" disabled={busy || !service} onClick={() => void action(async () => update(await service!.logout()))}><LogOut size={16}/>{l('退出登录', 'Sign out')}</button>
     </div> : state?.authState === 'authorizing' ? <button type="button" disabled={busy} onClick={() => void action(async () => { update(await service!.cancel()); props.onSignInCanceled?.(); })}>{l('取消登录', 'Cancel sign-in')}</button>
-      : <button type="button" className="gateway-account__primary" disabled={busy || !service || !state || state.authState === 'signing_out' || state.authState === 'disabled'} onClick={() => void action(signIn)}><LogIn size={16}/>{busy ? l('正在登录…', 'Signing in…') : profile ? l('登录 / 注册', 'Sign in / Sign up') : l('登录 OpenCreator', 'Sign in to OpenCreator')}</button>}
+      : <button type="button" className="gateway-account__primary" disabled={busy || !service || !state || state.authState === 'signing_out' || state.authState === 'disabled'} onClick={() => void action(signIn)}><LogIn size={16}/>{busy ? l('正在登录…', 'Signing in…') : profile ? l('登录 / 注册', 'Sign in / Sign up') : l('登录 BrainBook Creator', 'Sign in to BrainBook Creator')}</button>}
     {authorization ? <a href={authorization.authorizationUrl} target="_blank" rel="noreferrer">{l('打开登录页面', 'Open sign-in page')} <ExternalLink size={14}/></a> : null}
     {error ? <p role="alert">{error}</p> : null}
     {(compact || profile) && error && !state && service ? <button type="button" disabled={busy} onClick={() => void action(refresh)}><RefreshCw size={16}/>{l('重试', 'Retry')}</button> : null}

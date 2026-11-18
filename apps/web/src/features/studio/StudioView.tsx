@@ -108,7 +108,7 @@ export function StudioView(props: StudioViewProps) {
       <div className="studio__inner">
         <header className="studio__header">
           <div>
-            <h1>{l('媒体工坊', 'Studio')}</h1>
+            <h1>{l('特别关怀工作室', 'Special Care Studio')}</h1>
             <p className="studio__muted">
               {tab === 'instructor'
                 ? l('小班课堂控制台：出勤、进度与计时。', 'Instructor-led classroom console: attendance, progress and timing.')
@@ -147,7 +147,7 @@ export function StudioView(props: StudioViewProps) {
         {tab === 'instructor' ? (
           <InstructorView courseService={props.courseService} />
         ) : service === null ? (
-          <p className="studio__muted">{l('本机 Runtime 就绪后可使用媒体工坊', 'Connect the local Runtime to use the Studio')}</p>
+          <p className="studio__muted">{l('本机 Runtime 就绪后可使用特别关怀工作室', 'Connect the local Runtime to use the Special Care Studio')}</p>
         ) : (
           <>
             {error === undefined ? null : (

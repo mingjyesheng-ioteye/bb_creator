@@ -33,7 +33,7 @@ export async function exportDesktopDiagnostics(input: {
   };
   const now = dependencies.now();
   const result = await dependencies.showSaveDialog({
-    title: 'Export OpenCreator diagnostics',
+    title: 'Export BrainBook Creator diagnostics',
     defaultPath: `opencreator-diagnostics-${now.toISOString().slice(0, 10)}.json`,
     filters: [{ name: 'JSON', extensions: ['json'] }]
   });

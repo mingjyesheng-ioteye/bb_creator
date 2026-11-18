@@ -30,7 +30,7 @@ describe('copyRichContent', () => {
     const item = writeCalls[0]![0][0]!;
     expect(Object.keys(item.data)).toEqual(['text/html', 'text/plain']);
     const html = await readBlobText(await item.data['text/html']!);
-    expect(html).toContain('OpenCreator rich article');
+    expect(html).toContain('BrainBook Creator rich article');
     expect(html).toContain('color: rgb(40, 91, 120)');
     expect(html).toContain('background-color: rgb(244, 248, 246)');
     expect(html).toContain('border-left: 4px solid rgb(47, 125, 104)');

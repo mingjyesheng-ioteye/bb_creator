@@ -116,7 +116,7 @@ export default function AgentDiagnosticsPanel(props: {
     >
       <header>
         <span aria-hidden="true"><OpenCreatorMark size={18} /></span>
-        <strong>OpenCreator</strong>
+        <strong>BrainBook Creator</strong>
         <button type="button" onClick={() => { restoreFocusRef.current = true; setVisibility('closed'); }} aria-label={localize('收起诊断', 'Close diagnostics', 'Stäng diagnostiken')} title={localize('收起诊断', 'Close diagnostics', 'Stäng diagnostiken')}><X size={17} aria-hidden="true" /></button>
       </header>
       <div className="agent-diagnostics-timeline" role="log" aria-label={localize('诊断对话', 'Diagnostic conversation', 'Diagnostiksamtal')} aria-live="polite">

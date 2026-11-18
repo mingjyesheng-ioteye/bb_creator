@@ -19,7 +19,7 @@ it('shows an expired session explicitly and keeps reauthorization available', as
   vi.mocked(value.getState).mockResolvedValue({ ...state, authState: 'expired', activationState: 'inactive' });
   render(<LanguageProvider initialPreference="zh-CN"><GatewayAccountSettingsView service={value}/></LanguageProvider>);
   expect(await screen.findByText('登录已过期，请重新登录')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '登录 OpenCreator' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: '登录 BrainBook Creator' })).toBeEnabled();
 });
 it('checks authorization on return and displays sign-in before model services are ready', async () => {
   const value = service();

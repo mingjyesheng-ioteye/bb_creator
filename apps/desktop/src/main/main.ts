@@ -46,7 +46,7 @@ import type {
 } from '../shared/types.js';
 
 registerPrivilegedSchemes();
-app.setName('OpenCreator');
+app.setName('BrainBook Creator');
 app.commandLine.appendSwitch('lang', 'zh-CN');
 const APP_ENTRY_AT = Date.now();
 const DEVELOPMENT =
@@ -64,7 +64,7 @@ if (!hasSingleInstanceLock) {
 } else {
   void launchDesktop().catch(error => {
     console.error(
-      `OpenCreator Desktop failed to start: ${error instanceof Error ? error.stack ?? error.message : String(error)}`
+      `BrainBook Creator Desktop failed to start: ${error instanceof Error ? error.stack ?? error.message : String(error)}`
     );
     app.exit(1);
   });
@@ -140,7 +140,7 @@ async function launchDesktop(): Promise<void> {
   const stickmanRuntimeRoot = process.env.OPENCREATOR_STICKMAN_RUNTIME_ROOT
     ?? join(dataDir, 'creator-runtime', 'stickman');
 
-  logger.info('OpenCreator Desktop starting', {
+  logger.info('BrainBook Creator Desktop starting', {
     development,
     appRoot,
     dataDir,
@@ -204,7 +204,7 @@ async function launchDesktop(): Promise<void> {
         await windowManager?.loadWorkspace();
         workspaceLoaded = true;
         bootstrap?.markWorkspaceReady();
-        logger.info('OpenCreator workspace ready', {
+        logger.info('BrainBook Creator workspace ready', {
           durationMs: Date.now() - APP_ENTRY_AT
         });
         windowManager?.show();
@@ -213,7 +213,7 @@ async function launchDesktop(): Promise<void> {
         }
         notifications.start();
       } catch (error) {
-        logger.error('Failed to load the OpenCreator workspace', {
+        logger.error('Failed to load the BrainBook Creator workspace', {
           message: error instanceof Error ? error.message : String(error)
         });
         bootstrap?.markWorkspaceFailed(error);
@@ -322,7 +322,7 @@ async function launchDesktop(): Promise<void> {
     event.preventDefault();
     if (shutdownStarted) return;
     shutdownStarted = true;
-    logger.info('OpenCreator Desktop quitting');
+    logger.info('BrainBook Creator Desktop quitting');
     windowManager?.beginQuit();
     protocolController.suspendRuntime();
     notifications.stop();

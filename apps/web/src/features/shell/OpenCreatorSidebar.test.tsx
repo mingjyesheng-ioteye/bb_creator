@@ -126,12 +126,12 @@ describe('OpenCreatorSidebar', () => {
   it('renders global actions, projects with nested conversations, and the settings footer action', () => {
     renderSidebar();
 
-    expect(screen.getByText('OpenCreator')).toHaveClass('sidebar-logo-word');
+    expect(screen.getByText('BrainBook Creator')).toHaveClass('sidebar-logo-word');
     expect(screen.queryByText('v1.0')).not.toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.getByText('整理本周项目进...')).toHaveClass('conversation-title-hover');
     expect(screen.queryByText('Coca-Cola')).not.toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: 'OpenCreator' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'BrainBook Creator' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '收起侧栏' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '模版' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '我的项目' })).toBeInTheDocument();
@@ -187,7 +187,7 @@ describe('OpenCreatorSidebar', () => {
       .querySelector('.lucide-folder-kanban')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '设置' })
       .querySelector('.lucide-sliders-horizontal')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '媒体工坊' })
+    expect(screen.getByRole('button', { name: '特别关怀工作室' })
       .querySelector('.lucide-clapperboard')).toBeInTheDocument();
     expect(view.container.querySelectorAll('.sidebar-nav-icon')).toHaveLength(6);
   });
@@ -234,11 +234,11 @@ describe('OpenCreatorSidebar', () => {
     expect(screen.getByRole('button', { name: '生成 B 站封面 1天' })).toBeInTheDocument();
   });
 
-  it('shows only the OpenCreator wordmark without an image logo in light mode', () => {
+  it('shows only the BrainBook Creator wordmark without an image logo in light mode', () => {
     const { container } = renderSidebar({ colorMode: 'light' });
 
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(screen.getByText('OpenCreator')).toHaveClass('sidebar-logo-word');
+    expect(screen.getByText('BrainBook Creator')).toHaveClass('sidebar-logo-word');
     expect(container.querySelector('.sidebar-logo-image')).not.toBeInTheDocument();
     expect(screen.queryByText('v1.0')).not.toBeInTheDocument();
   });
@@ -569,7 +569,7 @@ describe('OpenCreatorSidebar', () => {
     await user.click(remove);
 
     expect(screen.getByRole('alertdialog', { name: '移除项目' })).toBeInTheDocument();
-    expect(screen.getByText('确认从 OpenCreator 中移除“content-design”？项目目录和文件不会被删除。'))
+    expect(screen.getByText('确认从 BrainBook Creator 中移除“content-design”？项目目录和文件不会被删除。'))
       .toBeInTheDocument();
     expect(onArchiveProject).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: '移除项目' }));
@@ -690,12 +690,12 @@ describe('OpenCreatorSidebar', () => {
     expect(screen.getByRole('button', { name: '展开侧栏' })).toBeInTheDocument();
     expect(container.querySelector('.sidebar-logo-image')).toBeInTheDocument();
     expect(screen.queryByText('OC')).not.toBeInTheDocument();
-    expect(screen.queryByText('OpenCreator')).not.toBeInTheDocument();
+    expect(screen.queryByText('BrainBook Creator')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '收起侧栏' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '我的项目' })).toHaveAttribute('title', '我的项目');
     expect(screen.queryByText('折叠时隐藏的任务')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '登录' })).not.toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'OpenCreator' })).toHaveAttribute('data-collapsed', 'true');
+    expect(screen.getByRole('navigation', { name: 'BrainBook Creator' })).toHaveAttribute('data-collapsed', 'true');
 
     await user.click(screen.getByRole('button', { name: '展开侧栏' }));
 

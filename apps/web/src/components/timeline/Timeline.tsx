@@ -97,7 +97,7 @@ function getTimelineTitle(l: LocalizeCopy, item: TimelineItem): string {
     case 'schedule_trigger':
       return l("定时执行", "Scheduled execution");
     case 'assistant_message':
-      return 'OpenCreator';
+      return 'BrainBook Creator';
     case 'change_card':
       return l("文件变更", "File changes");
     case 'approval':
@@ -1447,7 +1447,7 @@ export const Timeline = forwardRef<TimelineHandle, TimelineProps>(function Timel
       {props.items.length === 0 ? (
         <div className="timeline-empty">
           <strong>{l("暂无任务记录", "No task record yet")}</strong>
-          <span>{l("发送任务后，OpenCreator 会在这里展示处理过程和结果。", "After sending the task, OpenCreator will display the processing process and results here.")}</span>
+          <span>{l("发送任务后，BrainBook Creator 会在这里展示处理过程和结果。", "After sending the task, BrainBook Creator will display the processing process and results here.")}</span>
         </div>
       ) : (
         <div

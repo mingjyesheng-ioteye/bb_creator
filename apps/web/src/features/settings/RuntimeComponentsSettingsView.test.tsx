@@ -53,7 +53,7 @@ describe('RuntimeComponentsSettingsView', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'yt-dlp 更新校验失败，当前版本仍可继续使用。'
     );
-    expect(screen.queryByText('更新失败时，OpenCreator 会继续使用当前可用版本。'))
+    expect(screen.queryByText('更新失败时，BrainBook Creator 会继续使用当前可用版本。'))
       .not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('有可用更新')).toBeInTheDocument());
   });

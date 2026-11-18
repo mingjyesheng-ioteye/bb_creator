@@ -1,6 +1,6 @@
 appId: com.opencreator.desktop
-productName: OpenCreator
-artifactName: OpenCreator-${version}-${os}-${arch}.${ext}
+productName: BrainBook Creator
+artifactName: BrainBook-Creator-${version}-${os}-${arch}.${ext}
 asar: true
 npmRebuild: false
 electronFuses:
@@ -60,7 +60,7 @@ extraResources:
   - from: resources
     to: desktop-resources
 protocols:
-  - name: OpenCreator
+  - name: BrainBook Creator
     schemes:
       - opencreator
 publish:

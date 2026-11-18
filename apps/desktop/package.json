@@ -2,8 +2,8 @@
   "name": "@opencreator/desktop",
   "version": "3.2.6",
   "private": true,
-  "description": "OpenCreator 本地 Codex Dashboard",
-  "author": "OpenCreator",
+  "description": "BrainBook Creator 本地 Codex Dashboard",
+  "author": "BrainBook Creator",
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {

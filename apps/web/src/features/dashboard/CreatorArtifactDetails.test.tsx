@@ -79,7 +79,7 @@ it('keeps the adopted version unchanged when the command fails', async () => {
   const details = within(await openDetails());
   fireEvent.change(details.getByLabelText('浏览产物（不改变项目选择）'), { target: { value: 'artifact-1' } });
   fireEvent.click(details.getByRole('button', { name: '采用项目版本' }));
-  await waitFor(() => expect(screen.getByRole('complementary', { name: 'OpenCreator' }).querySelector('.creator-collaboration-issue')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByRole('complementary', { name: 'BrainBook Creator' }).querySelector('.creator-collaboration-issue')).toBeInTheDocument());
   expect(details.queryByRole('alert')).not.toBeInTheDocument();
   expect(screen.queryByText('Revision conflict')).not.toBeInTheDocument();
   expect(f.job.state.resultVersion).toBe(2);

@@ -165,13 +165,13 @@ function completedJob(job: CreatorJob): CreatorJob {
     kind: 'short_video_script',
     version: 1,
     status: 'completed',
-    path: '/tmp/OpenCreator-short-video-script.md',
+    path: '/tmp/BrainBook-Creator-short-video-script.md',
     scopeKey: null,
     inputFingerprint: null,
     sha256: null,
     sourceArtifactIds: [],
     metadata: {
-      fileName: 'OpenCreator-short-video-script.md',
+      fileName: 'BrainBook-Creator-short-video-script.md',
       title: '第一次参与开源',
       resultVersion: 1
     },

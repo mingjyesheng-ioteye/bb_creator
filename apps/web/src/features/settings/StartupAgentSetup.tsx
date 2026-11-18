@@ -163,7 +163,7 @@ export function StartupAgentSetup(props: {
     <main className="startup-agent-setup">
       <section className="startup-agent-setup__card" aria-label={l('开始使用 Agent', 'Get started with Agent')}>
         <OpenCreatorMark size={48} aria-hidden="true" />
-        <h1>OpenCreator</h1>
+        <h1>BrainBook Creator</h1>
         {entry === 'choose' ? <div className="startup-agent-setup__entry">
           <button type="button" className="startup-agent-setup__primary" disabled={busy} onClick={() => void login()}><LogIn size={18}/>{l('登录模式', 'Sign-in mode')}</button>
           <button type="button" disabled={busy} onClick={() => setEntry('local')}><Monitor size={18}/>{l('本地模式', 'Local mode')}</button>
@@ -173,7 +173,7 @@ export function StartupAgentSetup(props: {
         {loading ? <p role="status">{l('正在检查本机 Codex…', 'Checking local Codex…')}</p> : null}
         {!loading && existingMode !== null ? (
           <>
-            <p>{l('本机 Codex 已有可用配置，可直接用于 OpenCreator。', 'Your local Codex is ready to use with OpenCreator.')}</p>
+            <p>{l('本机 Codex 已有可用配置，可直接用于 BrainBook Creator。', 'Your local Codex is ready to use with BrainBook Creator.')}</p>
             <div className="startup-agent-setup__detected" role="status">
               <strong>{l('已找到本机 Codex', 'Local Codex found')}</strong>
               <span>{existingMode === 'chatgpt'

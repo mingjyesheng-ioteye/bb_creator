@@ -98,7 +98,7 @@ export class WindowManager {
       minHeight: 680,
       show: false,
       backgroundColor: nativeWindowBackgroundColor(this.colorMode),
-      title: 'OpenCreator',
+      title: 'BrainBook Creator',
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
